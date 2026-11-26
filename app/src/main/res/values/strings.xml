@@ -102,4 +102,12 @@
     <string name="left_this_month">Left this month</string>
     <string name="over_this_month">Over budget this month</string>
     <string name="top_spending">Top spending</string>
+    <string name="bg_aurora">Aurora</string>
+    <string name="bg_particles">Particles</string>
+    <string name="bg_photo">Photo</string>
+    <string name="choose_photo">Choose photo</string>
+    <string name="photo_blur">Blur</string>
+    <string name="photo_dim">Dim</string>
+    <string name="accent_from_photo">Accent from photo</string>
+    <string name="parallax">Tilt parallax</string>
 </resources>

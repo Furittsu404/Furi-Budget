@@ -65,7 +65,8 @@ fun resolveColors(spec: ThemeSpec, pack: ThemePack, systemDark: Boolean, dynamic
     val roles = AccentDerivation.derive(accentArgb, dark, surface)
     val lch = toOklch(roles.accent)
     val second = if (spec.gradientAccent) fromOklch(Oklch(lch.l, lch.c, (lch.h + 38) % 360)) else roles.accent
-    fun semantic(argb: Int) = Color(ensureContrast(argb, surface, 4.5))
+    // 5.5 rather than 4.5: translucent cards sit over brighter blobs than the page colour alone.
+    fun semantic(argb: Int) = Color(ensureContrast(argb, surface, 5.5))
     val (income, expense, warning) = if (spec.colorblindSafe) {
         Triple(semantic(0xFF3B82F6.toInt()), semantic(0xFFF97316.toInt()), semantic(0xFFEAB308.toInt()))
     } else {

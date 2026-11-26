@@ -2,7 +2,17 @@ package app.furibudget.ui.appearance
 
 import android.os.Build
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import app.furibudget.ui.theme.PhotoImport
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
@@ -349,17 +359,53 @@ private fun BrightnessSection(spec: ThemeSpec, onChange: ((ThemeSpec) -> ThemeSp
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun BackgroundSection(spec: ThemeSpec, onChange: ((ThemeSpec) -> ThemeSpec) -> Unit) {
     val current = spec.background ?: Furi.pack.defaultBackground
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val pick = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) scope.launch {
+            val photo = withContext(Dispatchers.IO) { PhotoImport.import(context, uri, spec.photoPath) }
+            if (photo != null) onChange { it.copy(background = BackgroundKind.PHOTO, photoPath = photo.path, photoColors = photo.colors) }
+        }
+    }
     Section(stringResource(R.string.background)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf(
                 BackgroundKind.MESH to R.string.bg_mesh,
+                BackgroundKind.AURORA to R.string.bg_aurora,
+                BackgroundKind.PARTICLES to R.string.bg_particles,
                 BackgroundKind.GRADIENT to R.string.bg_gradient,
                 BackgroundKind.SOLID to R.string.bg_solid,
             ).forEach { (kind, label) ->
                 FilterChip(selected = current == kind, onClick = { onChange { it.copy(background = kind) } }, label = { Text(stringResource(label)) })
+            }
+            FilterChip(
+                selected = current == BackgroundKind.PHOTO,
+                onClick = {
+                    if (spec.photoPath != null) onChange { it.copy(background = BackgroundKind.PHOTO) }
+                    else pick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                },
+                label = { Text(stringResource(R.string.bg_photo)) },
+            )
+        }
+        if (current == BackgroundKind.PHOTO) {
+            FilledTonalButton(onClick = { pick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }) {
+                Text(stringResource(R.string.choose_photo))
+            }
+            LabeledSlider(stringResource(R.string.photo_blur), spec.photoBlur, 0f..1f, listOf(Color.Transparent, Furi.colors.accent)) { v -> onChange { it.copy(photoBlur = v) } }
+            LabeledSlider(stringResource(R.string.photo_dim), spec.photoDim, 0f..0.9f, listOf(Color.Transparent, Color.Black)) { v -> onChange { it.copy(photoDim = v) } }
+            if (spec.photoColors.isNotEmpty()) {
+                Text(stringResource(R.string.accent_from_photo), style = MaterialTheme.typography.labelLarge, color = Furi.colors.onSurfaceVariant)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    spec.photoColors.forEach { argb ->
+                        Swatch(Color(argb), stringResource(R.string.accent_from_photo), (spec.accent as? AccentChoice.Photo)?.argb == argb) {
+                            onChange { it.copy(accent = AccentChoice.Photo(argb)) }
+                        }
+                    }
+                }
             }
         }
     }
@@ -369,6 +415,7 @@ private fun BackgroundSection(spec: ThemeSpec, onChange: ((ThemeSpec) -> ThemeSp
 private fun DetailsSection(spec: ThemeSpec, onChange: ((ThemeSpec) -> ThemeSpec) -> Unit) {
     Section(stringResource(R.string.details)) {
         SwitchRow(stringResource(R.string.gradient_accent), spec.gradientAccent) { v -> onChange { it.copy(gradientAccent = v) } }
+        SwitchRow(stringResource(R.string.parallax), spec.parallax) { v -> onChange { it.copy(parallax = v) } }
         SwitchRow(stringResource(R.string.colorblind), spec.colorblindSafe) { v -> onChange { it.copy(colorblindSafe = v) } }
         Column {
             Row(verticalAlignment = Alignment.CenterVertically) {

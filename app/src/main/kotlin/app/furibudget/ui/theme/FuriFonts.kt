@@ -18,4 +18,9 @@ object FuriFonts {
 
     val manrope: FontFamily by lazy { family(R.font.manrope) }
     val sora: FontFamily by lazy { family(R.font.sora) }
+
+    // Ledger and Void use system faces for now (their chosen fonts could not be downloaded).
+    val serif: FontFamily = FontFamily.Serif
+    val sans: FontFamily = FontFamily.SansSerif
+    val rounded: FontFamily by lazy { family(R.font.fredoka) }
 }

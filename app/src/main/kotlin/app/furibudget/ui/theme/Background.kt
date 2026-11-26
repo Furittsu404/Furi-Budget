@@ -19,6 +19,22 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import android.content.Context
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.State
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
+import java.io.File
+import kotlin.random.Random
 import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.sin
@@ -31,7 +47,7 @@ fun FuriBackground(modifier: Modifier = Modifier) {
     val motion = Furi.motion
     val scale by rememberUpdatedState(motion.scale)
     val clock = remember { mutableFloatStateOf(0f) }
-    val animating = kind == BackgroundKind.MESH && motion.enabled
+    val animating = kind in setOf(BackgroundKind.MESH, BackgroundKind.AURORA, BackgroundKind.PARTICLES) && motion.enabled
     LaunchedEffect(animating) {
         if (!animating) return@LaunchedEffect
         var last = 0L
@@ -42,25 +58,42 @@ fun FuriBackground(modifier: Modifier = Modifier) {
             }
         }
     }
-    when {
-        kind == BackgroundKind.SOLID -> Box(modifier.fillMaxSize().background(c.background))
-        kind == BackgroundKind.MESH && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU ->
-            ShaderMesh(modifier, c, clock)
-        else -> Canvas(modifier.fillMaxSize()) {
-            drawBlobs(c, if (kind == BackgroundKind.MESH) clock.floatValue else 0f)
+    val tilt = if (Furi.spec.parallax && motion.enabled) rememberTilt() else null
+    val shift = Modifier.graphicsLayer {
+        val t = tilt?.value
+        if (t != null) {
+            translationX = t.x * 28.dp.toPx()
+            translationY = t.y * 28.dp.toPx()
+            scaleX = 1.12f
+            scaleY = 1.12f
+        }
+    }
+    Box(modifier.fillMaxSize().background(c.background)) {
+        when {
+            kind == BackgroundKind.SOLID -> Unit
+            kind == BackgroundKind.PHOTO && Furi.spec.photoPath != null -> PhotoLayer(Furi.spec, shift)
+            kind == BackgroundKind.PARTICLES -> Canvas(Modifier.fillMaxSize().then(shift)) {
+                drawBlobs(c, 0f, strength = 0.6f)
+                drawParticles(c, clock.floatValue)
+            }
+            (kind == BackgroundKind.MESH || kind == BackgroundKind.AURORA) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU ->
+                ShaderLayer(Modifier.then(shift), c, clock, aurora = kind == BackgroundKind.AURORA)
+            else -> Canvas(Modifier.fillMaxSize().then(shift)) {
+                drawBlobs(c, if (kind == BackgroundKind.GRADIENT) 0f else clock.floatValue)
+            }
         }
     }
 }
 
 private fun Modifier.background(color: Color) = this.then(Modifier.drawWithCache { onDrawBehind { drawRect(color) } })
 
-private fun DrawScope.drawBlobs(c: FuriColors, t: Float) {
+private fun DrawScope.drawBlobs(c: FuriColors, t: Float, strength: Float = 1f) {
     drawRect(c.background)
     val w = size.width
     val h = size.height
     val r = max(w, h) * 0.75f
     fun blob(color: Color, cx: Float, cy: Float) = drawRect(
-        Brush.radialGradient(listOf(color, Color.Transparent), center = Offset(cx, cy), radius = r),
+        Brush.radialGradient(listOf(color.copy(alpha = color.alpha * strength), Color.Transparent), center = Offset(cx, cy), radius = r),
     )
     blob(c.meshA, w * (0.25f + 0.12f * sin(t * 0.21f)), h * (0.18f + 0.08f * cos(t * 0.17f)))
     blob(c.meshB, w * (0.85f + 0.10f * cos(t * 0.19f)), h * (0.50f + 0.12f * sin(t * 0.23f)))
@@ -102,8 +135,8 @@ half4 main(float2 fc) {
 
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @Composable
-private fun ShaderMesh(modifier: Modifier, c: FuriColors, clock: androidx.compose.runtime.MutableFloatState) {
-    val shader = remember { RuntimeShader(MESH_AGSL) }
+private fun ShaderLayer(modifier: Modifier, c: FuriColors, clock: androidx.compose.runtime.MutableFloatState, aurora: Boolean) {
+    val shader = remember(aurora) { RuntimeShader(if (aurora) AURORA_AGSL else MESH_AGSL) }
     Box(
         modifier.fillMaxSize().drawWithCache {
             val brush = ShaderBrush(shader)
@@ -118,4 +151,96 @@ private fun ShaderMesh(modifier: Modifier, c: FuriColors, clock: androidx.compos
             }
         },
     )
+}
+
+private const val AURORA_AGSL = """
+uniform float2 size;
+uniform float time;
+uniform float4 bg;
+uniform float4 ca;
+uniform float4 cb;
+uniform float4 cc;
+
+float ribbon(float2 uv, float y0, float phase, float speed) {
+    float wave = sin(uv.x * 3.2 + time * speed + phase) * 0.09 + sin(uv.x * 7.5 - time * speed * 0.7 + phase * 1.7) * 0.03;
+    float d = uv.y - (y0 + wave);
+    float core = exp(-d * d * 120.0);
+    float halo = exp(-abs(d) * 5.0) * 0.35;
+    return core + halo;
+}
+
+float hash(float2 p) {
+    return fract(sin(dot(p, float2(12.9898, 78.233))) * 43758.5453);
+}
+
+half4 main(float2 fc) {
+    float2 uv = fc / size;
+    float3 col = bg.rgb;
+    float a = ribbon(uv, 0.22, 0.0, 0.22) * (0.65 + 0.35 * sin(time * 0.40));
+    float b = ribbon(uv, 0.48, 2.1, 0.17) * (0.65 + 0.35 * sin(time * 0.33 + 1.3));
+    float c = ribbon(uv, 0.78, 4.2, 0.26) * (0.65 + 0.35 * sin(time * 0.47 + 2.6));
+    col = mix(col, ca.rgb, clamp(a * max(ca.a, 0.5), 0.0, 0.85));
+    col = mix(col, cb.rgb, clamp(b * max(cb.a, 0.5), 0.0, 0.85));
+    col = mix(col, cc.rgb, clamp(c * max(cc.a, 0.5), 0.0, 0.85));
+    col += (hash(fc) - 0.5) / 255.0 * 1.5;
+    return half4(col, 1.0);
+}
+"""
+
+private fun DrawScope.drawParticles(c: FuriColors, t: Float) {
+    val r = Random(11)
+    val tint = if (c.dark) c.onSurface else c.accent
+    repeat(44) { i ->
+        val bx = r.nextFloat()
+        val by = r.nextFloat()
+        val speed = 0.012f + r.nextFloat() * 0.03f
+        val rad = (1.2f + r.nextFloat() * 3.6f) * density()
+        val phase = r.nextFloat() * 6.28f
+        val y = ((by - t * speed) % 1f + 1f) % 1f
+        val x = bx + 0.02f * sin(t * 0.3f + phase)
+        val twinkle = 0.35f + 0.65f * (0.5f + 0.5f * sin(t * 0.9f + phase))
+        drawCircle(tint.copy(alpha = 0.45f * twinkle), rad, Offset(x * size.width, y * size.height))
+        if (i % 6 == 0) drawCircle(tint.copy(alpha = 0.10f * twinkle), rad * 4f, Offset(x * size.width, y * size.height))
+    }
+}
+
+private fun DrawScope.density() = this.drawContext.density.density
+
+@Composable
+private fun PhotoLayer(spec: ThemeSpec, shift: Modifier) {
+    val file = remember(spec.photoPath) { spec.photoPath?.let { File(it) } }
+    Box(Modifier.fillMaxSize().then(shift)) {
+        AsyncImage(
+            model = file,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize().then(
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && spec.photoBlur > 0.01f) Modifier.blur((spec.photoBlur * 24f).dp) else Modifier,
+            ),
+        )
+        Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = spec.photoDim.coerceIn(0f, 0.9f))))
+    }
+}
+
+/** Phone tilt as a -1..1 offset, eased so the background glides rather than jitters. */
+@Composable
+fun rememberTilt(): State<Offset> {
+    val context = LocalContext.current
+    val tilt = remember { mutableStateOf(Offset.Zero) }
+    DisposableEffect(Unit) {
+        val sm = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        val sensor = sm.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+        val listener = object : SensorEventListener {
+            override fun onSensorChanged(e: SensorEvent) {
+                val tx = (-e.values[0] / 6f).coerceIn(-1f, 1f)
+                val ty = (e.values[1] / 9f - 0.6f).coerceIn(-1f, 1f)
+                val cur = tilt.value
+                tilt.value = Offset(cur.x + (tx - cur.x) * 0.08f, cur.y + (ty - cur.y) * 0.08f)
+            }
+            override fun onAccuracyChanged(s: Sensor?, a: Int) = Unit
+        }
+        if (sensor != null) sm.registerListener(listener, sensor, SensorManager.SENSOR_DELAY_GAME)
+        onDispose { sm.unregisterListener(listener) }
+    }
+    return tilt
 }

@@ -7,7 +7,7 @@ import kotlinx.serialization.Serializable
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
 @Serializable
-enum class BackgroundKind { MESH, GRADIENT, SOLID }
+enum class BackgroundKind { MESH, AURORA, PARTICLES, GRADIENT, SOLID, PHOTO }
 
 @Serializable
 sealed interface AccentChoice {
@@ -30,4 +30,14 @@ data class ThemeSpec(
     val background: BackgroundKind? = null,
     /** 0 = still, 1 = full motion. Multiplies every animation the app owns. */
     val motion: Float = 1f,
+    /** App-private copy of the chosen background photo; used when [background] is PHOTO. */
+    val photoPath: String? = null,
+    /** 0 to 1, scaled to 0 to 24 dp of blur. */
+    val photoBlur: Float = 0.25f,
+    /** 0 to 1 black overlay so text stays readable. */
+    val photoDim: Float = 0.35f,
+    /** Accent candidates pulled from the photo when it was chosen. */
+    val photoColors: List<Int> = emptyList(),
+    /** Shift the background a few dp as the phone tilts. */
+    val parallax: Boolean = false,
 )

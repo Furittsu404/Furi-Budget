@@ -5,7 +5,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
-enum class CardStyle { GLASS, OUTLINE }
+enum class CardStyle { GLASS, OUTLINE, FLAT }
 
 /** Spring feel for one pack. Scaled by the user's motion setting. */
 data class MotionProfile(val dampingRatio: Float, val stiffness: Float)
@@ -88,7 +88,78 @@ object ThemePacks {
         family = { FuriFonts.sora },
     )
 
-    val all = listOf(glass, neon)
+    val paper = ThemePack(
+        id = "paper",
+        name = "Ledger",
+        tagline = "Crisp white sheets with soft shadows",
+        dark = null,
+        light = PackPalette(
+            background = Color(0xFFF3F5F8),
+            card = Color(0xFFFFFFFF),
+            cardBorder = Color(0xFFE1E6ED),
+            onSurface = Color(0xFF141922),
+            onSurfaceVariant = Color(0xFF5A6575),
+            mesh = listOf(Color(0x40BFD6FF), Color(0x40FFD6E6)),
+            accentBlob = 0.16f,
+        ),
+        cardStyle = CardStyle.FLAT,
+        corner = 20.dp,
+        motion = MotionProfile(dampingRatio = 1f, stiffness = 420f),
+        defaultBackground = BackgroundKind.GRADIENT,
+        family = { FuriFonts.serif },
+    )
+
+    val amoled = ThemePack(
+        id = "amoled",
+        name = "Void",
+        tagline = "True black, hairlines, one colour",
+        dark = PackPalette(
+            background = Color(0xFF000000),
+            card = Color(0xFF0A0A0C),
+            cardBorder = Color(0xFF222226),
+            onSurface = Color(0xFFF5F5F7),
+            onSurfaceVariant = Color(0xFF8E8E98),
+            mesh = listOf(Color(0x00000000), Color(0x00000000)),
+            accentBlob = 0.10f,
+        ),
+        light = null,
+        cardStyle = CardStyle.FLAT,
+        corner = 12.dp,
+        motion = MotionProfile(dampingRatio = 0.95f, stiffness = 450f),
+        defaultBackground = BackgroundKind.SOLID,
+        family = { FuriFonts.sans },
+    )
+
+    val pop = ThemePack(
+        id = "pop",
+        name = "Gumdrop",
+        tagline = "Soft pastels, round shapes, bouncy motion",
+        dark = PackPalette(
+            background = Color(0xFF1A1330),
+            card = Color(0x26FFFFFF),
+            cardBorder = Color(0x33FFFFFF),
+            onSurface = Color(0xFFF5EEFF),
+            onSurfaceVariant = Color(0xFFD2C9EA),
+            mesh = listOf(Color(0x80FF7DB0), Color(0x805BE0C0)),
+            accentBlob = 0.22f,
+        ),
+        light = PackPalette(
+            background = Color(0xFFF1ECFF),
+            card = Color(0xE6FFFFFF),
+            cardBorder = Color(0xFFFFFFFF),
+            onSurface = Color(0xFF2A2140),
+            onSurfaceVariant = Color(0xFF6C6385),
+            mesh = listOf(Color(0x99FFC2D9), Color(0x99B8F0E0)),
+            accentBlob = 0.45f,
+        ),
+        cardStyle = CardStyle.FLAT,
+        corner = 32.dp,
+        motion = MotionProfile(dampingRatio = 0.45f, stiffness = 260f),
+        defaultBackground = BackgroundKind.PARTICLES,
+        family = { FuriFonts.rounded },
+    )
+
+    val all = listOf(glass, neon, paper, amoled, pop)
 
     fun byId(id: String): ThemePack = all.firstOrNull { it.id == id } ?: glass
 }
