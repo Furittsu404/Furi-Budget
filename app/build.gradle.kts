@@ -21,6 +21,7 @@ android {
         targetSdk = 36
         versionCode = 3
         versionName = "0.2.1"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     // The release key lives outside the project (see ~/.android-keystores). Without it the release build is unsigned.
@@ -56,6 +57,9 @@ android {
     buildFeatures {
         compose = true
     }
+
+    // Lets the migration test read the exported schemas.
+    sourceSets.getByName("androidTest").assets.directories.add("$projectDir/schemas")
 }
 
 ksp {
@@ -86,4 +90,7 @@ dependencies {
     implementation(libs.androidx.palette)
 
     testImplementation(libs.junit)
+    androidTestImplementation(libs.androidx.room.testing)
+    androidTestImplementation(libs.androidx.test.ext)
+    androidTestImplementation(libs.androidx.test.runner)
 }

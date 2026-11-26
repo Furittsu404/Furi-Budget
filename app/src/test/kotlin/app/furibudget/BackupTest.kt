@@ -4,7 +4,8 @@ import app.furibudget.core.Repeat
 import app.furibudget.data.AccountEntity
 import app.furibudget.data.Backup
 import app.furibudget.data.BackupFile
-import app.furibudget.data.RecurrenceEntity
+import app.furibudget.data.BillEntity
+import app.furibudget.data.LegacyRecurrence
 import app.furibudget.data.TransactionEntity
 import app.furibudget.data.TxKind
 import org.junit.Assert.assertEquals
@@ -16,12 +17,25 @@ class BackupTest {
         val f = BackupFile(
             accounts = listOf(AccountEntity(1, "Cash", 1, "cash", 500)),
             transactions = listOf(TransactionEntity(7, TxKind.EXPENSE, 250, 1, note = "lunch, \"big\"", epochDay = 20000)),
-            recurrences = listOf(RecurrenceEntity(1, TxKind.EXPENSE, 9900, 1, repeat = Repeat.MONTHLY, anchorDay = 31, nextDueEpochDay = 20100)),
+            bills = listOf(BillEntity(1, "Rent", TxKind.EXPENSE, app.furibudget.data.BillType.BILL, 9900, 1, repeat = Repeat.MONTHLY, anchorDay = 31, firstDueEpochDay = 20100, colorArgb = 5)),
         )
         val back = Backup.decode(Backup.encode(f))!!
         assertEquals(f.accounts, back.accounts)
         assertEquals(f.transactions, back.transactions)
-        assertEquals(f.recurrences, back.recurrences)
+        assertEquals(f.bills, back.bills)
+    }
+
+    @Test fun oldBackupRecurrencesBecomeAutoPayBills() {
+        val old = BackupFile(
+            version = 1, accounts = listOf(AccountEntity(1, "Cash", 1, "cash")),
+            recurrences = listOf(LegacyRecurrence(1, TxKind.EXPENSE, 9900, 1, note = "Internet", repeat = Repeat.MONTHLY, anchorDay = 5, nextDueEpochDay = 20100)),
+        )
+        val back = Backup.decode(Backup.encode(old))!!
+        assertEquals(1, back.bills.size)
+        assertEquals("Internet", back.bills[0].name)
+        org.junit.Assert.assertTrue(back.bills[0].autoPay)
+        assertEquals(20100L, back.bills[0].firstDueEpochDay)
+        assertEquals(0, back.recurrences.size)
     }
 
     @Test fun rejectsGarbageAndFutureVersions() {

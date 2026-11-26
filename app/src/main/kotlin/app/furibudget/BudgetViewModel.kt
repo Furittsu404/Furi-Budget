@@ -15,7 +15,9 @@ import app.furibudget.data.Budgeting
 import app.furibudget.data.CategoryEntity
 import app.furibudget.data.GoalEntity
 import app.furibudget.data.Ledger
-import app.furibudget.data.RecurrenceEntity
+import app.furibudget.data.BillEntity
+import app.furibudget.data.BillPaymentEntity
+import app.furibudget.data.TemplateEntity
 import app.furibudget.data.TransactionEntity
 import app.furibudget.data.TxKind
 import app.furibudget.ui.theme.ThemeSpec
@@ -40,7 +42,9 @@ data class BudgetState(
     val balances: Map<Long, Money> = emptyMap(),
     val budgets: List<BudgetEntity> = emptyList(),
     val goals: List<GoalEntity> = emptyList(),
-    val recurrences: List<RecurrenceEntity> = emptyList(),
+    val bills: List<BillEntity> = emptyList(),
+    val billPayments: List<BillPaymentEntity> = emptyList(),
+    val templates: List<TemplateEntity> = emptyList(),
     val settings: AppSettings = AppSettings(),
 ) {
     val total: Money get() = accounts.fold(Money.ZERO) { a, acc -> a + (balances[acc.id] ?: Money.ZERO) }
@@ -62,14 +66,16 @@ class BudgetViewModel(private val app: Application) : AndroidViewModel(app) {
         BudgetState(true, accounts = a.filter { !it.archived }, allAccounts = a, categories = c, transactions = t, balances = Ledger.balances(a, t), budgets = b, goals = g)
     }
 
-    val state: StateFlow<BudgetState> = combine(base, repo.recurrences, settingsRepo.settings) { s, r, set ->
-        s.copy(recurrences = r, settings = set, currency = Currency.byCode(set.currencyCode), startDay = set.startDay)
+    private val billsFlow = combine(repo.bills, repo.billPayments, repo.templates) { b, p, t -> Triple(b, p, t) }
+
+    val state: StateFlow<BudgetState> = combine(base, billsFlow, settingsRepo.settings) { s, bills, set ->
+        s.copy(bills = bills.first, billPayments = bills.second, templates = bills.third, settings = set, currency = Currency.byCode(set.currencyCode), startDay = set.startDay)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), BudgetState())
 
     init {
         viewModelScope.launch {
             repo.seedIfEmpty()
-            repo.postDueRecurrences(LocalDate.now())
+            repo.postAutoPay(LocalDate.now())
             // Force-stopping the app clears its alarms, so put the reminder back each time it opens.
             val s = settingsRepo.settings.first()
             if (s.dailyReminder) Notifier.scheduleReminder(app, s.reminderHour, s.reminderMinute)
@@ -99,16 +105,49 @@ class BudgetViewModel(private val app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun delete(tx: TransactionEntity) { viewModelScope.launch { repo.delete(tx) } }
-    fun restore(tx: TransactionEntity) { viewModelScope.launch { repo.restore(tx) } }
+    /** Payments removed together with their expense, kept so Undo can put both back. */
+    private val removedPayments = HashMap<Long, BillPaymentEntity>()
+
+    fun delete(tx: TransactionEntity) {
+        viewModelScope.launch { repo.delete(tx)?.let { removedPayments[tx.id] = it } }
+    }
+
+    fun restore(tx: TransactionEntity) {
+        viewModelScope.launch { repo.restore(tx, removedPayments.remove(tx.id)) }
+    }
     fun saveBudget(b: BudgetEntity) { viewModelScope.launch { repo.saveBudget(b) } }
     fun deleteBudget(b: BudgetEntity) { viewModelScope.launch { repo.deleteBudget(b) } }
     fun saveGoal(g: GoalEntity) { viewModelScope.launch { repo.saveGoal(g) } }
     fun deleteGoal(g: GoalEntity) { viewModelScope.launch { repo.deleteGoal(g) } }
     fun saveAccount(a: AccountEntity) { viewModelScope.launch { repo.saveAccount(a) } }
     fun saveCategory(c: CategoryEntity) { viewModelScope.launch { repo.saveCategory(c) } }
-    fun saveRecurrence(r: RecurrenceEntity) { viewModelScope.launch { repo.saveRecurrence(r) } }
-    fun deleteRecurrence(r: RecurrenceEntity) { viewModelScope.launch { repo.deleteRecurrence(r) } }
+    fun saveBill(b: BillEntity) {
+        viewModelScope.launch {
+            repo.saveBill(b)
+            repo.postAutoPay(LocalDate.now())
+            Notifier.scheduleBillAlerts(app, settingsRepo.settings.first())
+        }
+    }
+    fun deleteBill(b: BillEntity) { viewModelScope.launch { repo.deleteBill(b) } }
+
+    /** Marks one due date paid and records the expense. Returns false if it was already paid. */
+    fun payBill(bill: BillEntity, due: LocalDate, amountMinor: Long, accountId: Long, paidOn: LocalDate, onDone: (Boolean) -> Unit = {}) {
+        viewModelScope.launch { onDone(repo.payBill(bill, due, amountMinor, accountId, paidOn)) }
+    }
+
+    /** Takes a payment back. [onDone] gets what was removed, so the caller can offer Undo. */
+    fun unpay(p: BillPaymentEntity, onDone: (Pair<TransactionEntity?, BillPaymentEntity>) -> Unit = {}) {
+        viewModelScope.launch { onDone(repo.unpay(p)) }
+    }
+
+    fun redoPayment(tx: TransactionEntity?, p: BillPaymentEntity) {
+        viewModelScope.launch { repo.restore(tx ?: return@launch, p) }
+    }
+
+    fun skipBill(bill: BillEntity, due: LocalDate) { viewModelScope.launch { repo.skipBill(bill, due, LocalDate.now()) } }
+    fun clearPayment(p: BillPaymentEntity) { viewModelScope.launch { repo.clearPayment(p) } }
+    fun saveTemplate(t: TemplateEntity) { viewModelScope.launch { repo.saveTemplate(t) } }
+    fun deleteTemplate(t: TemplateEntity) { viewModelScope.launch { repo.deleteTemplate(t) } }
 
     fun updateSettings(change: (AppSettings) -> AppSettings) {
         viewModelScope.launch {

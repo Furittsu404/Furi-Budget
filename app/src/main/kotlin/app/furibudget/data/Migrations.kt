@@ -1,0 +1,41 @@
+package app.furibudget.data
+
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
+
+object Migrations {
+    /**
+     * v1 to v2: bills, bill payments, bill alerts and templates arrive, and the old recurring transactions
+     * become auto-pay bills so nothing the user set up is lost. The CREATE statements are copied from the
+     * exported schemas/2.json so Room's schema check passes.
+     */
+    val MIGRATION_1_2 = object : Migration(1, 2) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("CREATE TABLE IF NOT EXISTS `bills` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `kind` TEXT NOT NULL, `type` TEXT NOT NULL, `amountMinor` INTEGER NOT NULL, `accountId` INTEGER NOT NULL, `toAccountId` INTEGER, `categoryId` INTEGER, `repeat` TEXT NOT NULL, `repeatEvery` INTEGER NOT NULL, `anchorDay` INTEGER NOT NULL, `firstDueEpochDay` INTEGER NOT NULL, `endEpochDay` INTEGER, `paymentsTotal` INTEGER, `autoPay` INTEGER NOT NULL, `remindDaysBefore` INTEGER NOT NULL, `note` TEXT NOT NULL, `icon` TEXT NOT NULL, `colorArgb` INTEGER NOT NULL, `active` INTEGER NOT NULL, FOREIGN KEY(`accountId`) REFERENCES `accounts`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`categoryId`) REFERENCES `categories`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_bills_accountId` ON `bills` (`accountId`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_bills_categoryId` ON `bills` (`categoryId`)")
+            db.execSQL("CREATE TABLE IF NOT EXISTS `bill_payments` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `billId` INTEGER NOT NULL, `dueEpochDay` INTEGER NOT NULL, `status` TEXT NOT NULL, `paidEpochDay` INTEGER NOT NULL, `amountMinor` INTEGER NOT NULL, `transactionId` INTEGER, FOREIGN KEY(`billId`) REFERENCES `bills`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`transactionId`) REFERENCES `transactions`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )")
+            db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_bill_payments_billId_dueEpochDay` ON `bill_payments` (`billId`, `dueEpochDay`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_bill_payments_transactionId` ON `bill_payments` (`transactionId`)")
+            db.execSQL("CREATE TABLE IF NOT EXISTS `bill_alerts` (`billId` INTEGER NOT NULL, `dueEpochDay` INTEGER NOT NULL, `stage` INTEGER NOT NULL, PRIMARY KEY(`billId`, `dueEpochDay`, `stage`), FOREIGN KEY(`billId`) REFERENCES `bills`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )")
+            db.execSQL("CREATE TABLE IF NOT EXISTS `templates` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `kind` TEXT NOT NULL, `amountMinor` INTEGER NOT NULL, `accountId` INTEGER NOT NULL, `categoryId` INTEGER, `note` TEXT NOT NULL, FOREIGN KEY(`accountId`) REFERENCES `accounts`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`categoryId`) REFERENCES `categories`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_templates_accountId` ON `templates` (`accountId`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_templates_categoryId` ON `templates` (`categoryId`)")
+
+            // Old recurring transactions keep their id, their next due date and their paying-itself behaviour.
+            db.execSQL(
+                """
+                INSERT INTO bills (id, name, kind, type, amountMinor, accountId, toAccountId, categoryId, `repeat`, repeatEvery, anchorDay,
+                                   firstDueEpochDay, endEpochDay, paymentsTotal, autoPay, remindDaysBefore, note, icon, colorArgb, active)
+                SELECT r.id,
+                       COALESCE(NULLIF(r.note, ''), (SELECT c.name FROM categories c WHERE c.id = r.categoryId), 'Recurring'),
+                       r.kind, 'RECURRING', r.amountMinor, r.accountId, r.toAccountId, r.categoryId, r.`repeat`, 1, r.anchorDay,
+                       r.nextDueEpochDay, r.endEpochDay, NULL, 1, -1, '', 'bills',
+                       COALESCE((SELECT c.colorArgb FROM categories c WHERE c.id = r.categoryId), -7667713), r.active
+                FROM recurrences r
+                """.trimIndent(),
+            )
+            db.execSQL("DROP TABLE IF EXISTS `recurrences`")
+        }
+    }
+}

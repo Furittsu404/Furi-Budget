@@ -21,6 +21,9 @@ import java.time.ZoneId
 import kotlinx.coroutines.flow.first
 
 object Notifier {
+    /** Filled in with the bill reminders milestone. */
+    fun scheduleBillAlerts(context: Context, settings: app.furibudget.data.AppSettings) = Unit
+
     private const val CH_REMINDER = "reminder"
     private const val CH_ALERT = "alert"
 
@@ -94,7 +97,7 @@ class ReminderReceiver : BroadcastReceiver() {
         val app = context.applicationContext as FuriBudgetApp
         val s = app.settings.settings.first()
         if (!s.dailyReminder) return@async
-        app.repository.postDueRecurrences(java.time.LocalDate.now())
+        app.repository.postAutoPay(java.time.LocalDate.now())
         Notifier.dailyReminder(context)
         Notifier.scheduleReminder(context, s.reminderHour, s.reminderMinute)
     }
@@ -102,7 +105,7 @@ class ReminderReceiver : BroadcastReceiver() {
 
 class RecurringReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) = async {
-        (context.applicationContext as FuriBudgetApp).repository.postDueRecurrences(java.time.LocalDate.now())
+        (context.applicationContext as FuriBudgetApp).repository.postAutoPay(java.time.LocalDate.now())
     }
 }
 

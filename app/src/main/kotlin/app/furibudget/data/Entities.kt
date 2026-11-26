@@ -94,28 +94,100 @@ data class GoalEntity(
     val createdAt: Long = System.currentTimeMillis(),
 )
 
-/** A transaction that repeats. [nextDueEpochDay] is the next date still to be posted. */
+@Serializable
+enum class BillType { BILL, SUBSCRIPTION, INSTALMENT, LOAN, INCOME, RECURRING }
+
+@Serializable
+enum class PayStatus { PAID, SKIPPED }
+
+/**
+ * Something that falls due on a schedule: a bill, a subscription, an instalment, expected income, or a
+ * recurring transaction. Due dates are worked out from the schedule; only what happened to each one
+ * (paid or skipped) is stored, in [BillPaymentEntity]. With [autoPay] on, the app records it on the due date.
+ */
 @Serializable
 @Entity(
-    tableName = "recurrences",
+    tableName = "bills",
     foreignKeys = [
         ForeignKey(AccountEntity::class, ["id"], ["accountId"], onDelete = ForeignKey.CASCADE),
         ForeignKey(CategoryEntity::class, ["id"], ["categoryId"], onDelete = ForeignKey.SET_NULL),
     ],
     indices = [Index("accountId"), Index("categoryId")],
 )
-data class RecurrenceEntity(
+data class BillEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val kind: TxKind,
-    val amountMinor: Long,
+    val name: String,
+    /** EXPENSE is a payment out, INCOME something expected in, TRANSFER a move between accounts. */
+    val kind: TxKind = TxKind.EXPENSE,
+    val type: BillType = BillType.BILL,
+    /** Expected amount in minor units; 0 means it changes every time and is typed when paying. */
+    val amountMinor: Long = 0,
     val accountId: Long,
     val toAccountId: Long? = null,
     val categoryId: Long? = null,
-    val note: String = "",
-    val repeat: Repeat,
+    val repeat: Repeat = Repeat.MONTHLY,
+    /** Every N days, weeks, months or years: 2 weekly is every other week. */
+    val repeatEvery: Int = 1,
     /** Day of month the series is anchored to, so a 31st survives short months. */
     val anchorDay: Int,
-    val nextDueEpochDay: Long,
+    val firstDueEpochDay: Long,
     val endEpochDay: Long? = null,
+    /** Instalments: the series ends after this many payments. */
+    val paymentsTotal: Int? = null,
+    val autoPay: Boolean = false,
+    /** Days before the due date to remind; below zero turns reminders off for this bill. */
+    val remindDaysBefore: Int = 3,
+    val note: String = "",
+    val icon: String = "bills",
+    val colorArgb: Int,
     val active: Boolean = true,
+)
+
+/** What happened to one due date of a bill. Absence of a row means still waiting. */
+@Serializable
+@Entity(
+    tableName = "bill_payments",
+    foreignKeys = [
+        ForeignKey(BillEntity::class, ["id"], ["billId"], onDelete = ForeignKey.CASCADE),
+        ForeignKey(TransactionEntity::class, ["id"], ["transactionId"], onDelete = ForeignKey.SET_NULL),
+    ],
+    indices = [Index("billId", "dueEpochDay", unique = true), Index("transactionId")],
+)
+data class BillPaymentEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val billId: Long,
+    val dueEpochDay: Long,
+    val status: PayStatus,
+    val paidEpochDay: Long,
+    val amountMinor: Long = 0,
+    /** The expense this payment recorded; null for skipped dates. */
+    val transactionId: Long? = null,
+)
+
+/** Remembers which reminder stages were already shown so each fires once. Stage: 0 early, 1 due today, 2 overdue 1 day, 3 overdue 7 days. */
+@Entity(
+    tableName = "bill_alerts",
+    primaryKeys = ["billId", "dueEpochDay", "stage"],
+    foreignKeys = [ForeignKey(BillEntity::class, ["id"], ["billId"], onDelete = ForeignKey.CASCADE)],
+)
+data class BillAlertEntity(val billId: Long, val dueEpochDay: Long, val stage: Int)
+
+/** A saved transaction you add often, such as a jeep fare. */
+@Serializable
+@Entity(
+    tableName = "templates",
+    foreignKeys = [
+        ForeignKey(AccountEntity::class, ["id"], ["accountId"], onDelete = ForeignKey.CASCADE),
+        ForeignKey(CategoryEntity::class, ["id"], ["categoryId"], onDelete = ForeignKey.SET_NULL),
+    ],
+    indices = [Index("accountId"), Index("categoryId")],
+)
+data class TemplateEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String,
+    val kind: TxKind,
+    val amountMinor: Long,
+    val accountId: Long,
+    val categoryId: Long? = null,
+    val note: String = "",
 )

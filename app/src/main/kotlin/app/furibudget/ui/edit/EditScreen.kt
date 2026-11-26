@@ -52,9 +52,10 @@ import app.furibudget.core.KeypadEntry
 import app.furibudget.core.Money
 import app.furibudget.core.Recurrence
 import app.furibudget.core.Repeat
-import app.furibudget.data.RecurrenceEntity
+import app.furibudget.data.BillEntity
+import app.furibudget.data.BillType
 import app.furibudget.data.TransactionEntity
-import app.furibudget.ui.settings.repeatLabel
+import app.furibudget.ui.components.repeatLabel
 import app.furibudget.data.TxKind
 import app.furibudget.ui.components.AnimatedAmount
 import app.furibudget.ui.components.FuriIcons
@@ -77,7 +78,7 @@ fun EditScreen(
     txId: Long,
     state: BudgetState,
     onSave: (TransactionEntity) -> Unit,
-    onSaveRecurrence: (RecurrenceEntity) -> Unit,
+    onSaveBill: (BillEntity) -> Unit,
     onDelete: (TransactionEntity) -> Unit,
     onClose: () -> Unit,
 ) {
@@ -219,13 +220,18 @@ fun EditScreen(
                         ),
                     )
                     if (repeat != Repeat.NONE && existing == null) {
-                        onSaveRecurrence(
-                            RecurrenceEntity(
-                                kind = kind, amountMinor = amount.minor, accountId = accountId,
+                        // The transaction above is the first one; the bill takes over from the next due date, paying itself.
+                        val cat = state.category(categoryId)
+                        onSaveBill(
+                            BillEntity(
+                                name = note.trim().ifBlank { cat?.name ?: "Recurring" }, kind = kind, type = BillType.RECURRING,
+                                amountMinor = amount.minor, accountId = accountId,
                                 toAccountId = if (kind == TxKind.TRANSFER) transferTarget else null,
-                                categoryId = if (kind == TxKind.TRANSFER) null else categoryId, note = note.trim(),
+                                categoryId = if (kind == TxKind.TRANSFER) null else categoryId,
                                 repeat = repeat, anchorDay = date.dayOfMonth,
-                                nextDueEpochDay = Recurrence.next(date, repeat, date.dayOfMonth).toEpochDay(),
+                                firstDueEpochDay = Recurrence.next(date, repeat, date.dayOfMonth).toEpochDay(),
+                                autoPay = true, remindDaysBefore = -1,
+                                colorArgb = cat?.colorArgb ?: 0xFF8B7CFF.toInt(),
                             ),
                         )
                     }

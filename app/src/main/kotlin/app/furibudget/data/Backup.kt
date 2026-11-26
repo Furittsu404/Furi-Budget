@@ -8,17 +8,38 @@ import kotlinx.serialization.json.Json
 /** Everything the app stores, in one file the user can keep. Background photos are not included. */
 @Serializable
 data class BackupFile(
-    val version: Int = 1,
+    val version: Int = 2,
     val exportedAt: Long = System.currentTimeMillis(),
     val accounts: List<AccountEntity> = emptyList(),
     val categories: List<CategoryEntity> = emptyList(),
     val transactions: List<TransactionEntity> = emptyList(),
     val budgets: List<BudgetEntity> = emptyList(),
     val goals: List<GoalEntity> = emptyList(),
-    val recurrences: List<RecurrenceEntity> = emptyList(),
+    /** Read-only: files from before bills existed carry these; they are turned into auto-pay bills on import. */
+    val recurrences: List<LegacyRecurrence> = emptyList(),
+    val bills: List<BillEntity> = emptyList(),
+    val billPayments: List<BillPaymentEntity> = emptyList(),
+    val templates: List<TemplateEntity> = emptyList(),
     val theme: ThemeSpec? = null,
     val currency: String? = null,
     val startDay: Int? = null,
+)
+
+/** The pre-bills recurring transaction, kept only so older backup files still restore. */
+@Serializable
+data class LegacyRecurrence(
+    val id: Long = 0,
+    val kind: TxKind,
+    val amountMinor: Long,
+    val accountId: Long,
+    val toAccountId: Long? = null,
+    val categoryId: Long? = null,
+    val note: String = "",
+    val repeat: app.furibudget.core.Repeat,
+    val anchorDay: Int,
+    val nextDueEpochDay: Long,
+    val endEpochDay: Long? = null,
+    val active: Boolean = true,
 )
 
 object Backup {
@@ -26,8 +47,22 @@ object Backup {
 
     fun encode(file: BackupFile): String = json.encodeToString(file)
 
-    /** Null when the text is not a backup this version understands. */
-    fun decode(text: String): BackupFile? = runCatching { json.decodeFromString<BackupFile>(text) }.getOrNull()?.takeIf { it.version in 1..1 }
+    /** Null when the text is not a backup this version understands. Old recurring transactions become auto-pay bills. */
+    fun decode(text: String): BackupFile? {
+        val f = runCatching { json.decodeFromString<BackupFile>(text) }.getOrNull()?.takeIf { it.version in 1..2 } ?: return null
+        if (f.recurrences.isEmpty()) return f
+        var nextId = (f.bills.maxOfOrNull { it.id } ?: 0L) + 1
+        val converted = f.recurrences.map { r ->
+            val cat = f.categories.firstOrNull { it.id == r.categoryId }
+            BillEntity(
+                id = nextId++, name = r.note.ifBlank { cat?.name ?: "Recurring" }, kind = r.kind, type = BillType.RECURRING,
+                amountMinor = r.amountMinor, accountId = r.accountId, toAccountId = r.toAccountId, categoryId = r.categoryId,
+                repeat = r.repeat, anchorDay = r.anchorDay, firstDueEpochDay = r.nextDueEpochDay, endEpochDay = r.endEpochDay,
+                autoPay = true, remindDaysBefore = -1, note = "", colorArgb = cat?.colorArgb ?: 0xFF8B7CFF.toInt(), active = r.active,
+            )
+        }
+        return f.copy(bills = f.bills + converted, recurrences = emptyList())
+    }
 
     /** True when every link in the file points at a row that exists and every amount is positive, so a restore cannot half-fail. */
     fun isConsistent(f: BackupFile): Boolean {
@@ -36,7 +71,9 @@ object Backup {
         if (accounts.size != accounts.toSet().size || f.categories.size != categories.size) return false
         val acc = accounts.toSet()
         return f.transactions.all { t -> t.accountId in acc && (t.toAccountId == null || t.toAccountId in acc) && (t.categoryId == null || t.categoryId in categories) && t.amountMinor > 0 } &&
-            f.recurrences.all { r -> r.accountId in acc && (r.toAccountId == null || r.toAccountId in acc) && (r.categoryId == null || r.categoryId in categories) && r.amountMinor > 0 } &&
+            f.bills.all { r -> r.accountId in acc && (r.toAccountId == null || r.toAccountId in acc) && (r.categoryId == null || r.categoryId in categories) && r.amountMinor >= 0 } &&
+            f.billPayments.all { p -> f.bills.any { it.id == p.billId } && (p.transactionId == null || f.transactions.any { it.id == p.transactionId }) } &&
+            f.templates.all { t -> t.accountId in acc && (t.categoryId == null || t.categoryId in categories) && t.amountMinor > 0 } &&
             f.budgets.all { b -> b.categoryId == null || b.categoryId in categories } &&
             f.goals.all { it.targetMinor > 0 && it.savedMinor >= 0 }
     }

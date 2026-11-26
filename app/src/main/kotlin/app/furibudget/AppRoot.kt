@@ -63,7 +63,6 @@ import app.furibudget.ui.goals.GoalsScreen
 import app.furibudget.ui.home.HomeScreen
 import app.furibudget.ui.onboarding.OnboardingScreen
 import app.furibudget.ui.settings.ManageScreen
-import app.furibudget.ui.settings.RecurringScreen
 import app.furibudget.ui.settings.SettingsScreen
 import app.furibudget.ui.insights.InsightsScreen
 import app.furibudget.ui.theme.Furi
@@ -80,7 +79,6 @@ private object Route {
     const val APPEARANCE = "appearance"
     const val SETTINGS = "settings"
     const val MANAGE = "manage"
-    const val RECURRING = "recurring"
     const val EDIT = "edit/{id}"
     fun edit(id: Long) = "edit/$id"
 }
@@ -139,19 +137,18 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
             composable(Route.SETTINGS) {
                 SettingsScreen(
                     state, vm, spec, onTheme,
-                    onOpenManage = { nav.navigate(Route.MANAGE) }, onOpenRecurring = { nav.navigate(Route.RECURRING) },
+                    onOpenManage = { nav.navigate(Route.MANAGE) },
                     onBack = { nav.popBackStack() },
                 )
             }
             composable(Route.MANAGE) { ManageScreen(state, vm::saveAccount, vm::saveCategory) { nav.popBackStack() } }
-            composable(Route.RECURRING) { RecurringScreen(state, vm::saveRecurrence, vm::deleteRecurrence) { nav.popBackStack() } }
             composable(
                 Route.EDIT,
                 arguments = listOf(navArgument("id") { type = NavType.LongType }),
                 enterTransition = { fadeIn(m.tween(200)) + slideInVertically(m.spring()) { it / 6 } },
                 popExitTransition = { fadeOut(m.tween(160)) + slideOutVertically(m.spring()) { it / 6 } },
             ) { entry ->
-                EditScreen(entry.arguments?.getLong("id") ?: 0L, state, onSave = vm::save, onSaveRecurrence = vm::saveRecurrence, onDelete = deleteWithUndo, onClose = { nav.popBackStack() })
+                EditScreen(entry.arguments?.getLong("id") ?: 0L, state, onSave = vm::save, onSaveBill = vm::saveBill, onDelete = deleteWithUndo, onClose = { nav.popBackStack() })
             }
         }
         // Fades content under the status bar so the clock never collides with scrolled text.

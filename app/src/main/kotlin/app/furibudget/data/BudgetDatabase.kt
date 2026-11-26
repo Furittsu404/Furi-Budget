@@ -13,8 +13,8 @@ class Converters {
 }
 
 @Database(
-    entities = [AccountEntity::class, CategoryEntity::class, TransactionEntity::class, BudgetEntity::class, GoalEntity::class, RecurrenceEntity::class],
-    version = 1,
+    entities = [AccountEntity::class, CategoryEntity::class, TransactionEntity::class, BudgetEntity::class, GoalEntity::class, BillEntity::class, BillPaymentEntity::class, BillAlertEntity::class, TemplateEntity::class],
+    version = 2,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -24,11 +24,15 @@ abstract class BudgetDatabase : RoomDatabase() {
     abstract fun transactions(): TransactionDao
     abstract fun budgets(): BudgetDao
     abstract fun goals(): GoalDao
-    abstract fun recurrences(): RecurrenceDao
+    abstract fun bills(): BillDao
+    abstract fun billPayments(): BillPaymentDao
+    abstract fun billAlerts(): BillAlertDao
+    abstract fun templates(): TemplateDao
 
     companion object {
         fun create(context: Context): BudgetDatabase =
             Room.databaseBuilder(context, BudgetDatabase::class.java, "budget.db")
+                .addMigrations(Migrations.MIGRATION_1_2)
                 // Schema v1 is the baseline (schemas/ holds the exported JSON). Every later change needs a real Migration.
                 // Only a downgrade, which can happen when an older build is installed over a newer one, may drop the tables.
                 .fallbackToDestructiveMigrationOnDowngrade(dropAllTables = true)

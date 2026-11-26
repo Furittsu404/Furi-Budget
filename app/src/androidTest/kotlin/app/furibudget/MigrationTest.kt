@@ -1,0 +1,39 @@
+package app.furibudget
+
+import androidx.room.testing.MigrationTestHelper
+import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
+import androidx.test.platform.app.InstrumentationRegistry
+import app.furibudget.data.BudgetDatabase
+import app.furibudget.data.Migrations
+import org.junit.Assert.assertEquals
+import org.junit.Rule
+import org.junit.Test
+
+class MigrationTest {
+    @get:Rule
+    val helper = MigrationTestHelper(InstrumentationRegistry.getInstrumentation(), BudgetDatabase::class.java, emptyList(), FrameworkSQLiteOpenHelperFactory())
+
+    @Test
+    fun v1ToV2KeepsDataAndTurnsRecurrencesIntoAutoPayBills() {
+        helper.createDatabase("mig", 1).apply {
+            execSQL("INSERT INTO accounts(id,name,colorArgb,icon,startBalance,sortOrder,archived) VALUES(1,'Cash',-1,'cash',500,0,0)")
+            execSQL("INSERT INTO categories(id,name,colorArgb,icon,kind,sortOrder,archived) VALUES(3,'Bills',-65536,'bills','EXPENSE',0,0)")
+            execSQL("INSERT INTO transactions(id,kind,amountMinor,accountId,toAccountId,categoryId,note,epochDay,createdAt) VALUES(7,'EXPENSE',2500,1,NULL,3,'lunch',20000,1)")
+            execSQL("INSERT INTO recurrences(id,kind,amountMinor,accountId,toAccountId,categoryId,note,`repeat`,anchorDay,nextDueEpochDay,endEpochDay,active) VALUES(1,'EXPENSE',29900,1,NULL,3,'Internet','MONTHLY',5,20100,NULL,1)")
+            execSQL("INSERT INTO recurrences(id,kind,amountMinor,accountId,toAccountId,categoryId,note,`repeat`,anchorDay,nextDueEpochDay,endEpochDay,active) VALUES(2,'INCOME',500000,1,NULL,NULL,'','WEEKLY',1,20110,20200,0)")
+            close()
+        }
+        val db = helper.runMigrationsAndValidate("mig", 2, true, Migrations.MIGRATION_1_2)
+
+        db.query("SELECT COUNT(*) FROM transactions").use { it.moveToFirst(); assertEquals(1, it.getInt(0)) }
+        db.query("SELECT name, type, autoPay, remindDaysBefore, firstDueEpochDay, `repeat`, colorArgb, active FROM bills ORDER BY id").use {
+            assertEquals(2, it.count)
+            it.moveToFirst()
+            assertEquals("Internet", it.getString(0)); assertEquals("RECURRING", it.getString(1)); assertEquals(1, it.getInt(2))
+            assertEquals(-1, it.getInt(3)); assertEquals(20100L, it.getLong(4)); assertEquals("MONTHLY", it.getString(5)); assertEquals(-65536, it.getInt(6))
+            it.moveToNext()
+            assertEquals("Recurring", it.getString(0)); assertEquals(-7667713, it.getInt(6)); assertEquals(0, it.getInt(7))
+        }
+        db.query("SELECT name FROM sqlite_master WHERE name = 'recurrences'").use { assertEquals(0, it.count) }
+    }
+}

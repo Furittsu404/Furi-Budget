@@ -65,7 +65,6 @@ fun SettingsScreen(
     spec: ThemeSpec,
     onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit,
     onOpenManage: () -> Unit,
-    onOpenRecurring: () -> Unit,
     onBack: () -> Unit,
 ) {
     val c = Furi.colors
@@ -130,7 +129,6 @@ fun SettingsScreen(
                 valueRange = 1f..28f, steps = 26,
             )
             LinkRow(stringResource(R.string.accounts_categories), chevron = true, onClick = onOpenManage)
-            LinkRow(stringResource(R.string.recurring), chevron = true, onClick = onOpenRecurring)
         }
 
         Group(stringResource(R.string.notifications)) {
