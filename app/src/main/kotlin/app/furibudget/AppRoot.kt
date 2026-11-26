@@ -1,0 +1,153 @@
+package app.furibudget
+
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.Receipt
+import androidx.compose.material3.Icon
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import androidx.navigation.NavType
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import app.furibudget.ui.activity.ActivityScreen
+import app.furibudget.ui.appearance.AppearanceScreen
+import app.furibudget.ui.components.FuriNavBar
+import app.furibudget.ui.components.NavItem
+import app.furibudget.ui.edit.EditScreen
+import app.furibudget.ui.home.HomeScreen
+import app.furibudget.ui.theme.Furi
+import app.furibudget.ui.theme.FuriBackground
+import app.furibudget.ui.theme.ThemeSpec
+import kotlinx.coroutines.launch
+
+private object Route {
+    const val HOME = "home"
+    const val ACTIVITY = "activity"
+    const val APPEARANCE = "appearance"
+    const val EDIT = "edit/{id}"
+    fun edit(id: Long) = "edit/$id"
+}
+
+@Composable
+fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: BudgetViewModel) {
+    val state by vm.state.collectAsState()
+    val nav = rememberNavController()
+    val backStack by nav.currentBackStackEntryAsState()
+    val route = backStack?.destination?.route
+    val tabs = listOf(Route.HOME, Route.ACTIVITY)
+    val showBar = route in tabs
+    val m = Furi.motion
+    val snackbar = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val deletedMsg = stringResource(R.string.deleted)
+    val undo = stringResource(R.string.undo)
+
+    Box(Modifier.fillMaxSize()) {
+        FuriBackground()
+        NavHost(
+            navController = nav,
+            startDestination = Route.HOME,
+            enterTransition = { fadeIn(m.tween(220)) + slideInHorizontally(m.spring()) { it / 10 } },
+            exitTransition = { fadeOut(m.tween(160)) + slideOutHorizontally(m.spring()) { -it / 10 } },
+            popEnterTransition = { fadeIn(m.tween(220)) + slideInHorizontally(m.spring()) { -it / 10 } },
+            popExitTransition = { fadeOut(m.tween(160)) + slideOutHorizontally(m.spring()) { it / 10 } },
+        ) {
+            composable(Route.HOME) {
+                HomeScreen(state, onOpenAppearance = { nav.navigate(Route.APPEARANCE) }, onOpenTx = { nav.navigate(Route.edit(it)) })
+            }
+            composable(Route.ACTIVITY) {
+                ActivityScreen(
+                    state,
+                    onOpenTx = { nav.navigate(Route.edit(it)) },
+                    onDelete = { tx ->
+                        vm.delete(tx)
+                        scope.launch {
+                            snackbar.currentSnackbarData?.dismiss()
+                            if (snackbar.showSnackbar(deletedMsg, undo, duration = androidx.compose.material3.SnackbarDuration.Long) == SnackbarResult.ActionPerformed) {
+                                vm.restore(tx)
+                            }
+                        }
+                    },
+                )
+            }
+            composable(Route.APPEARANCE) { AppearanceScreen(spec, onTheme) { nav.popBackStack() } }
+            composable(
+                Route.EDIT,
+                arguments = listOf(navArgument("id") { type = NavType.LongType }),
+                enterTransition = { fadeIn(m.tween(200)) + slideInVertically(m.spring()) { it / 6 } },
+                popExitTransition = { fadeOut(m.tween(160)) + slideOutVertically(m.spring()) { it / 6 } },
+            ) { entry ->
+                EditScreen(entry.arguments?.getLong("id") ?: 0L, state, onSave = vm::save, onClose = { nav.popBackStack() })
+            }
+        }
+        Column(Modifier.align(Alignment.BottomCenter).navigationBarsPadding()) {
+            SnackbarHost(snackbar, Modifier.padding(horizontal = 16.dp))
+            AnimatedVisibility(
+                visible = showBar,
+                enter = fadeIn(m.tween(200)) + slideInVertically(m.spring()) { it },
+                exit = fadeOut(m.tween(120)) + slideOutVertically(m.tween(160)) { it },
+            ) {
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    FuriNavBar(
+                        items = listOf(NavItem(stringResource(R.string.tab_home), Icons.Rounded.Home), NavItem(stringResource(R.string.tab_activity), Icons.Rounded.Receipt)),
+                        selected = tabs.indexOf(route).coerceAtLeast(0),
+                        onSelect = { i ->
+                            nav.navigate(tabs[i]) {
+                                popUpTo(Route.HOME) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        },
+                        modifier = Modifier.weight(1f),
+                    )
+                    Box(
+                        Modifier
+                            .size(68.dp)
+                            .clip(CircleShape)
+                            .background(Furi.colors.accentBrush)
+                            .clickable { nav.navigate(Route.edit(0)) },
+                        contentAlignment = Alignment.Center,
+                    ) { Icon(Icons.Rounded.Add, stringResource(R.string.add_transaction), tint = Furi.colors.onAccent) }
+                }
+            }
+        }
+    }
+}

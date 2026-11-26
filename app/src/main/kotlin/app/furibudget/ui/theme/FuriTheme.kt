@@ -101,18 +101,24 @@ private fun FuriColors.animated(motion: FuriMotion): FuriColors {
     )
 }
 
-private fun FuriColors.toMaterial() =
-    if (dark) darkColorScheme(
+private fun FuriColors.toMaterial(): androidx.compose.material3.ColorScheme {
+    // Dialogs, sheets and text fields need opaque container colours, so mix them from the page colour.
+    fun tone(a: Float) = androidx.compose.ui.graphics.lerp(background, onSurface, a)
+    val base = if (dark) darkColorScheme() else lightColorScheme()
+    return base.copy(
         primary = accent, onPrimary = onAccent, primaryContainer = accentContainer, onPrimaryContainer = onAccentContainer,
-        secondary = accentText, onSecondary = background, background = background, onBackground = onSurface,
-        surface = background, onSurface = onSurface, surfaceVariant = card, onSurfaceVariant = onSurfaceVariant,
-        outline = onSurfaceVariant, outlineVariant = cardBorder, error = expense,
-    ) else lightColorScheme(
-        primary = accent, onPrimary = onAccent, primaryContainer = accentContainer, onPrimaryContainer = onAccentContainer,
-        secondary = accentText, onSecondary = background, background = background, onBackground = onSurface,
-        surface = background, onSurface = onSurface, surfaceVariant = card, onSurfaceVariant = onSurfaceVariant,
-        outline = onSurfaceVariant, outlineVariant = cardBorder, error = expense,
+        secondary = accentText, onSecondary = background,
+        secondaryContainer = accentContainer, onSecondaryContainer = onAccentContainer,
+        tertiary = accent2, onTertiary = onAccent,
+        background = background, onBackground = onSurface, surface = background, onSurface = onSurface,
+        surfaceVariant = tone(0.10f), onSurfaceVariant = onSurfaceVariant,
+        surfaceContainerLowest = background, surfaceContainerLow = tone(0.04f), surfaceContainer = tone(0.07f),
+        surfaceContainerHigh = tone(0.10f), surfaceContainerHighest = tone(0.14f),
+        outline = onSurfaceVariant, outlineVariant = cardBorder.copy(alpha = 1f).let { tone(0.18f) }, error = expense,
+        inverseSurface = onSurface, inverseOnSurface = background,
+        inversePrimary = androidx.compose.ui.graphics.lerp(accent, if (dark) Color.Black else Color.White, 0.45f),
     )
+}
 
 private fun Typography.withFamily(f: FontFamily) = copy(
     displayLarge = displayLarge.copy(fontFamily = f), displayMedium = displayMedium.copy(fontFamily = f),
