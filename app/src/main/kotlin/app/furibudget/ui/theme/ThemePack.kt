@@ -106,7 +106,7 @@ object ThemePacks {
         corner = 20.dp,
         motion = MotionProfile(dampingRatio = 1f, stiffness = 420f),
         defaultBackground = BackgroundKind.GRADIENT,
-        family = { FuriFonts.serif },
+        family = { FuriFonts.bricolage },
     )
 
     val amoled = ThemePack(
@@ -127,7 +127,7 @@ object ThemePacks {
         corner = 12.dp,
         motion = MotionProfile(dampingRatio = 0.95f, stiffness = 450f),
         defaultBackground = BackgroundKind.SOLID,
-        family = { FuriFonts.sans },
+        family = { FuriFonts.hanken },
     )
 
     val pop = ThemePack(

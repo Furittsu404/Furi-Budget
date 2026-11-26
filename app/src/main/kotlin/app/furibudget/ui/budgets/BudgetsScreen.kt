@@ -136,7 +136,8 @@ fun BudgetsScreen(state: BudgetState, onSave: (BudgetEntity) -> Unit, onDelete: 
         BudgetDialog(
             state = state,
             existing = editing,
-            overall = create == true || editing?.categoryId == null,
+            // Editing follows the budget being edited; otherwise the button that was pressed decides.
+            overall = editing?.let { it.categoryId == null } ?: (create == true),
             onDismiss = { creating = null; editing = null },
             onSave = { onSave(it); creating = null; editing = null },
             onDelete = { onDelete(it); editing = null },

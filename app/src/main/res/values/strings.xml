@@ -146,7 +146,7 @@
     <string name="backup_restored">Backup restored.</string>
     <string name="sample_loaded">Sample data added.</string>
     <string name="about">About</string>
-    <string name="about_text">Furi Budget keeps everything on this phone. No account, no network. Fonts: Manrope, Sora and Fredoka, used under the SIL Open Font License.</string>
+    <string name="about_text">Furi Budget keeps everything on this phone. No account, no network. Fonts: Manrope, Sora, Fredoka, Bricolage Grotesque and Hanken Grotesk, used under the SIL Open Font License.</string>
     <string name="accounts">Accounts</string>
     <string name="add_account">Add account</string>
     <string name="edit_account">Edit account</string>
