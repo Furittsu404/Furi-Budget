@@ -172,6 +172,7 @@ private fun BroadcastReceiver.async(block: suspend () -> Unit) {
 class BillAlertReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) = async {
         BillNotifier.check(context)
+        app.furibudget.widget.WidgetUpdater.update(context)
         val s = (context.applicationContext as FuriBudgetApp).settings.settings.first()
         BillNotifier.schedule(context, s)
     }

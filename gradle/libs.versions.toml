@@ -15,6 +15,7 @@ navigation = "2.10.2"
 coil = "3.2.0"
 palette = "1.0.0"
 testExt = "1.2.1"
+glance = "1.1.1"
 testRunner = "1.6.2"
 
 [libraries]
@@ -45,6 +46,7 @@ coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" 
 androidx-room-testing = { module = "androidx.room:room-testing", version.ref = "room" }
 androidx-test-ext = { module = "androidx.test.ext:junit", version.ref = "testExt" }
 androidx-test-runner = { module = "androidx.test:runner", version.ref = "testRunner" }
+androidx-glance-appwidget = { module = "androidx.glance:glance-appwidget", version.ref = "glance" }
 androidx-palette = { module = "androidx.palette:palette-ktx", version.ref = "palette" }
 
 [plugins]

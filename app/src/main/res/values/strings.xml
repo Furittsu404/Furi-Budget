@@ -296,4 +296,5 @@
     <string name="template_saved">Template saved</string>
     <string name="quick_add">Quick add</string>
     <string name="added_template">%1$s added</string>
+    <string name="widget_description">Balance, upcoming bills and a quick add button.</string>
 </resources>

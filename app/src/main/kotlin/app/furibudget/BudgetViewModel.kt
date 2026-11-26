@@ -25,7 +25,9 @@ import java.time.LocalDate
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -58,6 +60,8 @@ data class BudgetState(
     fun month(date: LocalDate = LocalDate.now()) = Periods.monthContaining(date, startDay)
 }
 
+private suspend fun Application.widgetUpdate() = app.furibudget.widget.WidgetUpdater.update(this)
+
 class BudgetViewModel(private val app: Application) : AndroidViewModel(app) {
     private val repo = (app as FuriBudgetApp).repository
     private val settingsRepo = (app as FuriBudgetApp).settings
@@ -75,6 +79,12 @@ class BudgetViewModel(private val app: Application) : AndroidViewModel(app) {
     init {
         // The three most used templates become long-press shortcuts on the launcher icon.
         viewModelScope.launch { repo.templates.collect { Shortcuts.publishTemplates(app, it) } }
+        // Keep any home-screen widget current: redraw when money, bills or payments change.
+        viewModelScope.launch {
+            state.map { Triple(it.total, it.transactions.size, it.billPayments.size + it.bills.size) }.distinctUntilChanged().collect {
+                if (state.value.loaded) app.widgetUpdate()
+            }
+        }
         viewModelScope.launch {
             repo.seedIfEmpty()
             repo.postAutoPay(LocalDate.now())
