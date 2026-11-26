@@ -1,3 +1,32 @@
 <resources>
     <string name="app_name">Furi Budget</string>
+    <string name="back">Back</string>
+    <string name="appearance">Appearance</string>
+    <string name="preview_left">Left this month</string>
+    <string name="preview_add">Add expense</string>
+    <string name="preview_sample">Sample figures</string>
+    <string name="theme_pack">Theme pack</string>
+    <string name="accent">Accent colour</string>
+    <string name="accent_wallpaper">Wallpaper colours</string>
+    <string name="accent_custom">Custom</string>
+    <string name="hue">Hue</string>
+    <string name="saturation">Saturation</string>
+    <string name="brightness_value">Brightness</string>
+    <string name="hex">Hex colour</string>
+    <string name="brightness">Light or dark</string>
+    <string name="mode_system">System</string>
+    <string name="mode_light">Light</string>
+    <string name="mode_dark">Dark</string>
+    <string name="pack_locked">%1$s is %2$s only.</string>
+    <string name="background">Background</string>
+    <string name="bg_mesh">Drifting colour</string>
+    <string name="bg_gradient">Still gradient</string>
+    <string name="bg_solid">Solid</string>
+    <string name="details">Details</string>
+    <string name="gradient_accent">Gradient accent</string>
+    <string name="colorblind">Colour-blind safe income and expense colours</string>
+    <string name="animation">Animation</string>
+    <string name="home_title">Furi Budget</string>
+    <string name="home_sample_left">Left this month</string>
+    <string name="open_appearance">Appearance</string>
 </resources>
