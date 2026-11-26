@@ -35,6 +35,8 @@ object Notifier {
         Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
 
+    // canPost() checks POST_NOTIFICATIONS right above; lint cannot see through the helper.
+    @android.annotation.SuppressLint("MissingPermission")
     private fun post(context: Context, channel: String, id: Int, title: String, text: String) {
         if (!canPost(context)) return
         val open = PendingIntent.getActivity(context, 0, Intent(context, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)

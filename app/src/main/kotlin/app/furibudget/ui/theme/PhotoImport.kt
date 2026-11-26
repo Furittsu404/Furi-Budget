@@ -9,7 +9,7 @@ import java.io.File
 import kotlin.math.max
 
 /** A background photo copied into app storage plus accent candidates taken from it. */
-class ImportedPhoto(val path: String, val colors: List<Int>)
+class ImportedPhoto(val path: String, val colors: List<Int>, val luma: Float)
 
 object PhotoImport {
     private const val MAX_SIDE = 1600
@@ -31,7 +31,18 @@ object PhotoImport {
         val out = File(dir, "bg_${System.currentTimeMillis()}.jpg")
         out.outputStream().use { bitmap.compress(Bitmap.CompressFormat.JPEG, 88, it) }
         previous?.let { File(it).takeIf { f -> f.exists() && f.parentFile == dir }?.delete() }
-        return ImportedPhoto(out.absolutePath, colorsOf(bitmap))
+        return ImportedPhoto(out.absolutePath, colorsOf(bitmap), lumaOf(bitmap))
+    }
+
+    /** Mean brightness from a 24 px thumbnail, 0 (black) to 1 (white). */
+    private fun lumaOf(bitmap: Bitmap): Float {
+        val t = Bitmap.createScaledBitmap(bitmap, 24, 24, true)
+        var sum = 0.0
+        for (y in 0 until 24) for (x in 0 until 24) {
+            val px = t.getPixel(x, y)
+            sum += 0.299 * ((px shr 16) and 0xFF) + 0.587 * ((px shr 8) and 0xFF) + 0.114 * (px and 0xFF)
+        }
+        return (sum / (24 * 24 * 255.0)).toFloat()
     }
 
     private fun colorsOf(bitmap: Bitmap): List<Int> {

@@ -46,10 +46,11 @@ fun repeatLabel(r: Repeat) = stringResource(
     },
 )
 
+private val dateFmt = DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.getDefault())
+
 @Composable
 fun RecurringScreen(state: BudgetState, onSave: (RecurrenceEntity) -> Unit, onDelete: (RecurrenceEntity) -> Unit, onBack: () -> Unit) {
     val c = Furi.colors
-    val fmt = DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.getDefault())
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).statusBarsPadding().navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -75,7 +76,7 @@ fun RecurringScreen(state: BudgetState, onSave: (RecurrenceEntity) -> Unit, onDe
                             style = Furi.figures.copy(fontSize = MaterialTheme.typography.bodySmall.fontSize), color = if (r.kind == TxKind.INCOME) c.income else c.onSurfaceVariant,
                         )
                         Text(
-                            if (r.active) stringResource(R.string.next_on, LocalDate.ofEpochDay(r.nextDueEpochDay).format(fmt)) else stringResource(R.string.paused),
+                            if (r.active) stringResource(R.string.next_on, LocalDate.ofEpochDay(r.nextDueEpochDay).format(dateFmt)) else stringResource(R.string.paused),
                             style = MaterialTheme.typography.labelMedium, color = c.accentText,
                         )
                     }

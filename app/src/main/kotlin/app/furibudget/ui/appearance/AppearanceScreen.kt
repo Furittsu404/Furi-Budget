@@ -368,7 +368,7 @@ private fun BackgroundSection(spec: ThemeSpec, onChange: ((ThemeSpec) -> ThemeSp
     val pick = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) scope.launch {
             val photo = withContext(Dispatchers.IO) { PhotoImport.import(context, uri, spec.photoPath) }
-            if (photo != null) onChange { it.copy(background = BackgroundKind.PHOTO, photoPath = photo.path, photoColors = photo.colors) }
+            if (photo != null) onChange { it.copy(background = BackgroundKind.PHOTO, photoPath = photo.path, photoColors = photo.colors, photoLuma = photo.luma) }
         }
     }
     Section(stringResource(R.string.background)) {

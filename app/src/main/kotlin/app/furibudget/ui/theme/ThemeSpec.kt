@@ -38,6 +38,8 @@ data class ThemeSpec(
     val photoDim: Float = 0.35f,
     /** Accent candidates pulled from the photo when it was chosen. */
     val photoColors: List<Int> = emptyList(),
+    /** Average brightness of the photo, 0 to 1. Decides light or dark text over it. */
+    val photoLuma: Float? = null,
     /** Shift the background a few dp as the phone tilts. */
     val parallax: Boolean = false,
 )

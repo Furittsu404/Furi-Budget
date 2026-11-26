@@ -45,9 +45,12 @@ private val fallbackAccent = Accents.byId(Accents.DEFAULT_ID).argb
 class DynamicAccent(val dark: Int, val light: Int)
 
 fun resolveColors(spec: ThemeSpec, pack: ThemePack, systemDark: Boolean, dynamic: DynamicAccent?): FuriColors {
+    val overPhoto = spec.background == BackgroundKind.PHOTO && spec.photoPath != null && spec.photoLuma != null
     val dark = when {
         pack.dark == null -> false
         pack.light == null -> true
+        // Text has to read against the picture, not the system theme: a bright photo gets dark text, a dim one light text.
+        overPhoto -> spec.photoLuma!! * (1f - spec.photoDim.coerceAtLeast(0.3f)) < 0.5f
         else -> when (spec.mode) {
             ThemeMode.DARK -> true
             ThemeMode.LIGHT -> false

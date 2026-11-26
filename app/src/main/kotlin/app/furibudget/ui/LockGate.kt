@@ -69,8 +69,10 @@ fun LockGate(enabled: Boolean, content: @Composable () -> Unit) {
     }
 
     val ask = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { r -> if (r.resultCode == Activity.RESULT_OK) locked = false }
+    val title = stringResource(R.string.app_name)
+    val reason = stringResource(R.string.unlock_prompt)
     fun prompt() {
-        val intent = keyguard.createConfirmDeviceCredentialIntent(context.getString(R.string.app_name), context.getString(R.string.unlock_prompt))
+        val intent = keyguard.createConfirmDeviceCredentialIntent(title, reason)
         if (intent == null) locked = false else ask.launch(intent)
     }
     LaunchedEffect(locked, active) { if (active && locked) prompt() }

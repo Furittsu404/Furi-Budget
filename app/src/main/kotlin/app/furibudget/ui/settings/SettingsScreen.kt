@@ -22,6 +22,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -71,6 +72,11 @@ fun SettingsScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val s = state.settings
+    val msg_backup_invalid = stringResource(R.string.backup_invalid)
+    val msg_backup_restored = stringResource(R.string.backup_restored)
+    val msg_backup_saved = stringResource(R.string.backup_saved)
+    val msg_csv_saved = stringResource(R.string.csv_saved)
+    val msg_sample_loaded = stringResource(R.string.sample_loaded)
     var confirmImport by remember { mutableStateOf<String?>(null) }
     var confirmWipe by remember { mutableStateOf(false) }
     var pickTime by remember { mutableStateOf(false) }
@@ -84,20 +90,20 @@ fun SettingsScreen(
         if (uri != null) scope.launch {
             val text = vm.exportJson(spec)
             withContext(Dispatchers.IO) { context.contentResolver.openOutputStream(uri)?.use { it.write(text.toByteArray()) } }
-            message = context.getString(R.string.backup_saved)
+            message = msg_backup_saved
         }
     }
     val exportCsv = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
         if (uri != null) scope.launch {
             val text = vm.exportCsv()
             withContext(Dispatchers.IO) { context.contentResolver.openOutputStream(uri)?.use { it.write(text.toByteArray()) } }
-            message = context.getString(R.string.csv_saved)
+            message = msg_csv_saved
         }
     }
     val importFile = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) scope.launch {
             val text = withContext(Dispatchers.IO) { context.contentResolver.openInputStream(uri)?.use { String(it.readBytes()) } }
-            if (text == null || app.furibudget.data.Backup.decode(text) == null) message = context.getString(R.string.backup_invalid) else confirmImport = text
+            if (text == null || app.furibudget.data.Backup.decode(text) == null) message = msg_backup_invalid else confirmImport = text
         }
     }
     val keyguard = context.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
@@ -123,8 +129,8 @@ fun SettingsScreen(
                 value = s.startDay.toFloat(), onValueChange = { v -> vm.updateSettings { it.copy(startDay = v.toInt()) } },
                 valueRange = 1f..28f, steps = 26,
             )
-            LinkRow(stringResource(R.string.accounts_categories), onClick = onOpenManage)
-            LinkRow(stringResource(R.string.recurring), onClick = onOpenRecurring)
+            LinkRow(stringResource(R.string.accounts_categories), chevron = true, onClick = onOpenManage)
+            LinkRow(stringResource(R.string.recurring), chevron = true, onClick = onOpenRecurring)
         }
 
         Group(stringResource(R.string.notifications)) {
@@ -154,7 +160,7 @@ fun SettingsScreen(
             LinkRow(stringResource(R.string.export_backup)) { exportJson.launch("furibudget-backup-${LocalDate.now()}.json") }
             LinkRow(stringResource(R.string.export_csv)) { exportCsv.launch("furibudget-transactions-${LocalDate.now()}.csv") }
             LinkRow(stringResource(R.string.import_backup)) { importFile.launch(arrayOf("application/json", "text/plain", "*/*")) }
-            LinkRow(stringResource(R.string.load_sample)) { vm.loadSample(); message = context.getString(R.string.sample_loaded) }
+            LinkRow(stringResource(R.string.load_sample)) { vm.loadSample(); message = msg_sample_loaded }
             LinkRow(stringResource(R.string.erase_all), danger = true) { confirmWipe = true }
         }
 
@@ -175,7 +181,7 @@ fun SettingsScreen(
                     scope.launch {
                         val file = vm.importJson(text)
                         file?.theme?.let { t -> onTheme { t.copy(photoPath = null, background = t.background.takeIf { it != app.furibudget.ui.theme.BackgroundKind.PHOTO }) } }
-                        message = context.getString(if (file != null) R.string.backup_restored else R.string.backup_invalid)
+                        message = if (file != null) msg_backup_restored else msg_backup_invalid
                     }
                 }) { Text(stringResource(R.string.replace)) }
             },
@@ -213,9 +219,10 @@ private fun Group(title: String, content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun LinkRow(label: String, danger: Boolean = false, onClick: () -> Unit) {
+private fun LinkRow(label: String, danger: Boolean = false, chevron: Boolean = false, onClick: () -> Unit) {
     Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(onClick = onClick), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, style = MaterialTheme.typography.bodyLarge, color = if (danger) Furi.colors.expense else Furi.colors.onSurface)
+        Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge, color = if (danger) Furi.colors.expense else Furi.colors.onSurface)
+        if (chevron) Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = Furi.colors.onSurfaceVariant)
     }
 }
 

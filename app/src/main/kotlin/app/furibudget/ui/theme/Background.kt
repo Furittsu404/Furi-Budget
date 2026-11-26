@@ -71,7 +71,7 @@ fun FuriBackground(modifier: Modifier = Modifier) {
     Box(modifier.fillMaxSize().background(c.background)) {
         when {
             kind == BackgroundKind.SOLID -> Unit
-            kind == BackgroundKind.PHOTO && Furi.spec.photoPath != null -> PhotoLayer(Furi.spec, shift)
+            kind == BackgroundKind.PHOTO && Furi.spec.photoPath != null -> PhotoLayer(Furi.spec, shift, c.background)
             kind == BackgroundKind.PARTICLES -> Canvas(Modifier.fillMaxSize().then(shift)) {
                 drawBlobs(c, 0f, strength = 0.6f)
                 drawParticles(c, clock.floatValue)
@@ -207,7 +207,7 @@ private fun DrawScope.drawParticles(c: FuriColors, t: Float) {
 private fun DrawScope.density() = this.drawContext.density.density
 
 @Composable
-private fun PhotoLayer(spec: ThemeSpec, shift: Modifier) {
+private fun PhotoLayer(spec: ThemeSpec, shift: Modifier, scrim: Color) {
     val file = remember(spec.photoPath) { spec.photoPath?.let { File(it) } }
     Box(Modifier.fillMaxSize().then(shift)) {
         AsyncImage(
@@ -218,7 +218,8 @@ private fun PhotoLayer(spec: ThemeSpec, shift: Modifier) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && spec.photoBlur > 0.01f) Modifier.blur((spec.photoBlur * 24f).dp) else Modifier,
             ),
         )
-        Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = spec.photoDim.coerceIn(0f, 0.9f))))
+        // Scrim takes the page colour, so light themes wash the photo out and dark ones deepen it.
+        Box(Modifier.fillMaxSize().background(scrim.copy(alpha = spec.photoDim.coerceIn(0.3f, 0.9f))))
     }
 }
 

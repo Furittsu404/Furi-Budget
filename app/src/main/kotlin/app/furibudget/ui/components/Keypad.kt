@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -79,7 +80,7 @@ private fun Key(
     val shape = MaterialTheme.shapes.medium
     Box(
         modifier
-            .height(56.dp)
+            .height(if (LocalDensity.current.fontScale > 1.15f) 46.dp else 56.dp)
             .scale(scale)
             .clip(shape)
             .background(if (pressed) c.accentContainer else c.card)

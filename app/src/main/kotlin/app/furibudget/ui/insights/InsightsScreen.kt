@@ -58,6 +58,7 @@ import kotlin.math.roundToInt
 private val monthFmt = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault())
 private val monthShort = DateTimeFormatter.ofPattern("MMM", Locale.getDefault())
 private val dayFmt = DateTimeFormatter.ofPattern("MMM d", Locale.getDefault())
+private val monthOnly = DateTimeFormatter.ofPattern("MMMM", Locale.getDefault())
 
 @Composable
 fun InsightsScreen(state: BudgetState) {
@@ -128,7 +129,11 @@ fun InsightsScreen(state: BudgetState) {
         FuriCard(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(stringResource(R.string.last_months), style = MaterialTheme.typography.titleMedium, color = c.onSurface)
-                PairedBars(bars.map { BarGroup(it.range.start.format(monthShort), it.income.minor, it.expense.minor) }, c.income, c.expense, barSel, { barSel = it })
+                if (bars.all { it.income.minor == 0L && it.expense.minor == 0L }) {
+                    Text(stringResource(R.string.nothing_recorded), style = MaterialTheme.typography.bodyMedium, color = c.onSurfaceVariant, modifier = Modifier.padding(vertical = 24.dp))
+                } else {
+                    PairedBars(bars.map { BarGroup(it.range.start.format(monthShort), it.income.minor, it.expense.minor) }, c.income, c.expense, barSel, { barSel = it })
+                }
                 Row(Modifier.fillMaxWidth()) {
                     bars.forEachIndexed { i, b ->
                         Text(
@@ -163,10 +168,10 @@ fun InsightsScreen(state: BudgetState) {
                 val now = cum[shown]
                 val text = when {
                     before == 0L && now == 0L -> stringResource(R.string.no_spending)
-                    before == 0L -> stringResource(R.string.nothing_before, prevRange.start.format(monthFmt.let { DateTimeFormatter.ofPattern("MMMM", Locale.getDefault()) }))
+                    before == 0L -> stringResource(R.string.nothing_before, prevRange.start.format(monthOnly))
                     else -> {
                         val pct = ((now - before) * 100f / before).roundToInt()
-                        val name = prevRange.start.format(DateTimeFormatter.ofPattern("MMMM", Locale.getDefault()))
+                        val name = prevRange.start.format(monthOnly)
                         if (pct >= 0) stringResource(R.string.more_than, abs(pct), name) else stringResource(R.string.less_than, abs(pct), name)
                     }
                 }

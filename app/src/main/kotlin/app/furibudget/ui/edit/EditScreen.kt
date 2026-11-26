@@ -61,7 +61,6 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -243,7 +242,7 @@ private fun dateLabel(date: LocalDate): String {
     return when (date) {
         today -> stringResource(R.string.today)
         today.minusDays(1) -> stringResource(R.string.yesterday)
-        else -> date.format(DateTimeFormatter.ofPattern("EEE, MMM d", Locale.getDefault()))
+        else -> date.format(DateTimeFormatter.ofPattern("EEE, MMM d", androidx.compose.ui.platform.LocalConfiguration.current.locales[0]))
     }
 }
 
