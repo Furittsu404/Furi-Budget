@@ -158,7 +158,7 @@ private fun PackSection(spec: ThemeSpec, onChange: ((ThemeSpec) -> ThemeSpec) ->
 }
 
 @Composable
-private fun PackTile(pack: ThemePack, spec: ThemeSpec, selected: Boolean, onClick: () -> Unit) {
+internal fun PackTile(pack: ThemePack, spec: ThemeSpec, selected: Boolean, onClick: () -> Unit) {
     val preview = remember(pack, spec.accent, spec.mode, spec.gradientAccent) {
         resolveColors(spec.copy(packId = pack.id), pack, systemDark = true, dynamic = null)
     }
@@ -244,7 +244,7 @@ private fun AccentSection(spec: ThemeSpec, onChange: ((ThemeSpec) -> ThemeSpec) 
 }
 
 @Composable
-private fun Swatch(color: Color, name: String, selected: Boolean, onClick: () -> Unit) {
+internal fun Swatch(color: Color, name: String, selected: Boolean, onClick: () -> Unit) {
     val scale by animateFloatAsState(if (selected) 1.12f else 1f, Furi.motion.spring(), label = "swatch-scale")
     val c = Furi.colors
     Box(

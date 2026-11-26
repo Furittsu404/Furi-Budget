@@ -30,6 +30,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -51,9 +52,9 @@ import java.time.LocalDate
 
 /** Interim Home (M2). M3 replaces it with the budget ring, category strip and goals. */
 @Composable
-fun HomeScreen(state: BudgetState, onOpenAppearance: () -> Unit, onOpenBudgets: () -> Unit, onOpenTx: (Long) -> Unit) {
+fun HomeScreen(state: BudgetState, onOpenAppearance: () -> Unit, onOpenSettings: () -> Unit, onOpenBudgets: () -> Unit, onOpenTx: (Long) -> Unit) {
     val c = Furi.colors
-    val month = Periods.monthContaining(LocalDate.now())
+    val month = state.month()
     val totals = Ledger.totals(state.transactions, month)
     Column(
         Modifier
@@ -68,6 +69,9 @@ fun HomeScreen(state: BudgetState, onOpenAppearance: () -> Unit, onOpenBudgets: 
             Text(stringResource(R.string.home_title), Modifier.weight(1f), style = MaterialTheme.typography.headlineMedium, color = c.onSurface)
             IconButton(onClick = onOpenAppearance) {
                 Icon(Icons.Rounded.Palette, contentDescription = stringResource(R.string.open_appearance))
+            }
+            IconButton(onClick = onOpenSettings) {
+                Icon(Icons.Rounded.Settings, contentDescription = stringResource(R.string.settings))
             }
         }
         FuriCard(Modifier.fillMaxWidth()) {
@@ -89,7 +93,7 @@ fun HomeScreen(state: BudgetState, onOpenAppearance: () -> Unit, onOpenBudgets: 
         }
         val overall = state.budgets.firstOrNull { it.categoryId == null }
         if (overall != null) {
-            val st = Budgeting.status(overall, state.transactions, month)
+            val st = Budgeting.status(overall, state.transactions, month, state.startDay)
             FuriCard(Modifier.fillMaxWidth().clickable(onClick = onOpenBudgets)) {
                 Row(Modifier.fillMaxWidth().padding(20.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
                     BudgetRing(st.fraction, st.level, Modifier.size(92.dp), stroke = 9.dp) {

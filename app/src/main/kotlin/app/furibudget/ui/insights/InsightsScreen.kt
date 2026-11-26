@@ -65,8 +65,8 @@ fun InsightsScreen(state: BudgetState) {
     val cur = state.currency
     var offset by rememberSaveable { mutableIntStateOf(0) }
     val today = LocalDate.now()
-    val range = remember(offset) { Periods.shiftMonth(Periods.monthContaining(today), offset) }
-    val prevRange = remember(range) { Periods.shiftMonth(range, -1) }
+    val range = remember(offset, state.startDay) { Periods.shiftMonth(state.month(today), offset, state.startDay) }
+    val prevRange = remember(range) { Periods.shiftMonth(range, -1, state.startDay) }
 
     val cats = remember(state.transactions, range) { Insights.spendByCategory(state.transactions, range) }
     val fallback = c.onSurfaceVariant
@@ -123,7 +123,7 @@ fun InsightsScreen(state: BudgetState) {
             }
         }
 
-        val bars = remember(state.transactions, range) { Insights.monthBars(state.transactions, range.start, 6) }
+        val bars = remember(state.transactions, range) { Insights.monthBars(state.transactions, range.start, 6, state.startDay) }
         var barSel by remember(range) { mutableIntStateOf(bars.lastIndex) }
         FuriCard(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {

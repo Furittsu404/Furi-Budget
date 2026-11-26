@@ -6,6 +6,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.runtime.collectAsState
+import app.furibudget.ui.LockGate
+import app.furibudget.ui.theme.FuriBackground
 import app.furibudget.ui.theme.FuriTheme
 import app.furibudget.ui.theme.ThemeViewModel
 
@@ -18,8 +20,13 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             val spec = themeVm.spec.collectAsState().value ?: return@setContent
+            val state = budgetVm.state.collectAsState().value
             FuriTheme(spec) {
-                AppRoot(spec, themeVm::update, budgetVm)
+                if (!state.loaded) {
+                    FuriBackground()
+                } else {
+                    LockGate(enabled = state.settings.appLock) { AppRoot(spec, themeVm::update, budgetVm) }
+                }
             }
         }
     }

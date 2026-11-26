@@ -53,7 +53,7 @@ private val dayFmt = DateTimeFormatter.ofPattern("EEE, MMM d", Locale.getDefault
 fun ActivityScreen(state: BudgetState, onOpenTx: (Long) -> Unit, onDelete: (TransactionEntity) -> Unit) {
     val c = Furi.colors
     var offset by rememberSaveable { mutableIntStateOf(0) }
-    val range = remember(offset) { Periods.shiftMonth(Periods.monthContaining(LocalDate.now()), offset) }
+    val range = remember(offset, state.startDay) { Periods.shiftMonth(state.month(), offset, state.startDay) }
     val inMonth = remember(state.transactions, range) { state.transactions.filter { LocalDate.ofEpochDay(it.epochDay) in range } }
     val grouped = remember(inMonth) { inMonth.groupBy { it.epochDay } }
     val totals = remember(state.transactions, range) { Ledger.totals(state.transactions, range) }

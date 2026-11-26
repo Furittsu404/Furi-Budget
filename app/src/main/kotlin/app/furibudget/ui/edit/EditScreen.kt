@@ -47,7 +47,11 @@ import app.furibudget.BudgetState
 import app.furibudget.R
 import app.furibudget.core.KeypadEntry
 import app.furibudget.core.Money
+import app.furibudget.core.Recurrence
+import app.furibudget.core.Repeat
+import app.furibudget.data.RecurrenceEntity
 import app.furibudget.data.TransactionEntity
+import app.furibudget.ui.settings.repeatLabel
 import app.furibudget.data.TxKind
 import app.furibudget.ui.components.AnimatedAmount
 import app.furibudget.ui.components.FuriIcons
@@ -65,6 +69,7 @@ fun EditScreen(
     txId: Long,
     state: BudgetState,
     onSave: (TransactionEntity) -> Unit,
+    onSaveRecurrence: (RecurrenceEntity) -> Unit,
     onClose: () -> Unit,
 ) {
     val c = Furi.colors
@@ -79,6 +84,7 @@ fun EditScreen(
     var note by remember(existing) { mutableStateOf(existing?.note.orEmpty()) }
     var date by remember(existing) { mutableStateOf(existing?.let { LocalDate.ofEpochDay(it.epochDay) } ?: LocalDate.now()) }
     var picking by remember { mutableStateOf(false) }
+    var repeat by remember { mutableStateOf(Repeat.NONE) }
 
     val amount = entry.toMoney()
     val kindColor by animateColorAsState(
@@ -153,6 +159,11 @@ fun EditScreen(
                     }
                 }
             }
+            if (existing == null) {
+                ChipRow(stringResource(R.string.repeat)) {
+                    Repeat.entries.forEach { r -> FilterChip(selected = repeat == r, onClick = { repeat = r }, label = { Text(repeatLabel(r)) }) }
+                }
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                 FilterChip(
                     selected = false,
@@ -192,6 +203,17 @@ fun EditScreen(
                             createdAt = existing?.createdAt ?: System.currentTimeMillis(),
                         ),
                     )
+                    if (repeat != Repeat.NONE && existing == null) {
+                        onSaveRecurrence(
+                            RecurrenceEntity(
+                                kind = kind, amountMinor = amount.minor, accountId = accountId,
+                                toAccountId = if (kind == TxKind.TRANSFER) transferTarget else null,
+                                categoryId = if (kind == TxKind.TRANSFER) null else categoryId, note = note.trim(),
+                                repeat = repeat, anchorDay = date.dayOfMonth,
+                                nextDueEpochDay = Recurrence.next(date, repeat, date.dayOfMonth).toEpochDay(),
+                            ),
+                        )
+                    }
                     onClose()
                 },
                 enabled = canSave,

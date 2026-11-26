@@ -54,6 +54,10 @@ import app.furibudget.ui.edit.EditScreen
 import app.furibudget.ui.budgets.BudgetsScreen
 import app.furibudget.ui.goals.GoalsScreen
 import app.furibudget.ui.home.HomeScreen
+import app.furibudget.ui.onboarding.OnboardingScreen
+import app.furibudget.ui.settings.ManageScreen
+import app.furibudget.ui.settings.RecurringScreen
+import app.furibudget.ui.settings.SettingsScreen
 import app.furibudget.ui.insights.InsightsScreen
 import app.furibudget.ui.theme.Furi
 import app.furibudget.ui.theme.FuriBackground
@@ -67,6 +71,9 @@ private object Route {
     const val BUDGETS = "budgets"
     const val GOALS = "goals"
     const val APPEARANCE = "appearance"
+    const val SETTINGS = "settings"
+    const val MANAGE = "manage"
+    const val RECURRING = "recurring"
     const val EDIT = "edit/{id}"
     fun edit(id: Long) = "edit/$id"
 }
@@ -96,7 +103,7 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
             popExitTransition = { fadeOut(m.tween(160)) + slideOutHorizontally(m.spring()) { it / 10 } },
         ) {
             composable(Route.HOME) {
-                HomeScreen(state, onOpenAppearance = { nav.navigate(Route.APPEARANCE) }, onOpenBudgets = { nav.navigate(Route.BUDGETS) { popUpTo(Route.HOME) { saveState = true }; launchSingleTop = true; restoreState = true } }, onOpenTx = { nav.navigate(Route.edit(it)) })
+                HomeScreen(state, onOpenAppearance = { nav.navigate(Route.APPEARANCE) }, onOpenSettings = { nav.navigate(Route.SETTINGS) }, onOpenBudgets = { nav.navigate(Route.BUDGETS) { popUpTo(Route.HOME) { saveState = true }; launchSingleTop = true; restoreState = true } }, onOpenTx = { nav.navigate(Route.edit(it)) })
             }
             composable(Route.ACTIVITY) {
                 ActivityScreen(
@@ -117,19 +124,36 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
             composable(Route.BUDGETS) { BudgetsScreen(state, vm::saveBudget, vm::deleteBudget) }
             composable(Route.GOALS) { GoalsScreen(state, vm::saveGoal, vm::deleteGoal) }
             composable(Route.APPEARANCE) { AppearanceScreen(spec, onTheme) { nav.popBackStack() } }
+            composable(Route.SETTINGS) {
+                SettingsScreen(
+                    state, vm, spec, onTheme,
+                    onOpenManage = { nav.navigate(Route.MANAGE) }, onOpenRecurring = { nav.navigate(Route.RECURRING) },
+                    onBack = { nav.popBackStack() },
+                )
+            }
+            composable(Route.MANAGE) { ManageScreen(state, vm::saveAccount, vm::saveCategory) { nav.popBackStack() } }
+            composable(Route.RECURRING) { RecurringScreen(state, vm::saveRecurrence, vm::deleteRecurrence) { nav.popBackStack() } }
             composable(
                 Route.EDIT,
                 arguments = listOf(navArgument("id") { type = NavType.LongType }),
                 enterTransition = { fadeIn(m.tween(200)) + slideInVertically(m.spring()) { it / 6 } },
                 popExitTransition = { fadeOut(m.tween(160)) + slideOutVertically(m.spring()) { it / 6 } },
             ) { entry ->
-                EditScreen(entry.arguments?.getLong("id") ?: 0L, state, onSave = vm::save, onClose = { nav.popBackStack() })
+                EditScreen(entry.arguments?.getLong("id") ?: 0L, state, onSave = vm::save, onSaveRecurrence = vm::saveRecurrence, onClose = { nav.popBackStack() })
+            }
+        }
+        val onboarding = state.loaded && !state.settings.onboarded
+        if (onboarding) {
+            // Opaque: the screens underneath must not show through the pager.
+            Box(Modifier.fillMaxSize()) {
+                FuriBackground()
+                OnboardingScreen(state, spec, onTheme, vm::saveAccount) { vm.updateSettings { it.copy(onboarded = true) } }
             }
         }
         Column(Modifier.align(Alignment.BottomCenter).navigationBarsPadding()) {
             SnackbarHost(snackbar, Modifier.padding(horizontal = 16.dp))
             AnimatedVisibility(
-                visible = showBar,
+                visible = showBar && !onboarding,
                 enter = fadeIn(m.tween(200)) + slideInVertically(m.spring()) { it },
                 exit = fadeOut(m.tween(120)) + slideOutVertically(m.tween(160)) { it },
             ) {
