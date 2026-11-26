@@ -21,6 +21,9 @@ data class AppSettings(
     val reminderHour: Int = 20,
     val reminderMinute: Int = 0,
     val budgetAlerts: Boolean = true,
+    val billReminders: Boolean = true,
+    val billHour: Int = 9,
+    val billMinute: Int = 0,
 )
 
 class SettingsRepository(private val context: Context) {
@@ -33,6 +36,9 @@ class SettingsRepository(private val context: Context) {
         val hour = intPreferencesKey("reminder_hour")
         val minute = intPreferencesKey("reminder_minute")
         val alerts = booleanPreferencesKey("budget_alerts")
+        val billOn = booleanPreferencesKey("bill_reminders")
+        val billHour = intPreferencesKey("bill_hour")
+        val billMinute = intPreferencesKey("bill_minute")
     }
 
     val settings: Flow<AppSettings> = context.settingsStore.data.map { p ->
@@ -40,6 +46,7 @@ class SettingsRepository(private val context: Context) {
         AppSettings(
             p[K.currency] ?: d.currencyCode, p[K.startDay] ?: d.startDay, p[K.onboarded] ?: d.onboarded, p[K.lock] ?: d.appLock,
             p[K.reminder] ?: d.dailyReminder, p[K.hour] ?: d.reminderHour, p[K.minute] ?: d.reminderMinute, p[K.alerts] ?: d.budgetAlerts,
+            p[K.billOn] ?: d.billReminders, p[K.billHour] ?: d.billHour, p[K.billMinute] ?: d.billMinute,
         )
     }
 
@@ -48,11 +55,13 @@ class SettingsRepository(private val context: Context) {
             val cur = AppSettings(
                 p[K.currency] ?: "PHP", p[K.startDay] ?: 1, p[K.onboarded] ?: false, p[K.lock] ?: false,
                 p[K.reminder] ?: false, p[K.hour] ?: 20, p[K.minute] ?: 0, p[K.alerts] ?: true,
+                p[K.billOn] ?: true, p[K.billHour] ?: 9, p[K.billMinute] ?: 0,
             )
             val n = change(cur)
             p[K.currency] = n.currencyCode; p[K.startDay] = n.startDay.coerceIn(1, 28); p[K.onboarded] = n.onboarded
             p[K.lock] = n.appLock; p[K.reminder] = n.dailyReminder; p[K.hour] = n.reminderHour
             p[K.minute] = n.reminderMinute; p[K.alerts] = n.budgetAlerts
+            p[K.billOn] = n.billReminders; p[K.billHour] = n.billHour.coerceIn(0, 23); p[K.billMinute] = n.billMinute.coerceIn(0, 59)
         }
     }
 }

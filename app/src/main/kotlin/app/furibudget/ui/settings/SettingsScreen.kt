@@ -65,6 +65,7 @@ fun SettingsScreen(
     spec: ThemeSpec,
     onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit,
     onOpenManage: () -> Unit,
+    onOpenGoals: () -> Unit,
     onBack: () -> Unit,
 ) {
     val c = Furi.colors
@@ -79,6 +80,7 @@ fun SettingsScreen(
     var confirmImport by remember { mutableStateOf<String?>(null) }
     var confirmWipe by remember { mutableStateOf(false) }
     var pickTime by remember { mutableStateOf(false) }
+    var pickBillTime by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
 
     val needsPermission = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
@@ -129,6 +131,7 @@ fun SettingsScreen(
                 valueRange = 1f..28f, steps = 26,
             )
             LinkRow(stringResource(R.string.accounts_categories), chevron = true, onClick = onOpenManage)
+            LinkRow(stringResource(R.string.goals_link), chevron = true, onClick = onOpenGoals)
         }
 
         Group(stringResource(R.string.notifications)) {
@@ -138,6 +141,17 @@ fun SettingsScreen(
             }
             if (s.dailyReminder) {
                 LinkRow(stringResource(R.string.reminder_time, "%02d:%02d".format(s.reminderHour, s.reminderMinute))) { pickTime = true }
+            }
+            ToggleRow(stringResource(R.string.bill_reminders), s.billReminders) { on ->
+                if (on) requestNotificationsIfNeeded()
+                vm.updateSettings { it.copy(billReminders = on) }
+            }
+            if (s.billReminders) {
+                LinkRow(stringResource(R.string.bill_reminder_time, "%02d:%02d".format(s.billHour, s.billMinute))) { pickBillTime = true }
+                LinkRow(stringResource(R.string.send_bill_reminders_now)) {
+                    scope.launch { message = context.resources.getString(R.string.bill_check_done, vm.checkBillsNow()) }
+                }
+                Text(stringResource(R.string.bill_reminders_hint), style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant)
             }
             ToggleRow(stringResource(R.string.budget_alerts), s.budgetAlerts) { on ->
                 if (on) requestNotificationsIfNeeded()
@@ -193,6 +207,15 @@ fun SettingsScreen(
             text = { Text(stringResource(R.string.erase_warning)) },
             confirmButton = { TextButton(onClick = { confirmWipe = false; vm.wipeAll() }) { Text(stringResource(R.string.erase), color = Furi.colors.expense) } },
             dismissButton = { TextButton(onClick = { confirmWipe = false }) { Text(stringResource(R.string.cancel)) } },
+        )
+    }
+    if (pickBillTime) {
+        val t = rememberTimePickerState(s.billHour, s.billMinute, is24Hour = false)
+        AlertDialog(
+            onDismissRequest = { pickBillTime = false },
+            confirmButton = { TextButton(onClick = { vm.updateSettings { it.copy(billHour = t.hour, billMinute = t.minute) }; pickBillTime = false }) { Text(stringResource(R.string.ok)) } },
+            dismissButton = { TextButton(onClick = { pickBillTime = false }) { Text(stringResource(R.string.cancel)) } },
+            text = { TimePicker(t) },
         )
     }
     if (pickTime) {

@@ -52,7 +52,7 @@ import java.time.LocalDate
 
 /** Interim Home (M2). M3 replaces it with the budget ring, category strip and goals. */
 @Composable
-fun HomeScreen(state: BudgetState, onOpenAppearance: () -> Unit, onOpenSettings: () -> Unit, onOpenBudgets: () -> Unit, onOpenTx: (Long) -> Unit) {
+fun HomeScreen(state: BudgetState, onOpenAppearance: () -> Unit, onOpenGoals: () -> Unit, onOpenSettings: () -> Unit, onOpenBudgets: () -> Unit, onOpenTx: (Long) -> Unit) {
     val c = Furi.colors
     val month = state.month()
     val totals = Ledger.totals(state.transactions, month)
@@ -108,6 +108,15 @@ fun HomeScreen(state: BudgetState, onOpenAppearance: () -> Unit, onOpenSettings:
                         Text(stringResource(R.string.spent_of, state.currency.format(st.spent), state.currency.format(st.limit)), style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant)
                     }
                 }
+            }
+        }
+        FuriCard(Modifier.fillMaxWidth().clickable(onClick = onOpenGoals)) {
+            Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.goals_link), Modifier.weight(1f), style = MaterialTheme.typography.titleSmall, color = c.onSurface)
+                Text(
+                    if (state.goals.isEmpty()) stringResource(R.string.no_goals_title) else state.goals.size.toString(),
+                    style = MaterialTheme.typography.labelMedium, color = c.onSurfaceVariant,
+                )
             }
         }
         val top = Insights.spendByCategory(state.transactions, month).take(3)

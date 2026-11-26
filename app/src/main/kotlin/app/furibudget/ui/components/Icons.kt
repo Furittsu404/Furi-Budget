@@ -2,7 +2,11 @@ package app.furibudget.ui.components
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AccountBalance
+import androidx.compose.material.icons.rounded.Autorenew
 import androidx.compose.material.icons.rounded.Category
+import androidx.compose.material.icons.rounded.CreditCard
+import androidx.compose.material.icons.rounded.Handshake
+import androidx.compose.material.icons.rounded.Savings
 import androidx.compose.material.icons.rounded.CardGiftcard
 import androidx.compose.material.icons.rounded.DirectionsBus
 import androidx.compose.material.icons.rounded.HealthAndSafety
@@ -29,6 +33,10 @@ object FuriIcons {
         "salary" -> Icons.Rounded.Work
         "gift" -> Icons.Rounded.CardGiftcard
         "transfer" -> Icons.Rounded.SwapHoriz
+        "subscription" -> Icons.Rounded.Autorenew
+        "instalment" -> Icons.Rounded.CreditCard
+        "loan" -> Icons.Rounded.Handshake
+        "income" -> Icons.Rounded.Savings
         else -> Icons.Rounded.Category
     }
 }

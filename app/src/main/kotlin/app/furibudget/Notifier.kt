@@ -21,8 +21,7 @@ import java.time.ZoneId
 import kotlinx.coroutines.flow.first
 
 object Notifier {
-    /** Filled in with the bill reminders milestone. */
-    fun scheduleBillAlerts(context: Context, settings: app.furibudget.data.AppSettings) = Unit
+    fun scheduleBillAlerts(context: Context, settings: app.furibudget.data.AppSettings) = BillNotifier.schedule(context, settings)
 
     private const val CH_REMINDER = "reminder"
     private const val CH_ALERT = "alert"
@@ -32,6 +31,7 @@ object Notifier {
         val nm = context.getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(NotificationChannel(CH_REMINDER, context.getString(R.string.channel_reminder), NotificationManager.IMPORTANCE_DEFAULT))
         nm.createNotificationChannel(NotificationChannel(CH_ALERT, context.getString(R.string.channel_alert), NotificationManager.IMPORTANCE_DEFAULT))
+        nm.createNotificationChannel(NotificationChannel(BillNotifier.CHANNEL, context.getString(R.string.channel_bills), NotificationManager.IMPORTANCE_HIGH))
     }
 
     private fun canPost(context: Context) =
@@ -115,5 +115,6 @@ class BootReceiver : BroadcastReceiver() {
         val s = (context.applicationContext as FuriBudgetApp).settings.settings.first()
         Notifier.scheduleRecurring(context)
         if (s.dailyReminder) Notifier.scheduleReminder(context, s.reminderHour, s.reminderMinute)
+        Notifier.scheduleBillAlerts(context, s)
     }
 }

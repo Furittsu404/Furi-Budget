@@ -29,6 +29,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.AccountBalanceWallet
+import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.Flag
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.PieChart
@@ -40,6 +41,8 @@ import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -58,6 +61,9 @@ import app.furibudget.ui.appearance.AppearanceScreen
 import app.furibudget.ui.components.FuriNavBar
 import app.furibudget.ui.components.NavItem
 import app.furibudget.ui.edit.EditScreen
+import app.furibudget.ui.bills.BillEditScreen
+import app.furibudget.ui.bills.BillsScreen
+import app.furibudget.ui.bills.PaySheet
 import app.furibudget.ui.budgets.BudgetsScreen
 import app.furibudget.ui.goals.GoalsScreen
 import app.furibudget.ui.home.HomeScreen
@@ -76,26 +82,53 @@ private object Route {
     const val INSIGHTS = "insights"
     const val BUDGETS = "budgets"
     const val GOALS = "goals"
+    const val BILLS = "bills"
+    const val BILL_EDIT = "bill/{id}"
     const val APPEARANCE = "appearance"
     const val SETTINGS = "settings"
     const val MANAGE = "manage"
     const val EDIT = "edit/{id}"
     fun edit(id: Long) = "edit/$id"
+    fun bill(id: Long) = "bill/$id"
 }
 
 @Composable
-fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: BudgetViewModel) {
+fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: BudgetViewModel, launch: LaunchRequest? = null, onLaunchHandled: () -> Unit = {}) {
     val state by vm.state.collectAsState()
     val nav = rememberNavController()
     val backStack by nav.currentBackStackEntryAsState()
     val route = backStack?.destination?.route
-    val tabs = listOf(Route.HOME, Route.ACTIVITY, Route.BUDGETS, Route.INSIGHTS, Route.GOALS)
+    val tabs = listOf(Route.HOME, Route.ACTIVITY, Route.BUDGETS, Route.INSIGHTS, Route.BILLS)
     val showBar = route in tabs
     val m = Furi.motion
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val deletedMsg = stringResource(R.string.deleted)
     val undo = stringResource(R.string.undo)
+
+    val resources = androidx.compose.ui.platform.LocalResources.current
+    var focusDay by remember { mutableStateOf<Long?>(null) }
+    androidx.compose.runtime.LaunchedEffect(launch) {
+        if (launch == null) return@LaunchedEffect
+        if (launch.route == "bills") {
+            focusDay = launch.day
+            nav.navigate(Route.BILLS) { popUpTo(Route.HOME) { saveState = false }; launchSingleTop = true }
+        }
+        onLaunchHandled()
+    }
+    var paying by remember { mutableStateOf<app.furibudget.data.BillOccurrence?>(null) }
+
+    /** Takes a payment back and offers Undo, which puts the expense and the payment back together. */
+    fun unpayWithUndo(p: app.furibudget.data.BillPaymentEntity, name: String) {
+        vm.unpay(p) { (tx, pay) ->
+            scope.launch {
+                snackbar.currentSnackbarData?.dismiss()
+                if (snackbar.showSnackbar(resources.getString(R.string.bill_unpaid_msg, name), undo, duration = androidx.compose.material3.SnackbarDuration.Long) == SnackbarResult.ActionPerformed) {
+                    vm.redoPayment(tx, pay)
+                }
+            }
+        }
+    }
 
     val deleteWithUndo: (app.furibudget.data.TransactionEntity) -> Unit = { tx ->
         vm.delete(tx)
@@ -121,7 +154,7 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
             popExitTransition = { fadeOut(m.tween(160)) + slideOutHorizontally(m.spring()) { it / 10 } },
         ) {
             composable(Route.HOME) {
-                HomeScreen(state, onOpenAppearance = { nav.navigate(Route.APPEARANCE) }, onOpenSettings = { nav.navigate(Route.SETTINGS) }, onOpenBudgets = { nav.navigate(Route.BUDGETS) { popUpTo(Route.HOME) { saveState = true }; launchSingleTop = true; restoreState = true } }, onOpenTx = { nav.navigate(Route.edit(it)) })
+                HomeScreen(state, onOpenAppearance = { nav.navigate(Route.APPEARANCE) }, onOpenGoals = { nav.navigate(Route.GOALS) }, onOpenSettings = { nav.navigate(Route.SETTINGS) }, onOpenBudgets = { nav.navigate(Route.BUDGETS) { popUpTo(Route.HOME) { saveState = true }; launchSingleTop = true; restoreState = true } }, onOpenTx = { nav.navigate(Route.edit(it)) })
             }
             composable(Route.ACTIVITY) {
                 ActivityScreen(
@@ -133,11 +166,30 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
             composable(Route.INSIGHTS) { InsightsScreen(state) }
             composable(Route.BUDGETS) { BudgetsScreen(state, vm::saveBudget, vm::deleteBudget) }
             composable(Route.GOALS) { GoalsScreen(state, vm::saveGoal, vm::deleteGoal) }
+            composable(Route.BILLS) {
+                BillsScreen(
+                    state,
+                    onPay = { paying = it },
+                    onUnpay = { occ -> occ.payment?.let { p -> unpayWithUndo(p, occ.bill.name) } },
+                    onSkip = { vm.skipBill(it.bill, it.due) },
+                    onClearSkip = { occ -> occ.payment?.let(vm::clearPayment) },
+                    onEditBill = { nav.navigate(Route.bill(it)) },
+                    focusDay = focusDay,
+                )
+            }
+            composable(
+                Route.BILL_EDIT,
+                arguments = listOf(navArgument("id") { type = NavType.LongType }),
+                enterTransition = { fadeIn(m.tween(200)) + slideInVertically(m.spring()) { it / 6 } },
+                popExitTransition = { fadeOut(m.tween(160)) + slideOutVertically(m.spring()) { it / 6 } },
+            ) { entry ->
+                BillEditScreen(entry.arguments?.getLong("id") ?: 0L, state, onSave = vm::saveBill, onDelete = vm::deleteBill, onClose = { nav.popBackStack() })
+            }
             composable(Route.APPEARANCE) { AppearanceScreen(spec, onTheme) { nav.popBackStack() } }
             composable(Route.SETTINGS) {
                 SettingsScreen(
                     state, vm, spec, onTheme,
-                    onOpenManage = { nav.navigate(Route.MANAGE) },
+                    onOpenManage = { nav.navigate(Route.MANAGE) }, onOpenGoals = { nav.navigate(Route.GOALS) },
                     onBack = { nav.popBackStack() },
                 )
             }
@@ -180,7 +232,7 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     FuriNavBar(
-                        items = listOf(NavItem(stringResource(R.string.tab_home), Icons.Rounded.Home), NavItem(stringResource(R.string.tab_activity), Icons.Rounded.Receipt), NavItem(stringResource(R.string.tab_budgets), Icons.Rounded.AccountBalanceWallet), NavItem(stringResource(R.string.tab_insights), Icons.Rounded.PieChart), NavItem(stringResource(R.string.tab_goals), Icons.Rounded.Flag)),
+                        items = listOf(NavItem(stringResource(R.string.tab_home), Icons.Rounded.Home), NavItem(stringResource(R.string.tab_activity), Icons.Rounded.Receipt), NavItem(stringResource(R.string.tab_budgets), Icons.Rounded.AccountBalanceWallet), NavItem(stringResource(R.string.tab_insights), Icons.Rounded.PieChart), NavItem(stringResource(R.string.tab_bills), Icons.Rounded.CalendarMonth)),
                         selected = tabs.indexOf(route).coerceAtLeast(0),
                         onSelect = { i ->
                             nav.navigate(tabs[i]) {
@@ -196,11 +248,29 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
                             .size(68.dp)
                             .clip(CircleShape)
                             .background(Furi.colors.accentBrush)
-                            .clickable { nav.navigate(Route.edit(0)) },
+                            .clickable { nav.navigate(if (route == Route.BILLS) Route.bill(0) else Route.edit(0)) },
                         contentAlignment = Alignment.Center,
-                    ) { Icon(Icons.Rounded.Add, stringResource(R.string.add_transaction), tint = Furi.colors.onAccent) }
+                    ) { Icon(Icons.Rounded.Add, stringResource(if (route == Route.BILLS) R.string.add_bill else R.string.add_transaction), tint = Furi.colors.onAccent) }
                 }
             }
         }
+    }
+
+    paying?.let { occ ->
+        PaySheet(
+            state, occ,
+            onConfirm = { amount, account, date ->
+                paying = null
+                vm.payBill(occ.bill, occ.due, amount, account, date) { payment ->
+                    if (payment != null) scope.launch {
+                        snackbar.currentSnackbarData?.dismiss()
+                        if (snackbar.showSnackbar(resources.getString(R.string.bill_paid_msg, occ.bill.name), undo, duration = androidx.compose.material3.SnackbarDuration.Long) == SnackbarResult.ActionPerformed) {
+                            unpayWithUndo(payment, occ.bill.name)
+                        }
+                    }
+                }
+            },
+            onDismiss = { paying = null },
+        )
     }
 }

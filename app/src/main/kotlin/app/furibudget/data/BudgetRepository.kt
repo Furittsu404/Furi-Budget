@@ -68,10 +68,10 @@ class BudgetRepository(private val db: BudgetDatabase) {
 
     /**
      * Records one due date as paid: an expense (or income, or transfer, matching the bill) plus the payment row,
-     * in one transaction. Does nothing if that date already has a payment, so a double tap cannot pay twice.
+     * in one transaction. Returns null and does nothing if that date already has a payment, so a double tap cannot pay twice.
      */
-    suspend fun payBill(bill: BillEntity, due: LocalDate, amountMinor: Long, accountId: Long, paidOn: LocalDate): Boolean = db.withTransaction {
-        if (db.billPayments().find(bill.id, due.toEpochDay()) != null) return@withTransaction false
+    suspend fun payBill(bill: BillEntity, due: LocalDate, amountMinor: Long, accountId: Long, paidOn: LocalDate): BillPaymentEntity? = db.withTransaction {
+        if (db.billPayments().find(bill.id, due.toEpochDay()) != null) return@withTransaction null
         val txId = db.transactions().insert(
             TransactionEntity(
                 kind = bill.kind, amountMinor = amountMinor, accountId = accountId,
@@ -80,8 +80,8 @@ class BudgetRepository(private val db: BudgetDatabase) {
                 note = bill.name, epochDay = paidOn.toEpochDay(),
             ),
         )
-        db.billPayments().insert(BillPaymentEntity(billId = bill.id, dueEpochDay = due.toEpochDay(), status = PayStatus.PAID, paidEpochDay = paidOn.toEpochDay(), amountMinor = amountMinor, transactionId = txId))
-        true
+        val payment = BillPaymentEntity(billId = bill.id, dueEpochDay = due.toEpochDay(), status = PayStatus.PAID, paidEpochDay = paidOn.toEpochDay(), amountMinor = amountMinor, transactionId = txId)
+        payment.copy(id = db.billPayments().insert(payment))
     }
 
     /** Takes a paid date back: removes the expense it recorded and the payment. Returns what was removed for undo. */

@@ -79,6 +79,7 @@ class BudgetViewModel(private val app: Application) : AndroidViewModel(app) {
             // Force-stopping the app clears its alarms, so put the reminder back each time it opens.
             val s = settingsRepo.settings.first()
             if (s.dailyReminder) Notifier.scheduleReminder(app, s.reminderHour, s.reminderMinute)
+            Notifier.scheduleBillAlerts(app, s)
         }
     }
 
@@ -130,8 +131,8 @@ class BudgetViewModel(private val app: Application) : AndroidViewModel(app) {
     }
     fun deleteBill(b: BillEntity) { viewModelScope.launch { repo.deleteBill(b) } }
 
-    /** Marks one due date paid and records the expense. Returns false if it was already paid. */
-    fun payBill(bill: BillEntity, due: LocalDate, amountMinor: Long, accountId: Long, paidOn: LocalDate, onDone: (Boolean) -> Unit = {}) {
+    /** Marks one due date paid and records the expense. [onDone] gets the payment, or null if it was already paid. */
+    fun payBill(bill: BillEntity, due: LocalDate, amountMinor: Long, accountId: Long, paidOn: LocalDate, onDone: (BillPaymentEntity?) -> Unit = {}) {
         viewModelScope.launch { onDone(repo.payBill(bill, due, amountMinor, accountId, paidOn)) }
     }
 
@@ -154,8 +155,12 @@ class BudgetViewModel(private val app: Application) : AndroidViewModel(app) {
             settingsRepo.update(change)
             val s = settingsRepo.settings.first()
             if (s.dailyReminder) Notifier.scheduleReminder(app, s.reminderHour, s.reminderMinute) else Notifier.cancelReminder(app)
+            Notifier.scheduleBillAlerts(app, s)
         }
     }
+
+    /** Runs the bill check right now (the "Check bills now" button). Returns how many notifications were sent. */
+    suspend fun checkBillsNow(): Int = BillNotifier.check(app)
 
     suspend fun exportJson(theme: ThemeSpec?): String {
         val s = state.value
