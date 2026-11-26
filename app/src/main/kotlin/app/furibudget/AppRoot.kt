@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.PieChart
 import androidx.compose.material.icons.rounded.Receipt
 import androidx.compose.material3.Icon
 import androidx.compose.material3.SnackbarHost
@@ -49,6 +50,7 @@ import app.furibudget.ui.components.FuriNavBar
 import app.furibudget.ui.components.NavItem
 import app.furibudget.ui.edit.EditScreen
 import app.furibudget.ui.home.HomeScreen
+import app.furibudget.ui.insights.InsightsScreen
 import app.furibudget.ui.theme.Furi
 import app.furibudget.ui.theme.FuriBackground
 import app.furibudget.ui.theme.ThemeSpec
@@ -57,6 +59,7 @@ import kotlinx.coroutines.launch
 private object Route {
     const val HOME = "home"
     const val ACTIVITY = "activity"
+    const val INSIGHTS = "insights"
     const val APPEARANCE = "appearance"
     const val EDIT = "edit/{id}"
     fun edit(id: Long) = "edit/$id"
@@ -68,7 +71,7 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
     val nav = rememberNavController()
     val backStack by nav.currentBackStackEntryAsState()
     val route = backStack?.destination?.route
-    val tabs = listOf(Route.HOME, Route.ACTIVITY)
+    val tabs = listOf(Route.HOME, Route.ACTIVITY, Route.INSIGHTS)
     val showBar = route in tabs
     val m = Furi.motion
     val snackbar = remember { SnackbarHostState() }
@@ -104,6 +107,7 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
                     },
                 )
             }
+            composable(Route.INSIGHTS) { InsightsScreen(state) }
             composable(Route.APPEARANCE) { AppearanceScreen(spec, onTheme) { nav.popBackStack() } }
             composable(
                 Route.EDIT,
@@ -127,7 +131,7 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     FuriNavBar(
-                        items = listOf(NavItem(stringResource(R.string.tab_home), Icons.Rounded.Home), NavItem(stringResource(R.string.tab_activity), Icons.Rounded.Receipt)),
+                        items = listOf(NavItem(stringResource(R.string.tab_home), Icons.Rounded.Home), NavItem(stringResource(R.string.tab_activity), Icons.Rounded.Receipt), NavItem(stringResource(R.string.tab_insights), Icons.Rounded.PieChart)),
                         selected = tabs.indexOf(route).coerceAtLeast(0),
                         onSelect = { i ->
                             nav.navigate(tabs[i]) {
