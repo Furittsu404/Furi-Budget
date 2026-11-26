@@ -3,6 +3,7 @@ package app.furibudget.ui.home
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.height
@@ -16,6 +17,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import app.furibudget.core.Money
+import app.furibudget.data.Bills
 import app.furibudget.data.Budgeting
 import app.furibudget.data.Insights
 import app.furibudget.ui.budgets.levelColor
@@ -52,7 +54,7 @@ import java.time.LocalDate
 
 /** Interim Home (M2). M3 replaces it with the budget ring, category strip and goals. */
 @Composable
-fun HomeScreen(state: BudgetState, onOpenAppearance: () -> Unit, onOpenGoals: () -> Unit, onOpenSettings: () -> Unit, onOpenBudgets: () -> Unit, onOpenTx: (Long) -> Unit) {
+fun HomeScreen(state: BudgetState, onOpenAppearance: () -> Unit, onOpenGoals: () -> Unit, onOpenBills: () -> Unit, onQuickAdd: (app.furibudget.data.TemplateEntity) -> Unit, onOpenSettings: () -> Unit, onOpenBudgets: () -> Unit, onOpenTx: (Long) -> Unit) {
     val c = Furi.colors
     val month = state.month()
     val totals = Ledger.totals(state.transactions, month)
@@ -107,6 +109,37 @@ fun HomeScreen(state: BudgetState, onOpenAppearance: () -> Unit, onOpenGoals: ()
                         )
                         Text(stringResource(R.string.spent_of, state.currency.format(st.spent), state.currency.format(st.limit)), style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant)
                     }
+                }
+            }
+        }
+        if (state.templates.isNotEmpty()) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(stringResource(R.string.quick_add), style = MaterialTheme.typography.titleSmall, color = c.onSurface)
+                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    state.templates.forEach { t ->
+                        androidx.compose.material3.AssistChip(onClick = { onQuickAdd(t) }, label = { Text(t.name + " · " + state.currency.format(Money(t.amountMinor))) })
+                    }
+                }
+            }
+        }
+        val soon = remember(state.bills, state.billPayments) { Bills.upcoming(state.bills, state.billPayments, LocalDate.now(), 7) }
+        if (state.bills.isNotEmpty()) {
+            FuriCard(Modifier.fillMaxWidth().clickable(onClick = onOpenBills)) {
+                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(stringResource(R.string.upcoming_bills), Modifier.weight(1f), style = MaterialTheme.typography.titleSmall, color = c.onSurface)
+                        val total = soon.filter { it.bill.kind == app.furibudget.data.TxKind.EXPENSE }.sumOf { it.payment?.amountMinor ?: it.bill.amountMinor }
+                        if (total > 0) Text(state.currency.format(Money(total), true), style = Furi.figures.copy(fontSize = MaterialTheme.typography.bodyMedium.fontSize), color = c.onSurface)
+                    }
+                    if (soon.isEmpty()) Text(stringResource(R.string.nothing_due_week), style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant)
+                    soon.take(3).forEach { occ ->
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Box(Modifier.size(8.dp).clip(CircleShape).background(app.furibudget.ui.bills.statusColor(occ.status)))
+                            Text(occ.bill.name, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, color = c.onSurface, maxLines = 1)
+                            Text(app.furibudget.ui.bills.dueLabel(occ, LocalDate.now()) { it.toString() }, style = MaterialTheme.typography.labelMedium, color = app.furibudget.ui.bills.statusColor(occ.status))
+                        }
+                    }
+                    if (soon.size > 3) Text(stringResource(R.string.and_n_more, soon.size - 3), style = MaterialTheme.typography.labelMedium, color = c.onSurfaceVariant)
                 }
             }
         }

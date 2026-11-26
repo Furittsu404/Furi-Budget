@@ -35,7 +35,9 @@ import app.furibudget.R
 import app.furibudget.core.Money
 import app.furibudget.core.Periods
 import app.furibudget.data.BudgetEntity
+import app.furibudget.data.Bills
 import app.furibudget.data.Budgeting
+import app.furibudget.data.TxKind
 import app.furibudget.ui.components.AmountField
 import app.furibudget.ui.components.AnimatedAmount
 import app.furibudget.ui.components.BudgetRing
@@ -92,6 +94,14 @@ fun BudgetsScreen(state: BudgetState, onSave: (BudgetEntity) -> Unit, onDelete: 
                         stringResource(R.string.spent_of, cur.format(st.spent, true), cur.format(st.limit, true)),
                         style = MaterialTheme.typography.bodyMedium, color = c.onSurfaceVariant,
                     )
+                    val billsLeft = Bills.upcoming(state.bills, state.billPayments, today, ChronoUnit.DAYS.between(today, range.end))
+                        .filter { it.bill.kind == TxKind.EXPENSE }.sumOf { it.payment?.amountMinor ?: it.bill.amountMinor }
+                    if (billsLeft > 0) {
+                        Text(
+                            stringResource(R.string.after_bills, cur.format(Money(billsLeft), true), cur.format(Money((st.left.minor - billsLeft).coerceAtLeast(0)), true)),
+                            style = MaterialTheme.typography.bodyMedium, color = c.onSurfaceVariant, textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        )
+                    }
                     if (st.left.minor > 0 && daysLeft > 0) {
                         Text(
                             stringResource(R.string.per_day, cur.format(Money(st.left.minor / daysLeft), true), daysLeft),

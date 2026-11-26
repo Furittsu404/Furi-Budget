@@ -285,4 +285,15 @@
     <string name="bill_reminders_hint">Reminders follow each bill\'s own setting (off, same day, or days before). On some phones, set Furi Budget to unrestricted battery so they arrive on time.</string>
     <string name="send_bill_reminders_now">Check bills now</string>
     <string name="bill_check_done">%1$d notifications sent.</string>
+    <string name="upcoming_bills">Upcoming bills</string>
+    <string name="nothing_due_week">Nothing due this week.</string>
+    <string name="and_n_more">and %1$d more</string>
+    <string name="after_bills">%1$s in bills still to pay, so about %2$s is really free.</string>
+    <string name="shortcut_expense">Add expense</string>
+    <string name="shortcut_income">Add income</string>
+    <string name="shortcut_bills">Pay bills</string>
+    <string name="save_as_template">Save as template</string>
+    <string name="template_saved">Template saved</string>
+    <string name="quick_add">Quick add</string>
+    <string name="added_template">%1$s added</string>
 </resources>

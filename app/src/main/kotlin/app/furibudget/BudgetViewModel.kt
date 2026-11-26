@@ -73,6 +73,8 @@ class BudgetViewModel(private val app: Application) : AndroidViewModel(app) {
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), BudgetState())
 
     init {
+        // The three most used templates become long-press shortcuts on the launcher icon.
+        viewModelScope.launch { repo.templates.collect { Shortcuts.publishTemplates(app, it) } }
         viewModelScope.launch {
             repo.seedIfEmpty()
             repo.postAutoPay(LocalDate.now())
@@ -148,6 +150,25 @@ class BudgetViewModel(private val app: Application) : AndroidViewModel(app) {
     fun skipBill(bill: BillEntity, due: LocalDate) { viewModelScope.launch { repo.skipBill(bill, due, LocalDate.now()) } }
     fun clearPayment(p: BillPaymentEntity) { viewModelScope.launch { repo.clearPayment(p) } }
     fun saveTemplate(t: TemplateEntity) { viewModelScope.launch { repo.saveTemplate(t) } }
+
+    /** Adds a template as a transaction dated today. [onAdded] gets the saved row so the caller can offer Undo. */
+    fun quickAdd(t: TemplateEntity, onAdded: (TransactionEntity) -> Unit = {}) {
+        viewModelScope.launch {
+            val tx = TransactionEntity(
+                kind = t.kind, amountMinor = t.amountMinor, accountId = t.accountId, categoryId = t.categoryId,
+                note = t.note, epochDay = LocalDate.now().toEpochDay(),
+            )
+            val saved = tx.copy(id = repo.save(tx))
+            onAdded(saved)
+            if (saved.kind == TxKind.EXPENSE && state.value.settings.budgetAlerts) checkAlerts(state.value, saved)
+        }
+    }
+
+    suspend fun quickAddById(id: Long): TemplateEntity? {
+        val t = state.value.templates.firstOrNull { it.id == id } ?: return null
+        quickAdd(t)
+        return t
+    }
     fun deleteTemplate(t: TemplateEntity) { viewModelScope.launch { repo.deleteTemplate(t) } }
 
     fun updateSettings(change: (AppSettings) -> AppSettings) {

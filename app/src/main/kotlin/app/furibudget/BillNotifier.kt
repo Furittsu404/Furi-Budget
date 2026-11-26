@@ -30,7 +30,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /** Where a notification or launcher shortcut wants the app to land. */
-data class LaunchRequest(val route: String, val day: Long? = null)
+data class LaunchRequest(val route: String, val day: Long? = null, val id: Long? = null)
 
 /**
  * Bill reminders. One daily alarm runs [check]: it pays auto-pay bills that came due, then tells the user about

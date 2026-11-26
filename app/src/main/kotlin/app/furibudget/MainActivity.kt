@@ -19,7 +19,11 @@ class MainActivity : ComponentActivity() {
 
     private fun readLaunch(intent: android.content.Intent?) {
         val route = intent?.getStringExtra(BillNotifier.EXTRA_ROUTE) ?: return
-        launch.value = LaunchRequest(route, intent.takeIf { it.hasExtra(BillNotifier.EXTRA_DAY) }?.getLongExtra(BillNotifier.EXTRA_DAY, 0L))
+        launch.value = LaunchRequest(
+            route,
+            intent.takeIf { it.hasExtra(BillNotifier.EXTRA_DAY) }?.getLongExtra(BillNotifier.EXTRA_DAY, 0L),
+            intent.takeIf { it.hasExtra(Shortcuts.EXTRA_TEMPLATE) }?.getLongExtra(Shortcuts.EXTRA_TEMPLATE, 0L),
+        )
         intent.removeExtra(BillNotifier.EXTRA_ROUTE)
     }
 

@@ -87,8 +87,8 @@ private object Route {
     const val APPEARANCE = "appearance"
     const val SETTINGS = "settings"
     const val MANAGE = "manage"
-    const val EDIT = "edit/{id}"
-    fun edit(id: Long) = "edit/$id"
+    const val EDIT = "edit/{id}?kind={kind}"
+    fun edit(id: Long, kind: app.furibudget.data.TxKind = app.furibudget.data.TxKind.EXPENSE) = "edit/$id?kind=${kind.name}"
     fun bill(id: Long) = "bill/$id"
 }
 
@@ -110,6 +110,14 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
     var focusDay by remember { mutableStateOf<Long?>(null) }
     androidx.compose.runtime.LaunchedEffect(launch) {
         if (launch == null) return@LaunchedEffect
+        when (launch.route) {
+            "add_expense" -> nav.navigate(Route.edit(0))
+            "add_income" -> nav.navigate(Route.edit(0, app.furibudget.data.TxKind.INCOME))
+            "template" -> launch.id?.let { id ->
+                val t = vm.quickAddById(id)
+                if (t != null) snackbar.showSnackbar(resources.getString(R.string.added_template, t.name))
+            }
+        }
         if (launch.route == "bills") {
             focusDay = launch.day
             nav.navigate(Route.BILLS) { popUpTo(Route.HOME) { saveState = false }; launchSingleTop = true }
@@ -154,7 +162,7 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
             popExitTransition = { fadeOut(m.tween(160)) + slideOutHorizontally(m.spring()) { it / 10 } },
         ) {
             composable(Route.HOME) {
-                HomeScreen(state, onOpenAppearance = { nav.navigate(Route.APPEARANCE) }, onOpenGoals = { nav.navigate(Route.GOALS) }, onOpenSettings = { nav.navigate(Route.SETTINGS) }, onOpenBudgets = { nav.navigate(Route.BUDGETS) { popUpTo(Route.HOME) { saveState = true }; launchSingleTop = true; restoreState = true } }, onOpenTx = { nav.navigate(Route.edit(it)) })
+                HomeScreen(state, onOpenAppearance = { nav.navigate(Route.APPEARANCE) }, onOpenGoals = { nav.navigate(Route.GOALS) }, onOpenBills = { nav.navigate(Route.BILLS) { popUpTo(Route.HOME) { saveState = true }; launchSingleTop = true; restoreState = true } }, onOpenSettings = { nav.navigate(Route.SETTINGS) }, onOpenBudgets = { nav.navigate(Route.BUDGETS) { popUpTo(Route.HOME) { saveState = true }; launchSingleTop = true; restoreState = true } }, onOpenTx = { nav.navigate(Route.edit(it)) }, onQuickAdd = { t -> vm.quickAdd(t) { tx -> scope.launch { snackbar.currentSnackbarData?.dismiss(); if (snackbar.showSnackbar(resources.getString(R.string.added_template, t.name), undo, duration = androidx.compose.material3.SnackbarDuration.Long) == SnackbarResult.ActionPerformed) vm.delete(tx) } } })
             }
             composable(Route.ACTIVITY) {
                 ActivityScreen(
@@ -196,11 +204,12 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
             composable(Route.MANAGE) { ManageScreen(state, vm::saveAccount, vm::saveCategory) { nav.popBackStack() } }
             composable(
                 Route.EDIT,
-                arguments = listOf(navArgument("id") { type = NavType.LongType }),
+                arguments = listOf(navArgument("id") { type = NavType.LongType }, navArgument("kind") { type = NavType.StringType; defaultValue = "EXPENSE" }),
                 enterTransition = { fadeIn(m.tween(200)) + slideInVertically(m.spring()) { it / 6 } },
                 popExitTransition = { fadeOut(m.tween(160)) + slideOutVertically(m.spring()) { it / 6 } },
             ) { entry ->
-                EditScreen(entry.arguments?.getLong("id") ?: 0L, state, onSave = vm::save, onSaveBill = vm::saveBill, onDelete = deleteWithUndo, onClose = { nav.popBackStack() })
+                EditScreen(entry.arguments?.getLong("id") ?: 0L, state, onSave = vm::save, onSaveBill = vm::saveBill, onDelete = deleteWithUndo, onSaveTemplate = vm::saveTemplate, onDeleteTemplate = vm::deleteTemplate, onClose = { nav.popBackStack() },
+                    initialKind = runCatching { app.furibudget.data.TxKind.valueOf(entry.arguments?.getString("kind") ?: "EXPENSE") }.getOrDefault(app.furibudget.data.TxKind.EXPENSE))
             }
         }
         // Fades content under the status bar so the clock never collides with scrolled text.

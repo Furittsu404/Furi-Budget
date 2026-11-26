@@ -1,6 +1,7 @@
 package app.furibudget.ui.edit
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -54,6 +55,7 @@ import app.furibudget.core.Recurrence
 import app.furibudget.core.Repeat
 import app.furibudget.data.BillEntity
 import app.furibudget.data.BillType
+import app.furibudget.data.TemplateEntity
 import app.furibudget.data.TransactionEntity
 import app.furibudget.ui.components.repeatLabel
 import app.furibudget.data.TxKind
@@ -80,7 +82,10 @@ fun EditScreen(
     onSave: (TransactionEntity) -> Unit,
     onSaveBill: (BillEntity) -> Unit,
     onDelete: (TransactionEntity) -> Unit,
+    onSaveTemplate: (TemplateEntity) -> Unit,
+    onDeleteTemplate: (TemplateEntity) -> Unit,
     onClose: () -> Unit,
+    initialKind: TxKind = TxKind.EXPENSE,
 ) {
     val c = Furi.colors
     val existing = remember(txId, state.loaded) { state.transactions.firstOrNull { it.id == txId } }
@@ -88,7 +93,7 @@ fun EditScreen(
 
     // Saveable, so a half-typed amount survives rotation and the system killing the app in the background.
     val key = arrayOf<Any?>(txId, existing != null, state.accounts.isNotEmpty())
-    var kind by rememberSaveable(*key) { mutableStateOf(existing?.kind ?: TxKind.EXPENSE) }
+    var kind by rememberSaveable(*key) { mutableStateOf(existing?.kind ?: initialKind) }
     var entry by rememberSaveable(*key, stateSaver = KeypadSaver) { mutableStateOf(existing?.let { KeypadEntry.from(Money(it.amountMinor), decimals) } ?: KeypadEntry(decimals = decimals)) }
     var accountId by rememberSaveable(*key) { mutableLongStateOf(existing?.accountId ?: state.accounts.firstOrNull()?.id ?: 0L) }
     var toAccountId by rememberSaveable(*key) { mutableStateOf(existing?.toAccountId) }
@@ -119,6 +124,22 @@ fun EditScreen(
             }
         }
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            if (existing == null && state.templates.isNotEmpty()) {
+                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    state.templates.forEach { t ->
+                        FilterChip(
+                            selected = false,
+                            onClick = {
+                                kind = t.kind; entry = KeypadEntry.from(Money(t.amountMinor), decimals); note = t.note
+                                if (state.accounts.any { it.id == t.accountId }) accountId = t.accountId
+                                categoryId = t.categoryId
+                            },
+                            label = { Text(t.name + " · " + state.currency.format(Money(t.amountMinor))) },
+                            trailingIcon = { Icon(Icons.Rounded.Close, stringResource(R.string.delete), Modifier.size(16.dp).clickable { onDeleteTemplate(t) }) },
+                        )
+                    }
+                }
+            }
             val kinds = listOf(TxKind.EXPENSE to R.string.kind_expense, TxKind.INCOME to R.string.kind_income, TxKind.TRANSFER to R.string.kind_transfer)
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                 kinds.forEachIndexed { i, (k, label) ->
@@ -204,6 +225,23 @@ fun EditScreen(
                 onBackspace = { entry = entry.backspace() },
                 onClear = { entry = KeypadEntry(decimals = decimals) },
             )
+            if (canSave && existing == null) {
+                var saved by rememberSaveable { mutableStateOf(false) }
+                val kindLabel = stateName(kind)
+                TextButton(
+                    onClick = {
+                        onSaveTemplate(
+                            TemplateEntity(
+                                name = note.trim().ifBlank { state.category(categoryId)?.name ?: kindLabel }.take(24),
+                                kind = kind, amountMinor = amount.minor, accountId = accountId,
+                                categoryId = if (kind == TxKind.TRANSFER) null else categoryId, note = note.trim(),
+                            ),
+                        )
+                        saved = true
+                    },
+                    enabled = !saved && kind != TxKind.TRANSFER,
+                ) { Text(stringResource(if (saved) R.string.template_saved else R.string.save_as_template)) }
+            }
             Button(
                 onClick = {
                     onSave(
@@ -275,3 +313,6 @@ private fun ChipRow(label: String, content: @Composable () -> Unit) {
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) { content() }
     }
 }
+
+@Composable
+private fun stateName(kind: TxKind) = stringResource(when (kind) { TxKind.EXPENSE -> R.string.kind_expense; TxKind.INCOME -> R.string.kind_income; TxKind.TRANSFER -> R.string.kind_transfer })
