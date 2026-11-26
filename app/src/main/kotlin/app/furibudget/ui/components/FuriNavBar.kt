@@ -31,7 +31,8 @@ data class NavItem(val label: String, val icon: ImageVector)
 @Composable
 fun FuriNavBar(items: List<NavItem>, selected: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
     val c = Furi.colors
-    FuriCard(modifier) {
+    // The bar floats over scrolling lists; a backing keeps their icons and text from showing through the glass.
+    FuriCard(modifier.clip(MaterialTheme.shapes.large).background(c.background.copy(alpha = 0.9f))) {
         Row(Modifier.height(68.dp).padding(6.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
             items.forEachIndexed { i, item ->
                 val on = i == selected

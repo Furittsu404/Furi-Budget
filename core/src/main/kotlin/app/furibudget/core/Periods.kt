@@ -1,6 +1,8 @@
 package app.furibudget.core
 
+import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.temporal.TemporalAdjusters
 
 /** Inclusive date range. */
 data class DateRange(val start: LocalDate, val end: LocalDate) {
@@ -23,6 +25,12 @@ object Periods {
         val nextFirst = start.withDayOfMonth(1).plusMonths(1)
         val nextStart = startOf(nextFirst.year, nextFirst.monthValue, startDay)
         return DateRange(start, nextStart.minusDays(1))
+    }
+
+    /** The seven days holding [date], starting on [first] (Monday in most places, Sunday in some). */
+    fun weekContaining(date: LocalDate, first: DayOfWeek): DateRange {
+        val start = date.with(TemporalAdjusters.previousOrSame(first))
+        return DateRange(start, start.plusDays(6))
     }
 
     fun shiftMonth(range: DateRange, months: Int, startDay: Int = 1): DateRange =

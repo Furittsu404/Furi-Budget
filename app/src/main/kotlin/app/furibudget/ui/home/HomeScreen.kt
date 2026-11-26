@@ -93,7 +93,7 @@ fun HomeScreen(state: BudgetState, onOpenAppearance: () -> Unit, onOpenSettings:
         }
         val overall = state.budgets.firstOrNull { it.categoryId == null }
         if (overall != null) {
-            val st = Budgeting.status(overall, state.transactions, month, state.startDay)
+            val st = Budgeting.status(overall, state.transactions, Budgeting.rangeFor(overall, LocalDate.now(), state.startDay, state.firstDay), state.startDay)
             FuriCard(Modifier.fillMaxWidth().clickable(onClick = onOpenBudgets)) {
                 Row(Modifier.fillMaxWidth().padding(20.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
                     BudgetRing(st.fraction, st.level, Modifier.size(92.dp), stroke = 9.dp) {

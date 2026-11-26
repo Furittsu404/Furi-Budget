@@ -93,12 +93,18 @@ fun resolveColors(spec: ThemeSpec, pack: ThemePack, systemDark: Boolean, dynamic
         Triple(semantic(0xFF22C55E.toInt()), semantic(0xFFF43F5E.toInt()), semantic(0xFFF59E0B.toInt()))
     }
     val glow = Color(roles.glow)
+    // For see-through packs the user picks how solid the card is. More solid means more of the page colour (dark)
+    // or white (light), never a bright fill under light text, so contrast only improves as the card firms up.
+    val card = spec.cardAlpha?.takeIf { p.card.alpha < 1f }?.let { a ->
+        val base = if (dark) androidx.compose.ui.graphics.lerp(p.background, Color.White, 0.10f) else Color.White
+        base.copy(alpha = a.coerceIn(0.05f, 1f))
+    } ?: p.card
     val onSurface = Color(ensureContrast(p.onSurface.toArgb(), surface, 7.0))
     val onSurfaceVariant = Color(ensureContrast(p.onSurfaceVariant.toArgb(), surface, 4.6))
     return FuriColors(
         dark = dark,
         background = p.background,
-        card = p.card,
+        card = card,
         cardBorder = p.cardBorder,
         onSurface = onSurface,
         onSurfaceVariant = onSurfaceVariant,

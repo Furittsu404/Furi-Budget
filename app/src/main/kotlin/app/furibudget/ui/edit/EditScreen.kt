@@ -16,6 +16,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Event
 import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
@@ -37,6 +38,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -62,6 +65,12 @@ import java.time.LocalDate
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 
+/** Keypad text as plain values so it can go in a saved-state bundle. */
+private val KeypadSaver = listSaver<KeypadEntry, Any>(
+    save = { listOf(it.whole, it.frac, it.hasPoint, it.decimals) },
+    restore = { KeypadEntry(it[0] as String, it[1] as String, it[2] as Boolean, it[3] as Int) },
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditScreen(
@@ -69,21 +78,25 @@ fun EditScreen(
     state: BudgetState,
     onSave: (TransactionEntity) -> Unit,
     onSaveRecurrence: (RecurrenceEntity) -> Unit,
+    onDelete: (TransactionEntity) -> Unit,
     onClose: () -> Unit,
 ) {
     val c = Furi.colors
     val existing = remember(txId, state.loaded) { state.transactions.firstOrNull { it.id == txId } }
     val decimals = state.currency.decimals
 
-    var kind by remember(existing) { mutableStateOf(existing?.kind ?: TxKind.EXPENSE) }
-    var entry by remember(existing) { mutableStateOf(existing?.let { KeypadEntry.from(Money(it.amountMinor), decimals) } ?: KeypadEntry(decimals = decimals)) }
-    var accountId by remember(existing, state.accounts) { mutableLongStateOf(existing?.accountId ?: state.accounts.firstOrNull()?.id ?: 0L) }
-    var toAccountId by remember(existing) { mutableStateOf(existing?.toAccountId) }
-    var categoryId by remember(existing) { mutableStateOf(existing?.categoryId) }
-    var note by remember(existing) { mutableStateOf(existing?.note.orEmpty()) }
-    var date by remember(existing) { mutableStateOf(existing?.let { LocalDate.ofEpochDay(it.epochDay) } ?: LocalDate.now()) }
-    var picking by remember { mutableStateOf(false) }
-    var repeat by remember { mutableStateOf(Repeat.NONE) }
+    // Saveable, so a half-typed amount survives rotation and the system killing the app in the background.
+    val key = arrayOf<Any?>(txId, existing != null, state.accounts.isNotEmpty())
+    var kind by rememberSaveable(*key) { mutableStateOf(existing?.kind ?: TxKind.EXPENSE) }
+    var entry by rememberSaveable(*key, stateSaver = KeypadSaver) { mutableStateOf(existing?.let { KeypadEntry.from(Money(it.amountMinor), decimals) } ?: KeypadEntry(decimals = decimals)) }
+    var accountId by rememberSaveable(*key) { mutableLongStateOf(existing?.accountId ?: state.accounts.firstOrNull()?.id ?: 0L) }
+    var toAccountId by rememberSaveable(*key) { mutableStateOf(existing?.toAccountId) }
+    var categoryId by rememberSaveable(*key) { mutableStateOf(existing?.categoryId) }
+    var note by rememberSaveable(*key) { mutableStateOf(existing?.note.orEmpty()) }
+    var dateDay by rememberSaveable(*key) { mutableLongStateOf(existing?.epochDay ?: LocalDate.now().toEpochDay()) }
+    val date = LocalDate.ofEpochDay(dateDay)
+    var picking by rememberSaveable { mutableStateOf(false) }
+    var repeat by rememberSaveable { mutableStateOf(Repeat.NONE) }
 
     val amount = entry.toMoney()
     val kindColor by animateColorAsState(
@@ -98,8 +111,11 @@ fun EditScreen(
             IconButton(onClick = onClose) { Icon(Icons.Rounded.Close, stringResource(R.string.close)) }
             Text(
                 stringResource(if (existing == null) R.string.new_transaction else R.string.edit_transaction),
-                style = MaterialTheme.typography.titleLarge, color = c.onSurface,
+                Modifier.weight(1f), style = MaterialTheme.typography.titleLarge, color = c.onSurface,
             )
+            if (existing != null) {
+                IconButton(onClick = { onDelete(existing); onClose() }) { Icon(Icons.Rounded.Delete, stringResource(R.string.delete), tint = c.expense) }
+            }
         }
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             val kinds = listOf(TxKind.EXPENSE to R.string.kind_expense, TxKind.INCOME to R.string.kind_income, TxKind.TRANSFER to R.string.kind_transfer)
@@ -227,7 +243,7 @@ fun EditScreen(
             onDismissRequest = { picking = false },
             confirmButton = {
                 TextButton(onClick = {
-                    pickerState.selectedDateMillis?.let { date = Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate() }
+                    pickerState.selectedDateMillis?.let { dateDay = Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate().toEpochDay() }
                     picking = false
                 }) { Text(stringResource(R.string.ok)) }
             },

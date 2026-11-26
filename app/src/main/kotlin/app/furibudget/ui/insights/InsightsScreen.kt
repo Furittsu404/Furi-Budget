@@ -96,7 +96,7 @@ fun InsightsScreen(state: BudgetState) {
                     Text(stringResource(R.string.no_spending), style = MaterialTheme.typography.bodyMedium, color = c.onSurfaceVariant)
                 } else {
                     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                        DonutChart(slices, picked, { picked = it }, Modifier.fillMaxWidth(0.78f)) {
+                        DonutChart(slices, picked, { picked = it }, Modifier.fillMaxWidth(0.78f), description = stringResource(R.string.chart_donut, slices.joinToString { "${it.label} ${(it.value * 100f / spent.minor.coerceAtLeast(1)).roundToInt()}%" })) {
                             val sel = picked?.let { slices.getOrNull(it) }
                             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(horizontal = 40.dp)) {
                                 Text(sel?.label ?: stringResource(R.string.spent), style = MaterialTheme.typography.labelLarge, color = sel?.color ?: c.onSurfaceVariant, textAlign = TextAlign.Center)
@@ -132,7 +132,7 @@ fun InsightsScreen(state: BudgetState) {
                 if (bars.all { it.income.minor == 0L && it.expense.minor == 0L }) {
                     Text(stringResource(R.string.nothing_recorded), style = MaterialTheme.typography.bodyMedium, color = c.onSurfaceVariant, modifier = Modifier.padding(vertical = 24.dp))
                 } else {
-                    PairedBars(bars.map { BarGroup(it.range.start.format(monthShort), it.income.minor, it.expense.minor) }, c.income, c.expense, barSel, { barSel = it })
+                    PairedBars(bars.map { BarGroup(it.range.start.format(monthShort), it.income.minor, it.expense.minor) }, c.income, c.expense, barSel, { barSel = it }, description = stringResource(R.string.chart_bars, bars[barSel].let { "${it.range.start.format(monthShort)}: +${cur.format(it.income)}, -${cur.format(it.expense)}" }))
                 }
                 Row(Modifier.fillMaxWidth()) {
                     bars.forEachIndexed { i, b ->
@@ -163,7 +163,7 @@ fun InsightsScreen(state: BudgetState) {
                     Text(cur.format(Money(cum[shown]), true), style = Furi.figures.copy(fontSize = MaterialTheme.typography.headlineSmall.fontSize), color = c.onSurface)
                     Text(range.start.plusDays(shown.toLong()).format(dayFmt), style = MaterialTheme.typography.labelLarge, color = c.onSurfaceVariant, modifier = Modifier.padding(bottom = 4.dp))
                 }
-                TrendLine(cum, prevCum, scrub, { scrub = it }, c.accentBrush, c.accent)
+                TrendLine(cum, prevCum, scrub, { scrub = it }, c.accentBrush, c.accent, description = stringResource(R.string.chart_trend, cur.format(Money(cum[shown]), true), range.start.plusDays(shown.toLong()).format(dayFmt)))
                 val before = prevCum.getOrNull(vsIdx) ?: 0L
                 val now = cum[shown]
                 val text = when {

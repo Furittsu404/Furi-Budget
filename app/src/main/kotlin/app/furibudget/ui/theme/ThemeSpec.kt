@@ -40,6 +40,8 @@ data class ThemeSpec(
     val photoColors: List<Int> = emptyList(),
     /** Average brightness of the photo, 0 to 1. Decides light or dark text over it. */
     val photoLuma: Float? = null,
+    /** Card opacity for packs with see-through cards. Null keeps the pack's own look. */
+    val cardAlpha: Float? = null,
     /** Shift the background a few dp as the phone tilts. */
     val parallax: Boolean = false,
 )

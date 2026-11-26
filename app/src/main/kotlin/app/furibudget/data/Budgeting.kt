@@ -31,11 +31,15 @@ object Budgeting {
         return Money(sum)
     }
 
-    /** Limit for [range]: the base limit plus last month's unspent amount when rollover is on (never below zero). */
+    /** The month or week of [b] that holds [today]. */
+    fun rangeFor(b: BudgetEntity, today: LocalDate, startDay: Int, firstDay: java.time.DayOfWeek): DateRange =
+        if (b.period == BudgetPeriod.WEEK) Periods.weekContaining(today, firstDay) else Periods.monthContaining(today, startDay)
+
+    /** Limit for [range]: the base limit plus last period's unspent amount when rollover is on (never below zero). */
     fun status(b: BudgetEntity, txs: List<TransactionEntity>, range: DateRange, startDay: Int = 1): Status {
         var limit = b.limitMinor
         if (b.rollover) {
-            val prev = Periods.shiftMonth(range, -1, startDay)
+            val prev = if (b.period == BudgetPeriod.WEEK) DateRange(range.start.minusWeeks(1), range.end.minusWeeks(1)) else Periods.shiftMonth(range, -1, startDay)
             limit += (b.limitMinor - spentIn(txs, prev, b.categoryId).minor).coerceAtLeast(0)
         }
         return Status(Money(limit), spentIn(txs, range, b.categoryId))

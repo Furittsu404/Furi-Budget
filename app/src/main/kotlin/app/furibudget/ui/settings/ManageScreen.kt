@@ -75,10 +75,11 @@ fun ManageScreen(state: BudgetState, onSaveAccount: (AccountEntity) -> Unit, onS
         Text(stringResource(R.string.accounts), style = MaterialTheme.typography.titleMedium, color = c.onSurface)
         FuriCard(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-                state.accounts.forEach { a ->
+                state.allAccounts.forEach { a ->
                     Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable { account = a }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                         Dot(Color(a.colorArgb), a.icon)
-                        Text(a.name, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge, color = c.onSurface)
+                        Text(a.name, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge, color = if (a.archived) c.onSurfaceVariant else c.onSurface)
+                        if (a.archived) Text(stringResource(R.string.archived), style = MaterialTheme.typography.labelMedium, color = c.onSurfaceVariant)
                         Text(state.currency.format(state.balances[a.id] ?: Money.ZERO, true), style = Furi.figures.copy(fontSize = MaterialTheme.typography.bodyMedium.fontSize), color = c.onSurface)
                     }
                 }
@@ -139,6 +140,9 @@ private fun AccountDialog(state: BudgetState, existing: AccountEntity?, onDismis
     var balance by remember { mutableStateOf(if (existing == null) "" else cur.plain(nowBalance)) }
     var color by remember { mutableStateOf(existing?.colorArgb ?: Accents.swatches[(state.accounts.size * 4 + 3) % Accents.swatches.size].argb) }
     var icon by remember { mutableStateOf(existing?.icon ?: "bank") }
+    var hidden by remember { mutableStateOf(existing?.archived ?: false) }
+    // The last open account cannot be hidden: there would be nowhere to put a transaction.
+    val canHide = existing != null && (existing.archived || state.accounts.size > 1)
     val typed = cur.parse(balance.ifBlank { "0" })
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -151,13 +155,17 @@ private fun AccountDialog(state: BudgetState, existing: AccountEntity?, onDismis
                     listOf("cash", "bank").forEach { k -> FilterChip(selected = icon == k, onClick = { icon = k }, label = { Text(stringResource(if (k == "cash") R.string.type_cash else R.string.type_bank)) }, leadingIcon = { Icon(FuriIcons.byKey(k), null) }) }
                 }
                 ColorRow(color) { color = it }
+                if (canHide) Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(stringResource(R.string.hide_account), Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                    Switch(hidden, { hidden = it })
+                }
             }
         },
         confirmButton = {
             TextButton(enabled = name.isNotBlank() && typed != null, onClick = {
                 // The typed figure is today's balance; store what the account held before any recorded transactions.
                 val start = typed!!.minor - (nowBalance.minor - (existing?.startBalance ?: 0L))
-                onSave((existing ?: AccountEntity(name = "", colorArgb = 0, icon = "bank", sortOrder = state.accounts.size)).copy(name = name.trim(), colorArgb = color, icon = icon, startBalance = start))
+                onSave((existing ?: AccountEntity(name = "", colorArgb = 0, icon = "bank", sortOrder = state.accounts.size)).copy(name = name.trim(), colorArgb = color, icon = icon, startBalance = start, archived = hidden))
             }) { Text(stringResource(R.string.save)) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },

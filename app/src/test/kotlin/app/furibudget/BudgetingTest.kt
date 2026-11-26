@@ -40,6 +40,22 @@ class BudgetingTest {
         assertEquals(Money(1000), Budgeting.status(b, listOf(exp(10, 5, 1500, 1)), nov).limit)
     }
 
+    @Test fun weeklyRolloverUsesPreviousWeek() {
+        val week = DateRange(LocalDate.of(2026, 11, 23), LocalDate.of(2026, 11, 29))
+        val b = BudgetEntity(categoryId = 1, limitMinor = 1000, rollover = true, period = app.furibudget.data.BudgetPeriod.WEEK)
+        val s = Budgeting.status(b, listOf(exp(11, 18, 400, 1), exp(11, 24, 100, 1)), week)
+        assertEquals(Money(1600), s.limit)
+        assertEquals(Money(100), s.spent)
+    }
+
+    @Test fun rangeForPicksPeriod() {
+        val today = LocalDate.of(2026, 11, 26)
+        val monthly = BudgetEntity(limitMinor = 1)
+        val weekly = BudgetEntity(limitMinor = 1, period = app.furibudget.data.BudgetPeriod.WEEK)
+        assertEquals(LocalDate.of(2026, 11, 1), Budgeting.rangeFor(monthly, today, 1, java.time.DayOfWeek.MONDAY).start)
+        assertEquals(LocalDate.of(2026, 11, 23), Budgeting.rangeFor(weekly, today, 1, java.time.DayOfWeek.MONDAY).start)
+    }
+
     @Test fun goalPlan() {
         val today = LocalDate.of(2026, 11, 26)
         val g = GoalEntity(name = "Trip", targetMinor = 120_000, savedMinor = 20_000, deadlineEpochDay = LocalDate.of(2027, 3, 15).toEpochDay(), colorArgb = 0)

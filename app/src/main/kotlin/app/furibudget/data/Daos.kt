@@ -9,8 +9,8 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface AccountDao {
-    @Query("SELECT * FROM accounts WHERE archived = 0 ORDER BY sortOrder, id")
-    fun observeActive(): Flow<List<AccountEntity>>
+    @Query("SELECT * FROM accounts ORDER BY sortOrder, id")
+    fun observeAll(): Flow<List<AccountEntity>>
 
     @Query("SELECT COUNT(*) FROM accounts")
     suspend fun count(): Int

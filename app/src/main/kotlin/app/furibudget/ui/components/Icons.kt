@@ -7,7 +7,7 @@ import androidx.compose.material.icons.rounded.CardGiftcard
 import androidx.compose.material.icons.rounded.DirectionsBus
 import androidx.compose.material.icons.rounded.HealthAndSafety
 import androidx.compose.material.icons.rounded.Payments
-import androidx.compose.material.icons.rounded.ReceiptLong
+import androidx.compose.material.icons.automirrored.rounded.ReceiptLong
 import androidx.compose.material.icons.rounded.Restaurant
 import androidx.compose.material.icons.rounded.ShoppingBag
 import androidx.compose.material.icons.rounded.SportsEsports
@@ -22,7 +22,7 @@ object FuriIcons {
         "bank" -> Icons.Rounded.AccountBalance
         "food" -> Icons.Rounded.Restaurant
         "transport" -> Icons.Rounded.DirectionsBus
-        "bills" -> Icons.Rounded.ReceiptLong
+        "bills" -> Icons.AutoMirrored.Rounded.ReceiptLong
         "shopping" -> Icons.Rounded.ShoppingBag
         "health" -> Icons.Rounded.HealthAndSafety
         "fun" -> Icons.Rounded.SportsEsports

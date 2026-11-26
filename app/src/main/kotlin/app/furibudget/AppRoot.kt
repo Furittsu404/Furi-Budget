@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -98,8 +99,21 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
     val deletedMsg = stringResource(R.string.deleted)
     val undo = stringResource(R.string.undo)
 
+    val deleteWithUndo: (app.furibudget.data.TransactionEntity) -> Unit = { tx ->
+        vm.delete(tx)
+        scope.launch {
+            snackbar.currentSnackbarData?.dismiss()
+            if (snackbar.showSnackbar(deletedMsg, undo, duration = androidx.compose.material3.SnackbarDuration.Long) == SnackbarResult.ActionPerformed) {
+                vm.restore(tx)
+            }
+        }
+    }
+
     Box(Modifier.fillMaxSize()) {
         FuriBackground()
+        // Tablets and landscape: keep content in a phone-width column in the middle.
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+        Box(Modifier.widthIn(max = 640.dp).fillMaxSize()) {
         NavHost(
             navController = nav,
             startDestination = Route.HOME,
@@ -115,15 +129,7 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
                 ActivityScreen(
                     state,
                     onOpenTx = { nav.navigate(Route.edit(it)) },
-                    onDelete = { tx ->
-                        vm.delete(tx)
-                        scope.launch {
-                            snackbar.currentSnackbarData?.dismiss()
-                            if (snackbar.showSnackbar(deletedMsg, undo, duration = androidx.compose.material3.SnackbarDuration.Long) == SnackbarResult.ActionPerformed) {
-                                vm.restore(tx)
-                            }
-                        }
-                    },
+                    onDelete = deleteWithUndo,
                 )
             }
             composable(Route.INSIGHTS) { InsightsScreen(state) }
@@ -145,10 +151,12 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
                 enterTransition = { fadeIn(m.tween(200)) + slideInVertically(m.spring()) { it / 6 } },
                 popExitTransition = { fadeOut(m.tween(160)) + slideOutVertically(m.spring()) { it / 6 } },
             ) { entry ->
-                EditScreen(entry.arguments?.getLong("id") ?: 0L, state, onSave = vm::save, onSaveRecurrence = vm::saveRecurrence, onClose = { nav.popBackStack() })
+                EditScreen(entry.arguments?.getLong("id") ?: 0L, state, onSave = vm::save, onSaveRecurrence = vm::saveRecurrence, onDelete = deleteWithUndo, onClose = { nav.popBackStack() })
             }
         }
         // Fades content under the status bar so the clock never collides with scrolled text.
+        }
+        }
         val top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
         Box(
             Modifier.fillMaxWidth().height(top + 14.dp)
@@ -162,7 +170,7 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
                 OnboardingScreen(state, spec, onTheme, vm::saveAccount) { vm.updateSettings { it.copy(onboarded = true) } }
             }
         }
-        Column(Modifier.align(Alignment.BottomCenter).navigationBarsPadding()) {
+        Column(Modifier.align(Alignment.BottomCenter).widthIn(max = 640.dp).navigationBarsPadding()) {
             SnackbarHost(snackbar, Modifier.padding(horizontal = 16.dp))
             AnimatedVisibility(
                 visible = showBar && !onboarding,

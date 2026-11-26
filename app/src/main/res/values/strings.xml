@@ -180,4 +180,20 @@
     <string name="unlock">Unlock</string>
     <string name="unlock_prompt">Unlock Furi Budget</string>
     <string name="nothing_recorded">Nothing recorded in these months yet.</string>
+    <string name="per_month">Monthly</string>
+    <string name="per_week">Weekly</string>
+    <string name="transfer_to">%1$s to %2$s</string>
+    <string name="unknown">Unknown</string>
+    <string name="hide_account">Hide this account (closed or unused)</string>
+    <string name="edit_recurring">Edit recurring</string>
+    <string name="search">Search</string>
+    <string name="search_hint">Search notes, categories, accounts</string>
+    <string name="filter_all">All</string>
+    <string name="no_matches">Nothing matches.</string>
+    <string name="chart_donut">Spending by category: %1$s</string>
+    <string name="chart_bars">Income and spending for the last six months. Selected: %1$s</string>
+    <string name="chart_trend">Cumulative spending this month, %1$s on %2$s</string>
+    <string name="ring_desc">%1$d percent used</string>
+    <string name="card_opacity">Card opacity</string>
+    <string name="reset">Reset</string>
 </resources>

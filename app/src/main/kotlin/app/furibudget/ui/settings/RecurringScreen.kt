@@ -19,6 +19,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import app.furibudget.ui.components.plain
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -51,6 +56,7 @@ private val dateFmt = DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.getDefau
 @Composable
 fun RecurringScreen(state: BudgetState, onSave: (RecurrenceEntity) -> Unit, onDelete: (RecurrenceEntity) -> Unit, onBack: () -> Unit) {
     val c = Furi.colors
+    var editing by remember { mutableStateOf<RecurrenceEntity?>(null) }
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).statusBarsPadding().navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -64,7 +70,7 @@ fun RecurringScreen(state: BudgetState, onSave: (RecurrenceEntity) -> Unit, onDe
         }
         state.recurrences.forEach { r ->
             val cat = state.category(r.categoryId)
-            FuriCard(Modifier.fillMaxWidth()) {
+            FuriCard(Modifier.fillMaxWidth(), onClick = { editing = r }) {
                 Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(
@@ -86,4 +92,35 @@ fun RecurringScreen(state: BudgetState, onSave: (RecurrenceEntity) -> Unit, onDe
             }
         }
     }
+    editing?.let { r ->
+        RecurrenceDialog(state, r, onDismiss = { editing = null }, onSave = { onSave(it); editing = null })
+    }
+}
+
+@Composable
+private fun RecurrenceDialog(state: BudgetState, r: RecurrenceEntity, onDismiss: () -> Unit, onSave: (RecurrenceEntity) -> Unit) {
+    val cur = state.currency
+    var amount by remember { mutableStateOf(cur.plain(Money(r.amountMinor))) }
+    var note by remember { mutableStateOf(r.note) }
+    var repeat by remember { mutableStateOf(r.repeat) }
+    val parsed = cur.parse(amount)
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.edit_recurring)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                androidx.compose.material3.OutlinedTextField(note, { note = it.take(80) }, label = { Text(stringResource(R.string.note)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                app.furibudget.ui.components.AmountField(amount, { amount = it }, cur, stringResource(R.string.amount), Modifier.fillMaxWidth())
+                androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Repeat.entries.filter { it != Repeat.NONE }.forEach { opt ->
+                        androidx.compose.material3.FilterChip(selected = repeat == opt, onClick = { repeat = opt }, label = { Text(repeatLabel(opt)) })
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            androidx.compose.material3.TextButton(enabled = parsed != null && parsed.minor > 0, onClick = { onSave(r.copy(amountMinor = parsed!!.minor, note = note.trim(), repeat = repeat)) }) { Text(stringResource(R.string.save)) }
+        },
+        dismissButton = { androidx.compose.material3.TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+    )
 }

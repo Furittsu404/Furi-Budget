@@ -14,7 +14,7 @@ class Converters {
 
 @Database(
     entities = [AccountEntity::class, CategoryEntity::class, TransactionEntity::class, BudgetEntity::class, GoalEntity::class, RecurrenceEntity::class],
-    version = 3,
+    version = 1,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -29,8 +29,9 @@ abstract class BudgetDatabase : RoomDatabase() {
     companion object {
         fun create(context: Context): BudgetDatabase =
             Room.databaseBuilder(context, BudgetDatabase::class.java, "budget.db")
-                // Pre-release only: replaced by real migrations before the first sideloaded build with real data.
-                .fallbackToDestructiveMigration(dropAllTables = true)
+                // Schema v1 is the baseline (schemas/ holds the exported JSON). Every later change needs a real Migration.
+                // Only a downgrade, which can happen when an older build is installed over a newer one, may drop the tables.
+                .fallbackToDestructiveMigrationOnDowngrade(dropAllTables = true)
                 .build()
     }
 }

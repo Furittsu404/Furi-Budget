@@ -61,7 +61,10 @@ data class TransactionEntity(
     val createdAt: Long = System.currentTimeMillis(),
 )
 
-/** Monthly spending limit. categoryId null is the overall budget for the month. */
+@Serializable
+enum class BudgetPeriod { MONTH, WEEK }
+
+/** Spending limit for a month or a week. categoryId null is the overall budget for the month. */
 @Entity(
     tableName = "budgets",
     foreignKeys = [ForeignKey(CategoryEntity::class, ["id"], ["categoryId"], onDelete = ForeignKey.CASCADE)],
@@ -74,6 +77,7 @@ data class BudgetEntity(
     val limitMinor: Long,
     /** Unspent money from last month is added to this month's limit. */
     val rollover: Boolean = false,
+    val period: BudgetPeriod = BudgetPeriod.MONTH,
 )
 
 @Entity(tableName = "goals")

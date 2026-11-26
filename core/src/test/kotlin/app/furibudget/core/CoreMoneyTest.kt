@@ -96,6 +96,13 @@ class PeriodsTest {
         assertEquals(LocalDate.of(2027, 1, 14), r.end)
     }
 
+    @Test fun weekStartsOnChosenDay() {
+        val thu = LocalDate.of(2026, 11, 26)
+        assertEquals(DateRange(LocalDate.of(2026, 11, 23), LocalDate.of(2026, 11, 29)), Periods.weekContaining(thu, java.time.DayOfWeek.MONDAY))
+        assertEquals(DateRange(LocalDate.of(2026, 11, 22), LocalDate.of(2026, 11, 28)), Periods.weekContaining(thu, java.time.DayOfWeek.SUNDAY))
+        assertEquals(DateRange(LocalDate.of(2026, 11, 26), LocalDate.of(2026, 12, 2)), Periods.weekContaining(thu, java.time.DayOfWeek.THURSDAY))
+    }
+
     @Test fun shiftMonth() {
         val nov = Periods.monthContaining(LocalDate.of(2026, 11, 26))
         assertEquals(LocalDate.of(2026, 10, 1), Periods.shiftMonth(nov, -1).start)

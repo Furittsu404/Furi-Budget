@@ -32,6 +32,8 @@ import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import app.furibudget.ui.theme.Furi
 import kotlin.math.atan2
@@ -60,6 +62,7 @@ fun DonutChart(
     selected: Int?,
     onSelect: (Int?) -> Unit,
     modifier: Modifier = Modifier,
+    description: String = "",
     center: @Composable () -> Unit,
 ) {
     val total = slices.sumOf { it.value }.coerceAtLeast(1)
@@ -68,7 +71,7 @@ fun DonutChart(
     val pop = remember { Animatable(0f) }
     val motion = Furi.motion
     LaunchedEffect(selected) { pop.animateTo(if (selected != null) 1f else 0f, motion.spring()) }
-    Box(modifier.aspectRatio(1f), contentAlignment = Alignment.Center) {
+    Box(modifier.aspectRatio(1f).semantics { contentDescription = description }, contentAlignment = Alignment.Center) {
         Canvas(
             Modifier.fillMaxSize().pointerInput(slices) {
                 detectTapGestures { pos ->
@@ -128,12 +131,13 @@ fun PairedBars(
     selected: Int,
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
+    description: String = "",
 ) {
     val enter = rememberEntrance(groups.map { it.a to it.b })
     val maxV = max(1L, groups.maxOfOrNull { max(it.a, it.b) } ?: 1L).toFloat()
     val base = Furi.colors.onSurface.copy(alpha = 0.12f)
     Canvas(
-        modifier.fillMaxWidth().height(150.dp).pointerInput(groups.size) {
+        modifier.fillMaxWidth().height(150.dp).semantics { contentDescription = description }.pointerInput(groups.size) {
             detectTapGestures { pos -> onSelect((pos.x / (size.width / groups.size)).toInt().coerceIn(0, groups.lastIndex)) }
         },
     ) {
@@ -169,6 +173,7 @@ fun TrendLine(
     lineBrush: Brush,
     fillColor: Color,
     modifier: Modifier = Modifier,
+    description: String = "",
 ) {
     val enter = rememberEntrance(values)
     val c = Furi.colors
@@ -176,7 +181,7 @@ fun TrendLine(
     val maxV = max(1L, max(values.maxOrNull() ?: 0L, previous.maxOrNull() ?: 0L)).toFloat()
     var lastTick by remember { mutableIntStateOf(-1) }
     Canvas(
-        modifier.fillMaxWidth().height(170.dp).pointerInput(values.size) {
+        modifier.fillMaxWidth().height(170.dp).semantics { contentDescription = description }.pointerInput(values.size) {
             fun idx(x: Float) = ((x / size.width) * (values.size - 1)).toInt().coerceIn(0, values.lastIndex)
             detectDragGestures(
                 onDragStart = { o -> onScrub(idx(o.x)) },

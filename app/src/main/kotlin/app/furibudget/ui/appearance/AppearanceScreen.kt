@@ -51,6 +51,7 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderState
 import androidx.compose.material3.Switch
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -414,6 +415,19 @@ private fun BackgroundSection(spec: ThemeSpec, onChange: ((ThemeSpec) -> ThemeSp
 @Composable
 private fun DetailsSection(spec: ThemeSpec, onChange: ((ThemeSpec) -> ThemeSpec) -> Unit) {
     Section(stringResource(R.string.details)) {
+        val pack = Furi.pack
+        val palette = if (Furi.colors.dark) pack.dark else pack.light
+        if (palette != null && palette.card.alpha < 1f) {
+            val shown = spec.cardAlpha ?: palette.card.alpha
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(stringResource(R.string.card_opacity), Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge, color = Furi.colors.onSurface)
+                    if (spec.cardAlpha != null) TextButton(onClick = { onChange { it.copy(cardAlpha = null) } }) { Text(stringResource(R.string.reset)) }
+                    Text("${(shown * 100).toInt()}%", style = Furi.figures.copy(fontSize = MaterialTheme.typography.bodyMedium.fontSize), color = Furi.colors.onSurfaceVariant)
+                }
+                FuriSlider(shown, 0.05f..1f, Modifier.fillMaxWidth(), { v -> onChange { it.copy(cardAlpha = v) } })
+            }
+        }
         SwitchRow(stringResource(R.string.gradient_accent), spec.gradientAccent) { v -> onChange { it.copy(gradientAccent = v) } }
         SwitchRow(stringResource(R.string.parallax), spec.parallax) { v -> onChange { it.copy(parallax = v) } }
         SwitchRow(stringResource(R.string.colorblind), spec.colorblindSafe) { v -> onChange { it.copy(colorblindSafe = v) } }

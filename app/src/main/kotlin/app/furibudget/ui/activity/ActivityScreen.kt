@@ -15,7 +15,16 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.semantics
+import app.furibudget.data.TxKind
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -54,13 +63,40 @@ fun ActivityScreen(state: BudgetState, onOpenTx: (Long) -> Unit, onDelete: (Tran
     val c = Furi.colors
     var offset by rememberSaveable { mutableIntStateOf(0) }
     val range = remember(offset, state.startDay) { Periods.shiftMonth(state.month(), offset, state.startDay) }
-    val inMonth = remember(state.transactions, range) { state.transactions.filter { LocalDate.ofEpochDay(it.epochDay) in range } }
+    var searching by rememberSaveable { mutableStateOf(false) }
+    var query by rememberSaveable { mutableStateOf("") }
+    var kindFilter by rememberSaveable { mutableStateOf<TxKind?>(null) }
+    val inMonth = remember(state.transactions, range, query, kindFilter, searching) {
+        val q = if (searching) query.trim().lowercase() else ""
+        state.transactions.filter { t ->
+            LocalDate.ofEpochDay(t.epochDay) in range && (!searching || kindFilter == null || t.kind == kindFilter) &&
+                (q.isEmpty() || listOf(t.note, state.category(t.categoryId)?.name.orEmpty(), state.account(t.accountId)?.name.orEmpty(), state.currency.format(app.furibudget.core.Money(t.amountMinor)))
+                    .any { it.lowercase().contains(q) })
+        }
+    }
     val grouped = remember(inMonth) { inMonth.groupBy { it.epochDay } }
     val totals = remember(state.transactions, range) { Ledger.totals(state.transactions, range) }
     val today = LocalDate.now()
 
     Column(Modifier.fillMaxSize().statusBarsPadding().padding(horizontal = 20.dp)) {
-        Text(stringResource(R.string.tab_activity), style = MaterialTheme.typography.headlineMedium, color = c.onSurface, modifier = Modifier.padding(top = 8.dp, bottom = 4.dp))
+        Row(Modifier.padding(top = 8.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(stringResource(R.string.tab_activity), Modifier.weight(1f), style = MaterialTheme.typography.headlineMedium, color = c.onSurface)
+            IconButton(onClick = { searching = !searching; if (!searching) { query = ""; kindFilter = null } }) {
+                Icon(if (searching) Icons.Rounded.Close else Icons.Rounded.Search, stringResource(R.string.search))
+            }
+        }
+        if (searching) {
+            OutlinedTextField(
+                value = query, onValueChange = { query = it.take(40) }, singleLine = true,
+                placeholder = { Text(stringResource(R.string.search_hint)) }, modifier = Modifier.fillMaxWidth(),
+            )
+            Row(Modifier.padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(selected = kindFilter == null, onClick = { kindFilter = null }, label = { Text(stringResource(R.string.filter_all)) })
+                listOf(TxKind.EXPENSE to R.string.kind_expense, TxKind.INCOME to R.string.kind_income, TxKind.TRANSFER to R.string.kind_transfer).forEach { (k, l) ->
+                    FilterChip(selected = kindFilter == k, onClick = { kindFilter = if (kindFilter == k) null else k }, label = { Text(stringResource(l)) })
+                }
+            }
+        }
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = { offset -= 1 }) { Icon(Icons.AutoMirrored.Rounded.KeyboardArrowLeft, stringResource(R.string.prev_month)) }
             Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -74,7 +110,7 @@ fun ActivityScreen(state: BudgetState, onOpenTx: (Long) -> Unit, onDelete: (Tran
         }
         if (grouped.isEmpty()) {
             Box(Modifier.fillMaxSize().padding(bottom = 120.dp), contentAlignment = Alignment.Center) {
-                Text(stringResource(R.string.empty_month), style = MaterialTheme.typography.bodyLarge, color = c.onSurfaceVariant)
+                Text(stringResource(if (searching) R.string.no_matches else R.string.empty_month), style = MaterialTheme.typography.bodyLarge, color = c.onSurfaceVariant)
             }
         } else {
             LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 168.dp)) {
@@ -109,20 +145,26 @@ private fun androidx.compose.foundation.lazy.LazyItemScope.SwipeRow(
     modifier: Modifier,
 ) {
     val c = Furi.colors
+    val deleteLabel = stringResource(R.string.delete)
     val dismiss = rememberSwipeToDismissBoxState(
         confirmValueChange = { v -> (v == SwipeToDismissBoxValue.EndToStart).also { if (it) onDelete(tx) } },
     )
     SwipeToDismissBox(
         state = dismiss,
-        modifier = modifier.animateItem(),
+        modifier = modifier.animateItem().semantics {
+            // Swipe is not reachable with a screen reader, so offer the same action by name.
+            customActions = listOf(CustomAccessibilityAction(deleteLabel) { onDelete(tx); true })
+        },
         enableDismissFromStartToEnd = false,
         backgroundContent = {
-            val p = dismiss.progress.coerceIn(0f, 1f)
+            // progress reads 1 while the row sits still, so only draw the red layer once a swipe is under way.
+            val swiping = dismiss.dismissDirection == SwipeToDismissBoxValue.EndToStart
+            val p = if (swiping) dismiss.progress.coerceIn(0f, 1f) else 0f
             Box(
                 Modifier.fillMaxSize().clip(MaterialTheme.shapes.medium).background(c.expense.copy(alpha = 0.45f * p)),
                 contentAlignment = Alignment.CenterEnd,
             ) {
-                Icon(Icons.Rounded.Delete, stringResource(R.string.delete), Modifier.padding(end = 20.dp).scale(0.8f + 0.4f * p), tint = c.expense)
+                if (swiping) Icon(Icons.Rounded.Delete, stringResource(R.string.delete), Modifier.padding(end = 20.dp).scale(0.8f + 0.4f * p), tint = c.expense)
             }
         },
     ) {

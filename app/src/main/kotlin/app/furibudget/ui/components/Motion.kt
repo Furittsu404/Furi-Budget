@@ -25,7 +25,11 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
+import app.furibudget.R
 import androidx.compose.ui.unit.dp
 import app.furibudget.data.Budgeting
 import app.furibudget.ui.theme.Furi
@@ -49,11 +53,13 @@ fun BudgetRing(
     LaunchedEffect(fraction) { sweep.animateTo(fraction.coerceIn(0f, 1f), motion.spring()) }
     val warn by animateColorAsState(c.warning, motion.tween(300), label = "warn")
     val over by animateColorAsState(c.expense, motion.tween(300), label = "over")
-    val pulse by rememberInfiniteTransition(label = "pulse").animateFloat(
-        0.25f, 0.7f, infiniteRepeatable(tween(900), RepeatMode.Reverse), label = "pulse-a",
-    )
+    // Only runs while the ring is over its limit and motion is on, so a calm screen costs no frames.
+    val pulse = if (level == Budgeting.Level.OVER && motion.enabled) {
+        rememberInfiniteTransition(label = "pulse").animateFloat(0.25f, 0.7f, infiniteRepeatable(tween(900), RepeatMode.Reverse), label = "pulse-a").value
+    } else 0f
     val track = c.onSurface.copy(alpha = 0.12f)
-    Box(modifier, contentAlignment = Alignment.Center) {
+    val ringDesc = stringResource(R.string.ring_desc, (fraction * 100).toInt())
+    Box(modifier.semantics { contentDescription = ringDesc }, contentAlignment = Alignment.Center) {
         Canvas(Modifier.fillMaxSize()) {
             val sw = stroke.toPx()
             val d = size.minDimension - sw * 2.2f
@@ -82,9 +88,9 @@ fun LiquidFill(fraction: Float, color: Color, modifier: Modifier = Modifier) {
     val motion = Furi.motion
     val level = remember { Animatable(0f) }
     LaunchedEffect(fraction) { level.animateTo(fraction.coerceIn(0f, 1f), motion.spring()) }
-    val phase by rememberInfiniteTransition(label = "wave").animateFloat(
-        0f, (2 * PI).toFloat(), infiniteRepeatable(tween(3200, easing = LinearEasing)), label = "phase",
-    )
+    val phase = if (motion.enabled && fraction in 0.02f..0.98f) {
+        rememberInfiniteTransition(label = "wave").animateFloat(0f, (2 * PI).toFloat(), infiniteRepeatable(tween(3200, easing = LinearEasing)), label = "phase").value
+    } else 0f
     Canvas(modifier) {
         val top = size.height * (1f - level.value)
         val amp = if (motion.enabled && level.value in 0.02f..0.98f) size.height * 0.035f else 0f

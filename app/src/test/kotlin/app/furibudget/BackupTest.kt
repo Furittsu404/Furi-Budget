@@ -29,9 +29,25 @@ class BackupTest {
         assertNull(Backup.decode("{\"version\":99}"))
     }
 
+    @Test fun csvNeutralisesFormulas() {
+        val state = BudgetState(
+            allAccounts = listOf(AccountEntity(1, "Cash", 1, "cash")),
+            transactions = listOf(TransactionEntity(1, TxKind.EXPENSE, 100, 1, note = "=HYPERLINK(\"x\")", epochDay = 20000)),
+        )
+        val row = Backup.csv(state).trim().lines()[1]
+        assert(row.contains(",\"'=HYPERLINK(")) { row }
+    }
+
+    @Test fun consistencyCatchesBrokenLinks() {
+        val ok = BackupFile(accounts = listOf(AccountEntity(1, "Cash", 1, "cash")), transactions = listOf(TransactionEntity(1, TxKind.EXPENSE, 5, 1, epochDay = 1)))
+        org.junit.Assert.assertTrue(Backup.isConsistent(ok))
+        org.junit.Assert.assertFalse(Backup.isConsistent(ok.copy(transactions = listOf(TransactionEntity(1, TxKind.EXPENSE, 5, 9, epochDay = 1)))))
+        org.junit.Assert.assertFalse(Backup.isConsistent(ok.copy(transactions = listOf(TransactionEntity(1, TxKind.EXPENSE, 0, 1, epochDay = 1)))))
+    }
+
     @Test fun csvQuotesAwkwardFields() {
         val state = BudgetState(
-            accounts = listOf(AccountEntity(1, "Cash", 1, "cash")),
+            allAccounts = listOf(AccountEntity(1, "Cash", 1, "cash")),
             transactions = listOf(TransactionEntity(1, TxKind.EXPENSE, 12_345, 1, note = "a,\"b\"", epochDay = 20000)),
         )
         val lines = Backup.csv(state).trim().lines()

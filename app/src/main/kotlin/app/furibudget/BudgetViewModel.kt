@@ -31,7 +31,10 @@ data class BudgetState(
     val loaded: Boolean = false,
     val currency: Currency = Currency.PHP,
     val startDay: Int = 1,
+    /** Open accounts, the ones you can pick and that count toward the total. */
     val accounts: List<AccountEntity> = emptyList(),
+    /** Every account including hidden ones, so old transactions still show a name. */
+    val allAccounts: List<AccountEntity> = emptyList(),
     val categories: List<CategoryEntity> = emptyList(),
     val transactions: List<TransactionEntity> = emptyList(),
     val balances: Map<Long, Money> = emptyMap(),
@@ -40,9 +43,12 @@ data class BudgetState(
     val recurrences: List<RecurrenceEntity> = emptyList(),
     val settings: AppSettings = AppSettings(),
 ) {
-    val total: Money get() = balances.values.fold(Money.ZERO) { a, b -> a + b }
+    val total: Money get() = accounts.fold(Money.ZERO) { a, acc -> a + (balances[acc.id] ?: Money.ZERO) }
     fun category(id: Long?) = categories.firstOrNull { it.id == id }
-    fun account(id: Long?) = accounts.firstOrNull { it.id == id }
+    fun account(id: Long?) = allAccounts.firstOrNull { it.id == id }
+
+    /** First day of the week for weekly budgets, from the phone's locale. */
+    val firstDay: java.time.DayOfWeek get() = java.time.temporal.WeekFields.of(java.util.Locale.getDefault()).firstDayOfWeek
 
     /** The budget month containing [date], honouring the user's start day. */
     fun month(date: LocalDate = LocalDate.now()) = Periods.monthContaining(date, startDay)
@@ -52,8 +58,8 @@ class BudgetViewModel(private val app: Application) : AndroidViewModel(app) {
     private val repo = (app as FuriBudgetApp).repository
     private val settingsRepo = (app as FuriBudgetApp).settings
 
-    private val base = combine(repo.accounts, repo.categories, repo.transactions, repo.budgets, repo.goals) { a, c, t, b, g ->
-        BudgetState(true, accounts = a, categories = c, transactions = t, balances = Ledger.balances(a, t), budgets = b, goals = g)
+    private val base = combine(repo.allAccounts, repo.categories, repo.transactions, repo.budgets, repo.goals) { a, c, t, b, g ->
+        BudgetState(true, accounts = a.filter { !it.archived }, allAccounts = a, categories = c, transactions = t, balances = Ledger.balances(a, t), budgets = b, goals = g)
     }
 
     val state: StateFlow<BudgetState> = combine(base, repo.recurrences, settingsRepo.settings) { s, r, set ->
@@ -64,6 +70,9 @@ class BudgetViewModel(private val app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             repo.seedIfEmpty()
             repo.postDueRecurrences(LocalDate.now())
+            // Force-stopping the app clears its alarms, so put the reminder back each time it opens.
+            val s = settingsRepo.settings.first()
+            if (s.dailyReminder) Notifier.scheduleReminder(app, s.reminderHour, s.reminderMinute)
         }
     }
 
@@ -77,12 +86,13 @@ class BudgetViewModel(private val app: Application) : AndroidViewModel(app) {
 
     /** Notifies when this expense carries a budget across 80% of its limit. */
     private fun checkAlerts(before: BudgetState, tx: TransactionEntity) {
-        val month = before.month()
+        val today = LocalDate.now()
         val after = before.transactions.filterNot { it.id == tx.id } + tx
         for (b in before.budgets) {
             if (b.categoryId != null && b.categoryId != tx.categoryId) continue
-            val f0 = Budgeting.status(b, before.transactions, month, before.startDay).fraction
-            val st = Budgeting.status(b, after, month, before.startDay)
+            val range = Budgeting.rangeFor(b, today, before.startDay, before.firstDay)
+            val f0 = Budgeting.status(b, before.transactions, range, before.startDay).fraction
+            val st = Budgeting.status(b, after, range, before.startDay)
             if (f0 < Budgeting.CLOSE_AT && st.fraction >= Budgeting.CLOSE_AT) {
                 Notifier.budgetAlert(app, before.category(b.categoryId)?.name ?: app.getString(R.string.monthly_budget), (st.fraction * 100).toInt())
             }
@@ -117,8 +127,9 @@ class BudgetViewModel(private val app: Application) : AndroidViewModel(app) {
 
     /** Replaces all data with the backup in [text]. Returns the parsed file, or null when it is not a valid backup. */
     suspend fun importJson(text: String): BackupFile? {
-        val file = Backup.decode(text) ?: return null
-        repo.replaceAll(file)
+        val file = Backup.decode(text)?.takeIf { Backup.isConsistent(it) } ?: return null
+        // One transaction: if anything fails the old data is still there.
+        if (runCatching { repo.replaceAll(file) }.isFailure) return null
         updateSettings { it.copy(currencyCode = file.currency ?: it.currencyCode, startDay = file.startDay ?: it.startDay) }
         return file
     }

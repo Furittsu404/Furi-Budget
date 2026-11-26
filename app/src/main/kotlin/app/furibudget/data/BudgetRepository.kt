@@ -4,7 +4,7 @@ import androidx.room.withTransaction
 import kotlinx.coroutines.flow.Flow
 
 class BudgetRepository(private val db: BudgetDatabase) {
-    val accounts: Flow<List<AccountEntity>> = db.accounts().observeActive()
+    val allAccounts: Flow<List<AccountEntity>> = db.accounts().observeAll()
     val categories: Flow<List<CategoryEntity>> = db.categories().observeAll()
     val transactions: Flow<List<TransactionEntity>> = db.transactions().observeAll()
     val budgets: Flow<List<BudgetEntity>> = db.budgets().observeAll()

@@ -21,7 +21,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import app.furibudget.BudgetState
+import app.furibudget.R
 import app.furibudget.core.Money
 import app.furibudget.data.TransactionEntity
 import app.furibudget.data.TxKind
@@ -34,10 +36,10 @@ fun TxRow(tx: TransactionEntity, state: BudgetState, modifier: Modifier = Modifi
     val category = state.category(tx.categoryId)
     val tint = if (tx.kind == TxKind.TRANSFER) c.accentText else Color(category?.colorArgb ?: 0xFF94A3B8.toInt())
     val title = when (tx.kind) {
-        TxKind.TRANSFER -> "${state.account(tx.accountId)?.name ?: "?"} → ${state.account(tx.toAccountId)?.name ?: "?"}"
-        else -> category?.name ?: "Uncategorised"
+        TxKind.TRANSFER -> stringResource(R.string.transfer_to, state.account(tx.accountId)?.name ?: stringResource(R.string.unknown), state.account(tx.toAccountId)?.name ?: stringResource(R.string.unknown))
+        else -> category?.name ?: stringResource(R.string.uncategorised)
     }
-    val subtitle = tx.note.ifBlank { if (tx.kind == TxKind.TRANSFER) "Transfer" else state.account(tx.accountId)?.name.orEmpty() }
+    val subtitle = tx.note.ifBlank { if (tx.kind == TxKind.TRANSFER) stringResource(R.string.kind_transfer) else state.account(tx.accountId)?.name.orEmpty() }
     val amount = state.currency.format(Money(tx.amountMinor), withSymbol = true)
     val (text, color) = when (tx.kind) {
         TxKind.INCOME -> "+ $amount" to c.income

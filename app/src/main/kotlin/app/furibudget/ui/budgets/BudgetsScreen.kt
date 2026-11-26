@@ -57,7 +57,6 @@ fun BudgetsScreen(state: BudgetState, onSave: (BudgetEntity) -> Unit, onDelete: 
     val c = Furi.colors
     val cur = state.currency
     val today = LocalDate.now()
-    val range = remember(state.startDay) { state.month(today) }
     val overall = state.budgets.firstOrNull { it.categoryId == null }
     val perCategory = state.budgets.filter { it.categoryId != null }
     var editing by remember { mutableStateOf<BudgetEntity?>(null) }
@@ -78,6 +77,7 @@ fun BudgetsScreen(state: BudgetState, onSave: (BudgetEntity) -> Unit, onDelete: 
                 }
             }
         } else {
+            val range = Budgeting.rangeFor(overall, today, state.startDay, state.firstDay)
             val st = Budgeting.status(overall, state.transactions, range, state.startDay)
             val daysLeft = ChronoUnit.DAYS.between(today, range.end).toInt() + 1
             FuriCard(Modifier.fillMaxWidth().clickable { editing = overall }) {
@@ -105,14 +105,14 @@ fun BudgetsScreen(state: BudgetState, onSave: (BudgetEntity) -> Unit, onDelete: 
         Text(stringResource(R.string.by_category), style = MaterialTheme.typography.titleMedium, color = c.onSurface)
         perCategory.forEach { b ->
             val cat = state.category(b.categoryId)
-            val st = Budgeting.status(b, state.transactions, range, state.startDay)
+            val st = Budgeting.status(b, state.transactions, Budgeting.rangeFor(b, today, state.startDay, state.firstDay), state.startDay)
             FuriCard(Modifier.fillMaxWidth().clickable { editing = b }) {
                 Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     BudgetRing(st.fraction, st.level, Modifier.size(64.dp), stroke = 7.dp) {
                         Text("${(st.fraction * 100).toInt()}%", style = MaterialTheme.typography.labelMedium, color = c.onSurface)
                     }
                     Column(Modifier.weight(1f)) {
-                        Text(cat?.name ?: "?", style = MaterialTheme.typography.titleSmall, color = c.onSurface)
+                        Text((cat?.name ?: stringResource(R.string.uncategorised)) + if (b.period == app.furibudget.data.BudgetPeriod.WEEK) " · " + stringResource(R.string.per_week) else "", style = MaterialTheme.typography.titleSmall, color = c.onSurface)
                         Text(
                             stringResource(R.string.spent_of, cur.format(st.spent), cur.format(st.limit)),
                             style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant,
@@ -156,6 +156,7 @@ private fun BudgetDialog(
     val cur = state.currency
     var text by remember { mutableStateOf(existing?.let { cur.plain(Money(it.limitMinor)) }.orEmpty()) }
     var rollover by remember { mutableStateOf(existing?.rollover ?: false) }
+    var period by remember { mutableStateOf(existing?.period ?: app.furibudget.data.BudgetPeriod.MONTH) }
     val taken = state.budgets.mapNotNull { it.categoryId }.toSet()
     val choices = state.categories.filter { it.kind == app.furibudget.data.TxKind.EXPENSE && !it.archived && (it.id !in taken || it.id == existing?.categoryId) }
     var catId by remember { mutableStateOf(existing?.categoryId ?: choices.firstOrNull()?.id) }
@@ -174,6 +175,10 @@ private fun BudgetDialog(
                         }
                     }
                 }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(selected = period == app.furibudget.data.BudgetPeriod.MONTH, onClick = { period = app.furibudget.data.BudgetPeriod.MONTH }, label = { Text(stringResource(R.string.per_month)) })
+                    FilterChip(selected = period == app.furibudget.data.BudgetPeriod.WEEK, onClick = { period = app.furibudget.data.BudgetPeriod.WEEK }, label = { Text(stringResource(R.string.per_week)) })
+                }
                 AmountField(text, { text = it }, cur, stringResource(R.string.limit), Modifier.fillMaxWidth())
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(stringResource(R.string.rollover), Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
@@ -185,7 +190,7 @@ private fun BudgetDialog(
             TextButton(
                 enabled = amount != null && amount.minor > 0 && (overall || catId != null),
                 onClick = {
-                    onSave(BudgetEntity(id = existing?.id ?: 0, categoryId = if (overall) null else catId, limitMinor = amount!!.minor, rollover = rollover))
+                    onSave(BudgetEntity(id = existing?.id ?: 0, categoryId = if (overall) null else catId, limitMinor = amount!!.minor, rollover = rollover, period = period))
                 },
             ) { Text(stringResource(R.string.save)) }
         },
