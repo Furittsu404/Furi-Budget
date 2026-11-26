@@ -77,7 +77,7 @@ fun ActivityScreen(state: BudgetState, onOpenTx: (Long) -> Unit, onDelete: (Tran
                 Text(stringResource(R.string.empty_month), style = MaterialTheme.typography.bodyLarge, color = c.onSurfaceVariant)
             }
         } else {
-            LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 132.dp)) {
+            LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 168.dp)) {
                 grouped.forEach { (day, list) ->
                     val date = LocalDate.ofEpochDay(day)
                     item(key = "h$day") {

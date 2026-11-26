@@ -15,6 +15,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -142,6 +148,12 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
                 EditScreen(entry.arguments?.getLong("id") ?: 0L, state, onSave = vm::save, onSaveRecurrence = vm::saveRecurrence, onClose = { nav.popBackStack() })
             }
         }
+        // Fades content under the status bar so the clock never collides with scrolled text.
+        val top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+        Box(
+            Modifier.fillMaxWidth().height(top + 14.dp)
+                .background(Brush.verticalGradient(listOf(Furi.colors.background.copy(alpha = 0.78f), Color.Transparent))),
+        )
         val onboarding = state.loaded && !state.settings.onboarded
         if (onboarding) {
             // Opaque: the screens underneath must not show through the pager.

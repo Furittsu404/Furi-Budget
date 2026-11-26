@@ -62,7 +62,7 @@ fun HomeScreen(state: BudgetState, onOpenAppearance: () -> Unit, onOpenSettings:
             .verticalScroll(rememberScrollState())
             .statusBarsPadding()
             .padding(horizontal = 20.dp)
-            .padding(bottom = 132.dp),
+            .padding(bottom = 168.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
         Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {

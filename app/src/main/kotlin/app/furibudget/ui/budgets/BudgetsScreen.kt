@@ -64,7 +64,7 @@ fun BudgetsScreen(state: BudgetState, onSave: (BudgetEntity) -> Unit, onDelete: 
     var creating by remember { mutableStateOf<Boolean?>(null) } // true = overall, false = category
 
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).statusBarsPadding().padding(horizontal = 20.dp).padding(bottom = 132.dp),
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).statusBarsPadding().padding(horizontal = 20.dp).padding(bottom = 168.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         Text(stringResource(R.string.tab_budgets), style = MaterialTheme.typography.headlineMedium, color = c.onSurface, modifier = Modifier.padding(top = 8.dp))

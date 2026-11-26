@@ -136,8 +136,8 @@ object ThemePacks {
         tagline = "Soft pastels, round shapes, bouncy motion",
         dark = PackPalette(
             background = Color(0xFF1A1330),
-            card = Color(0x26FFFFFF),
-            cardBorder = Color(0x33FFFFFF),
+            card = Color(0x47FFFFFF),
+            cardBorder = Color(0x40FFFFFF),
             onSurface = Color(0xFFF5EEFF),
             onSurfaceVariant = Color(0xFFD2C9EA),
             mesh = listOf(Color(0x80FF7DB0), Color(0x805BE0C0)),

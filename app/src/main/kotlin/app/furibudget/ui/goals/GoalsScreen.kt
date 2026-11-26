@@ -76,7 +76,7 @@ fun GoalsScreen(state: BudgetState, onSave: (GoalEntity) -> Unit, onDelete: (Goa
 
     Box(Modifier.fillMaxSize()) {
         Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).statusBarsPadding().padding(horizontal = 20.dp).padding(bottom = 132.dp),
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).statusBarsPadding().padding(horizontal = 20.dp).padding(bottom = 168.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
             Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {

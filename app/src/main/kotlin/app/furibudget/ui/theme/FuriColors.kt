@@ -3,6 +3,8 @@ package app.furibudget.ui.theme
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
+import app.furibudget.core.color.relativeLuminance
 import androidx.compose.ui.graphics.toArgb
 import app.furibudget.core.color.AccentDerivation
 import app.furibudget.core.color.Oklch
@@ -64,25 +66,42 @@ fun resolveColors(spec: ThemeSpec, pack: ThemePack, systemDark: Boolean, dynamic
         is AccentChoice.Custom -> a.argb
         is AccentChoice.Photo -> a.argb
     }
-    val surface = p.background.toArgb()
+    val kind = spec.background ?: pack.defaultBackground
+    val roles0 = AccentDerivation.derive(accentArgb, dark, p.background.toArgb())
+    // The accent blob follows the accent but may not get so bright (dark themes) or dark (light themes) that text on it fails.
+    val glowLch = toOklch(roles0.glow)
+    val blobBase = Color(fromOklch(Oklch(if (dark) minOf(glowLch.l, 0.55) else maxOf(glowLch.l, 0.85), glowLch.c, glowLch.h)))
+    val blobs = listOf(p.mesh[0], p.mesh[1], blobBase.copy(alpha = p.accentBlob))
+    // Worst surface text can land on: the page colour with the most contrast-hostile blob over it. Aurora ribbons reach 60% strength.
+    val worst = when (kind) {
+        BackgroundKind.SOLID, BackgroundKind.PHOTO -> p.background
+        else -> blobs.map { b ->
+            val a = if (kind == BackgroundKind.AURORA) 0.6f else b.alpha
+            b.copy(alpha = a).compositeOver(p.background)
+        }.let { list -> if (dark) list.maxBy { relativeLuminance(it.toArgb()) } else list.minBy { relativeLuminance(it.toArgb()) } }
+    }
+    val surface = worst.toArgb()
     val roles = AccentDerivation.derive(accentArgb, dark, surface)
     val lch = toOklch(roles.accent)
     val second = if (spec.gradientAccent) fromOklch(Oklch(lch.l, lch.c, (lch.h + 38) % 360)) else roles.accent
-    // 5.5 rather than 4.5: translucent cards sit over brighter blobs than the page colour alone.
-    fun semantic(argb: Int) = Color(ensureContrast(argb, surface, 5.5))
+    // Strong contrast on the page colour, and still a clear 3.2 (graphics and large figures) on the worst blob, so
+    // amber and red keep their hue instead of washing out to near-white on mid-tone backdrops.
+    fun semantic(argb: Int) = Color(ensureContrast(ensureContrast(argb, p.background.toArgb(), 5.5), surface, 3.2))
     val (income, expense, warning) = if (spec.colorblindSafe) {
         Triple(semantic(0xFF3B82F6.toInt()), semantic(0xFFF97316.toInt()), semantic(0xFFEAB308.toInt()))
     } else {
         Triple(semantic(0xFF22C55E.toInt()), semantic(0xFFF43F5E.toInt()), semantic(0xFFF59E0B.toInt()))
     }
     val glow = Color(roles.glow)
+    val onSurface = Color(ensureContrast(p.onSurface.toArgb(), surface, 7.0))
+    val onSurfaceVariant = Color(ensureContrast(p.onSurfaceVariant.toArgb(), surface, 4.6))
     return FuriColors(
         dark = dark,
         background = p.background,
         card = p.card,
         cardBorder = p.cardBorder,
-        onSurface = p.onSurface,
-        onSurfaceVariant = p.onSurfaceVariant,
+        onSurface = onSurface,
+        onSurfaceVariant = onSurfaceVariant,
         accent = Color(roles.accent),
         onAccent = Color(roles.onAccent),
         accentContainer = Color(roles.container),
@@ -95,6 +114,6 @@ fun resolveColors(spec: ThemeSpec, pack: ThemePack, systemDark: Boolean, dynamic
         warning = warning,
         meshA = p.mesh[0],
         meshB = p.mesh[1],
-        meshC = glow.copy(alpha = p.accentBlob),
+        meshC = blobs[2],
     )
 }

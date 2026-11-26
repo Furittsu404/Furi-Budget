@@ -179,9 +179,9 @@ half4 main(float2 fc) {
     float a = ribbon(uv, 0.22, 0.0, 0.22) * (0.65 + 0.35 * sin(time * 0.40));
     float b = ribbon(uv, 0.48, 2.1, 0.17) * (0.65 + 0.35 * sin(time * 0.33 + 1.3));
     float c = ribbon(uv, 0.78, 4.2, 0.26) * (0.65 + 0.35 * sin(time * 0.47 + 2.6));
-    col = mix(col, ca.rgb, clamp(a * max(ca.a, 0.5), 0.0, 0.85));
-    col = mix(col, cb.rgb, clamp(b * max(cb.a, 0.5), 0.0, 0.85));
-    col = mix(col, cc.rgb, clamp(c * max(cc.a, 0.5), 0.0, 0.85));
+    col = mix(col, ca.rgb, clamp(a * 0.6, 0.0, 0.6));
+    col = mix(col, cb.rgb, clamp(b * 0.6, 0.0, 0.6));
+    col = mix(col, cc.rgb, clamp(c * 0.6, 0.0, 0.6));
     col += (hash(fc) - 0.5) / 255.0 * 1.5;
     return half4(col, 1.0);
 }
@@ -194,12 +194,12 @@ private fun DrawScope.drawParticles(c: FuriColors, t: Float) {
         val bx = r.nextFloat()
         val by = r.nextFloat()
         val speed = 0.012f + r.nextFloat() * 0.03f
-        val rad = (1.2f + r.nextFloat() * 3.6f) * density()
+        val rad = (1.0f + r.nextFloat() * 2.6f) * density()
         val phase = r.nextFloat() * 6.28f
         val y = ((by - t * speed) % 1f + 1f) % 1f
         val x = bx + 0.02f * sin(t * 0.3f + phase)
         val twinkle = 0.35f + 0.65f * (0.5f + 0.5f * sin(t * 0.9f + phase))
-        drawCircle(tint.copy(alpha = 0.45f * twinkle), rad, Offset(x * size.width, y * size.height))
+        drawCircle(tint.copy(alpha = 0.28f * twinkle), rad, Offset(x * size.width, y * size.height))
         if (i % 6 == 0) drawCircle(tint.copy(alpha = 0.10f * twinkle), rad * 4f, Offset(x * size.width, y * size.height))
     }
 }

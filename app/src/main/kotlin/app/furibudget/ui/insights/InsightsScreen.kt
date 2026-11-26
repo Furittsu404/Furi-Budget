@@ -79,7 +79,7 @@ fun InsightsScreen(state: BudgetState) {
     var picked by remember(range) { mutableStateOf<Int?>(null) }
 
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).statusBarsPadding().padding(horizontal = 20.dp).padding(bottom = 132.dp),
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).statusBarsPadding().padding(horizontal = 20.dp).padding(bottom = 168.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         Text(stringResource(R.string.tab_insights), style = MaterialTheme.typography.headlineMedium, color = c.onSurface, modifier = Modifier.padding(top = 8.dp))
