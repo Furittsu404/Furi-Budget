@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import app.furibudget.core.Currency
 import app.furibudget.core.Money
 import app.furibudget.data.AccountEntity
+import app.furibudget.data.BudgetEntity
+import app.furibudget.data.GoalEntity
 import app.furibudget.data.CategoryEntity
 import app.furibudget.data.Ledger
 import app.furibudget.data.TransactionEntity
@@ -22,6 +24,8 @@ data class BudgetState(
     val categories: List<CategoryEntity> = emptyList(),
     val transactions: List<TransactionEntity> = emptyList(),
     val balances: Map<Long, Money> = emptyMap(),
+    val budgets: List<BudgetEntity> = emptyList(),
+    val goals: List<GoalEntity> = emptyList(),
 ) {
     val total: Money get() = balances.values.fold(Money.ZERO) { a, b -> a + b }
     fun category(id: Long?) = categories.firstOrNull { it.id == id }
@@ -31,8 +35,8 @@ data class BudgetState(
 class BudgetViewModel(app: Application) : AndroidViewModel(app) {
     private val repo = (app as FuriBudgetApp).repository
 
-    val state: StateFlow<BudgetState> = combine(repo.accounts, repo.categories, repo.transactions) { a, c, t ->
-        BudgetState(true, Currency.PHP, a, c, t, Ledger.balances(a, t))
+    val state: StateFlow<BudgetState> = combine(repo.accounts, repo.categories, repo.transactions, repo.budgets, repo.goals) { a, c, t, b, g ->
+        BudgetState(true, Currency.PHP, a, c, t, Ledger.balances(a, t), b, g)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), BudgetState())
 
     init {
@@ -52,4 +56,9 @@ class BudgetViewModel(app: Application) : AndroidViewModel(app) {
     fun restore(tx: TransactionEntity) {
         viewModelScope.launch { repo.restore(tx) }
     }
+
+    fun saveBudget(b: BudgetEntity) { viewModelScope.launch { repo.saveBudget(b) } }
+    fun deleteBudget(b: BudgetEntity) { viewModelScope.launch { repo.deleteBudget(b) } }
+    fun saveGoal(g: GoalEntity) { viewModelScope.launch { repo.saveGoal(g) } }
+    fun deleteGoal(g: GoalEntity) { viewModelScope.launch { repo.deleteGoal(g) } }
 }

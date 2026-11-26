@@ -21,6 +21,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.AccountBalanceWallet
+import androidx.compose.material.icons.rounded.Flag
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.PieChart
 import androidx.compose.material.icons.rounded.Receipt
@@ -49,6 +51,8 @@ import app.furibudget.ui.appearance.AppearanceScreen
 import app.furibudget.ui.components.FuriNavBar
 import app.furibudget.ui.components.NavItem
 import app.furibudget.ui.edit.EditScreen
+import app.furibudget.ui.budgets.BudgetsScreen
+import app.furibudget.ui.goals.GoalsScreen
 import app.furibudget.ui.home.HomeScreen
 import app.furibudget.ui.insights.InsightsScreen
 import app.furibudget.ui.theme.Furi
@@ -60,6 +64,8 @@ private object Route {
     const val HOME = "home"
     const val ACTIVITY = "activity"
     const val INSIGHTS = "insights"
+    const val BUDGETS = "budgets"
+    const val GOALS = "goals"
     const val APPEARANCE = "appearance"
     const val EDIT = "edit/{id}"
     fun edit(id: Long) = "edit/$id"
@@ -71,7 +77,7 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
     val nav = rememberNavController()
     val backStack by nav.currentBackStackEntryAsState()
     val route = backStack?.destination?.route
-    val tabs = listOf(Route.HOME, Route.ACTIVITY, Route.INSIGHTS)
+    val tabs = listOf(Route.HOME, Route.ACTIVITY, Route.BUDGETS, Route.INSIGHTS, Route.GOALS)
     val showBar = route in tabs
     val m = Furi.motion
     val snackbar = remember { SnackbarHostState() }
@@ -90,7 +96,7 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
             popExitTransition = { fadeOut(m.tween(160)) + slideOutHorizontally(m.spring()) { it / 10 } },
         ) {
             composable(Route.HOME) {
-                HomeScreen(state, onOpenAppearance = { nav.navigate(Route.APPEARANCE) }, onOpenTx = { nav.navigate(Route.edit(it)) })
+                HomeScreen(state, onOpenAppearance = { nav.navigate(Route.APPEARANCE) }, onOpenBudgets = { nav.navigate(Route.BUDGETS) { popUpTo(Route.HOME) { saveState = true }; launchSingleTop = true; restoreState = true } }, onOpenTx = { nav.navigate(Route.edit(it)) })
             }
             composable(Route.ACTIVITY) {
                 ActivityScreen(
@@ -108,6 +114,8 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
                 )
             }
             composable(Route.INSIGHTS) { InsightsScreen(state) }
+            composable(Route.BUDGETS) { BudgetsScreen(state, vm::saveBudget, vm::deleteBudget) }
+            composable(Route.GOALS) { GoalsScreen(state, vm::saveGoal, vm::deleteGoal) }
             composable(Route.APPEARANCE) { AppearanceScreen(spec, onTheme) { nav.popBackStack() } }
             composable(
                 Route.EDIT,
@@ -131,7 +139,7 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     FuriNavBar(
-                        items = listOf(NavItem(stringResource(R.string.tab_home), Icons.Rounded.Home), NavItem(stringResource(R.string.tab_activity), Icons.Rounded.Receipt), NavItem(stringResource(R.string.tab_insights), Icons.Rounded.PieChart)),
+                        items = listOf(NavItem(stringResource(R.string.tab_home), Icons.Rounded.Home), NavItem(stringResource(R.string.tab_activity), Icons.Rounded.Receipt), NavItem(stringResource(R.string.tab_budgets), Icons.Rounded.AccountBalanceWallet), NavItem(stringResource(R.string.tab_insights), Icons.Rounded.PieChart), NavItem(stringResource(R.string.tab_goals), Icons.Rounded.Flag)),
                         selected = tabs.indexOf(route).coerceAtLeast(0),
                         onSelect = { i ->
                             nav.navigate(tabs[i]) {

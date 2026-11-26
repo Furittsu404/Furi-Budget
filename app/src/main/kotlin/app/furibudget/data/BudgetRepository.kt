@@ -7,6 +7,8 @@ class BudgetRepository(private val db: BudgetDatabase) {
     val accounts: Flow<List<AccountEntity>> = db.accounts().observeActive()
     val categories: Flow<List<CategoryEntity>> = db.categories().observeAll()
     val transactions: Flow<List<TransactionEntity>> = db.transactions().observeAll()
+    val budgets: Flow<List<BudgetEntity>> = db.budgets().observeAll()
+    val goals: Flow<List<GoalEntity>> = db.goals().observeAll()
 
     suspend fun seedIfEmpty() {
         db.withTransaction {
@@ -26,4 +28,9 @@ class BudgetRepository(private val db: BudgetDatabase) {
 
     /** Puts a deleted transaction back with its old id (for the undo snackbar). */
     suspend fun restore(tx: TransactionEntity) { db.transactions().insert(tx) }
+
+    suspend fun saveBudget(b: BudgetEntity) = db.budgets().upsert(b)
+    suspend fun deleteBudget(b: BudgetEntity) = db.budgets().delete(b)
+    suspend fun saveGoal(g: GoalEntity) { if (g.id == 0L) db.goals().insert(g) else db.goals().update(g) }
+    suspend fun deleteGoal(g: GoalEntity) = db.goals().delete(g)
 }

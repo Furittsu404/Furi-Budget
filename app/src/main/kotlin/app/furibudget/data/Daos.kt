@@ -45,3 +45,22 @@ interface TransactionDao {
     @Update suspend fun update(tx: TransactionEntity)
     @Delete suspend fun delete(tx: TransactionEntity)
 }
+
+@Dao
+interface BudgetDao {
+    @Query("SELECT * FROM budgets")
+    fun observeAll(): Flow<List<BudgetEntity>>
+
+    @Insert(onConflict = androidx.room.OnConflictStrategy.REPLACE) suspend fun upsert(b: BudgetEntity)
+    @Delete suspend fun delete(b: BudgetEntity)
+}
+
+@Dao
+interface GoalDao {
+    @Query("SELECT * FROM goals ORDER BY createdAt")
+    fun observeAll(): Flow<List<GoalEntity>>
+
+    @Insert suspend fun insert(g: GoalEntity): Long
+    @Update suspend fun update(g: GoalEntity)
+    @Delete suspend fun delete(g: GoalEntity)
+}

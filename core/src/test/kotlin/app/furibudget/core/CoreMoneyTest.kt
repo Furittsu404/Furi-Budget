@@ -15,6 +15,23 @@ class CurrencyTest {
     }
 }
 
+class ParseTest {
+    @Test fun parsesTypedAmounts() {
+        assertEquals(Money(125_050), Currency.PHP.parse("1,250.5"))
+        assertEquals(Money(125_000), Currency.PHP.parse("1250"))
+        assertEquals(Money(50), Currency.PHP.parse(".5"))
+        assertEquals(Money(1234), Currency.JPY.parse("1234"))
+    }
+
+    @Test fun rejectsBadInput() {
+        assertEquals(null, Currency.PHP.parse(""))
+        assertEquals(null, Currency.PHP.parse("1.234"))
+        assertEquals(null, Currency.PHP.parse("12a"))
+        assertEquals(null, Currency.PHP.parse("1.2.3"))
+        assertEquals(null, Currency.JPY.parse("1.5"))
+    }
+}
+
 class KeypadEntryTest {
     private fun type(vararg keys: String, decimals: Int = 2): KeypadEntry =
         keys.fold(KeypadEntry(decimals = decimals)) { e, k ->

@@ -13,8 +13,8 @@ class Converters {
 }
 
 @Database(
-    entities = [AccountEntity::class, CategoryEntity::class, TransactionEntity::class],
-    version = 1,
+    entities = [AccountEntity::class, CategoryEntity::class, TransactionEntity::class, BudgetEntity::class, GoalEntity::class],
+    version = 2,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -22,6 +22,8 @@ abstract class BudgetDatabase : RoomDatabase() {
     abstract fun accounts(): AccountDao
     abstract fun categories(): CategoryDao
     abstract fun transactions(): TransactionDao
+    abstract fun budgets(): BudgetDao
+    abstract fun goals(): GoalDao
 
     companion object {
         fun create(context: Context): BudgetDatabase =

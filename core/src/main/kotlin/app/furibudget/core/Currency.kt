@@ -15,6 +15,18 @@ data class Currency(val code: String, val symbol: String, val decimals: Int) {
         return sign + (if (withSymbol) "$symbol " else "") + whole + frac
     }
 
+    /** Parses what a person types ("1,250.5", "1250", ".5"). Null when it is not a valid amount for this currency. */
+    fun parse(text: String): Money? {
+        val t = text.trim().replace(",", "").replace(" ", "")
+        if (t.isEmpty()) return null
+        val parts = t.split(".")
+        if (parts.size > 2 || parts.any { p -> p.any { !it.isDigit() } }) return null
+        val whole = parts[0].ifEmpty { "0" }
+        val frac = parts.getOrNull(1).orEmpty()
+        if (frac.length > decimals || whole.length > 12) return null
+        return Money(whole.toLong() * scale + (frac.padEnd(decimals, '0').ifEmpty { "0" }).toLong())
+    }
+
     companion object {
         private fun pow10(n: Int): Long {
             var r = 1L
