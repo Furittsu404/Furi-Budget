@@ -110,7 +110,8 @@ fun BillsScreen(
     var filter by rememberSaveable { mutableStateOf(BillFilter.ALL) }
     var showAll by rememberSaveable { mutableStateOf(false) }
     val month = remember(offset) { YearMonth.from(today).plusMonths(offset.toLong()) }
-    val firstDow = remember { WeekFields.of(Locale.getDefault()).firstDayOfWeek }
+    val locale = androidx.compose.ui.platform.LocalConfiguration.current.locales[0]
+    val firstDow = remember(locale) { WeekFields.of(locale).firstDayOfWeek }
     val gridStart = remember(month) { month.atDay(1).with(TemporalAdjusters.previousOrSame(firstDow)) }
     val all = remember(state.bills, state.billPayments, gridStart) { Bills.occurrences(state.bills, state.billPayments, gridStart, gridStart.plusDays(41), today) }
     val inGrid = remember(all, filter) { all.filter { it.matches(filter) } }
@@ -161,8 +162,14 @@ fun BillsScreen(
                         (slideOutHorizontally(m.spring()) { -dir * it / 4 } + fadeOut(m.tween(120))) using SizeTransform(clip = false)
                 },
                 label = "month",
-            ) { _ ->
-                CalendarGrid(month, gridStart, firstDow, inGrid, today, selected) { selected = it.toEpochDay() }
+            ) { off ->
+                // Each page builds its own month, so the old one keeps its dates while it slides out.
+                val pageMonth = YearMonth.from(today).plusMonths(off.toLong())
+                val pageStart = pageMonth.atDay(1).with(TemporalAdjusters.previousOrSame(firstDow))
+                val pageOcc = remember(state.bills, state.billPayments, pageStart, filter) {
+                    Bills.occurrences(state.bills, state.billPayments, pageStart, pageStart.plusDays(41), today).filter { it.matches(filter) }
+                }
+                CalendarGrid(locale, pageMonth, pageStart, firstDow, pageOcc, today, selected) { selected = it.toEpochDay() }
             }
             val day = LocalDate.ofEpochDay(selected)
             Text(day.format(dayTitle), style = MaterialTheme.typography.titleMedium, color = c.onSurface)
@@ -209,6 +216,7 @@ private fun MonthSummary(state: BudgetState, occ: List<BillOccurrence>, month: Y
 
 @Composable
 private fun CalendarGrid(
+    locale: Locale,
     month: YearMonth,
     gridStart: LocalDate,
     firstDow: java.time.DayOfWeek,
@@ -223,7 +231,7 @@ private fun CalendarGrid(
         Row(Modifier.fillMaxWidth()) {
             repeat(7) { i ->
                 Text(
-                    firstDow.plus(i.toLong()).getDisplayName(TextStyle.SHORT, Locale.getDefault()),
+                    firstDow.plus(i.toLong()).getDisplayName(TextStyle.SHORT, locale),
                     Modifier.weight(1f), textAlign = TextAlign.Center, style = MaterialTheme.typography.labelSmall, color = c.onSurfaceVariant,
                 )
             }
