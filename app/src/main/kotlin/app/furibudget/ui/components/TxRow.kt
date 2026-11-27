@@ -28,6 +28,7 @@ import app.furibudget.R
 import app.furibudget.core.Money
 import app.furibudget.data.TransactionEntity
 import app.furibudget.data.TxKind
+import app.furibudget.data.TxRole
 import app.furibudget.ui.theme.Furi
 
 /** One transaction line. Sits straight on the background, no card per row. */
@@ -40,8 +41,13 @@ fun TxRow(tx: TransactionEntity, state: BudgetState, modifier: Modifier = Modifi
         val ids = state.transactionTags.filter { it.transactionId == tx.id }.map { it.tagId }
         state.tags.filter { it.id in ids }.joinToString(" ") { "#" + it.name }
     }
-    val tint = if (tx.kind == TxKind.TRANSFER) c.accentText else Color(category?.colorArgb ?: 0xFF94A3B8.toInt())
-    val title = when (tx.kind) {
+    val tint = if (tx.role != TxRole.NORMAL) c.accentText else if (tx.kind == TxKind.TRANSFER) c.accentText else Color(category?.colorArgb ?: 0xFF94A3B8.toInt())
+    val person = remember(state.loans, state.people, tx.loanId) { tx.loanId?.let { id -> state.loans.firstOrNull { it.id == id } }?.let { l -> state.people.firstOrNull { it.id == l.personId } } }
+    val title = if (person != null && tx.role == TxRole.LOAN) {
+        stringResource(if (tx.kind == TxKind.EXPENSE) R.string.lent_to else R.string.borrowed_from, person.name)
+    } else if (person != null && tx.role == TxRole.REPAYMENT) {
+        if (tx.kind == TxKind.INCOME) stringResource(R.string.paid_back_by, person.name) else stringResource(R.string.you_paid, person.name)
+    } else when (tx.kind) {
         TxKind.TRANSFER -> stringResource(R.string.transfer_to, state.account(tx.accountId)?.name ?: stringResource(R.string.unknown), state.account(tx.toAccountId)?.name ?: stringResource(R.string.unknown))
         else -> if (splitCount > 1) stringResource(R.string.split_title, splitCount) else category?.name ?: stringResource(R.string.uncategorised)
     }
@@ -62,7 +68,7 @@ fun TxRow(tx: TransactionEntity, state: BudgetState, modifier: Modifier = Modifi
         horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         Box(Modifier.size(44.dp).clip(CircleShape).background(tint.copy(alpha = 0.2f)), contentAlignment = Alignment.Center) {
-            FuriIcon(if (tx.kind == TxKind.TRANSFER) "transfer" else category?.icon ?: "other", tint = tint)
+            FuriIcon(if (person != null) person.icon else if (tx.kind == TxKind.TRANSFER) "transfer" else category?.icon ?: "other", tint = tint)
         }
         Column(Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.bodyLarge, color = c.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)

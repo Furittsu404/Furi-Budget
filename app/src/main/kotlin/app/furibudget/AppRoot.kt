@@ -68,6 +68,8 @@ import app.furibudget.ui.budgets.BudgetsScreen
 import app.furibudget.ui.goals.GoalsScreen
 import app.furibudget.ui.home.HomeScreen
 import app.furibudget.ui.onboarding.OnboardingScreen
+import app.furibudget.ui.people.PeopleScreen
+import app.furibudget.ui.people.PersonScreen
 import app.furibudget.ui.settings.ManageScreen
 import app.furibudget.ui.settings.SettingsScreen
 import app.furibudget.ui.trash.TrashScreen
@@ -84,6 +86,8 @@ private object Route {
     const val BUDGETS = "budgets"
     const val GOALS = "goals"
     const val TRASH = "trash"
+    const val PEOPLE = "people"
+    const val PERSON = "person/{id}"
     const val BILLS = "bills"
     const val BILL_EDIT = "bill/{id}"
     const val APPEARANCE = "appearance"
@@ -92,6 +96,7 @@ private object Route {
     const val EDIT = "edit/{id}?kind={kind}"
     fun edit(id: Long, kind: app.furibudget.data.TxKind = app.furibudget.data.TxKind.EXPENSE) = "edit/$id?kind=${kind.name}"
     fun bill(id: Long) = "bill/$id"
+    fun person(id: Long) = "person/$id"
 }
 
 @Composable
@@ -164,12 +169,17 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
             popExitTransition = { fadeOut(m.tween(160)) + slideOutHorizontally(m.spring()) { it / 10 } },
         ) {
             composable(Route.HOME) {
-                HomeScreen(state, onOpenAppearance = { nav.navigate(Route.APPEARANCE) }, onOpenGoals = { nav.navigate(Route.GOALS) }, onOpenBills = { nav.navigate(Route.BILLS) { popUpTo(Route.HOME) { saveState = true }; launchSingleTop = true; restoreState = true } }, onOpenSettings = { nav.navigate(Route.SETTINGS) }, onOpenBudgets = { nav.navigate(Route.BUDGETS) { popUpTo(Route.HOME) { saveState = true }; launchSingleTop = true; restoreState = true } }, onOpenTx = { nav.navigate(Route.edit(it)) }, onQuickAdd = { t -> vm.quickAdd(t) { tx -> scope.launch { snackbar.currentSnackbarData?.dismiss(); if (snackbar.showSnackbar(resources.getString(R.string.added_template, t.name), undo, duration = androidx.compose.material3.SnackbarDuration.Long) == SnackbarResult.ActionPerformed) vm.delete(tx) } } })
+                HomeScreen(state, onOpenAppearance = { nav.navigate(Route.APPEARANCE) }, onOpenGoals = { nav.navigate(Route.GOALS) }, onOpenPeople = { nav.navigate(Route.PEOPLE) }, onOpenBills = { nav.navigate(Route.BILLS) { popUpTo(Route.HOME) { saveState = true }; launchSingleTop = true; restoreState = true } }, onOpenSettings = { nav.navigate(Route.SETTINGS) }, onOpenBudgets = { nav.navigate(Route.BUDGETS) { popUpTo(Route.HOME) { saveState = true }; launchSingleTop = true; restoreState = true } }, onOpenTx = { nav.navigate(Route.edit(it)) }, onQuickAdd = { t -> vm.quickAdd(t) { tx -> scope.launch { snackbar.currentSnackbarData?.dismiss(); if (snackbar.showSnackbar(resources.getString(R.string.added_template, t.name), undo, duration = androidx.compose.material3.SnackbarDuration.Long) == SnackbarResult.ActionPerformed) vm.delete(tx) } } })
             }
             composable(Route.ACTIVITY) {
                 ActivityScreen(
                     state,
-                    onOpenTx = { nav.navigate(Route.edit(it)) },
+                    onOpenTx = { id ->
+                        // Money lent, borrowed or paid back is managed on the person's page, not in the plain editor.
+                        val t = state.transactions.firstOrNull { it.id == id }
+                        val loan = t?.loanId?.let { lid -> state.loans.firstOrNull { it.id == lid } }
+                        if (loan != null) nav.navigate(Route.person(loan.personId)) else nav.navigate(Route.edit(id))
+                    },
                     onDelete = deleteWithUndo,
                 )
             }
@@ -199,7 +209,7 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
             composable(Route.SETTINGS) {
                 SettingsScreen(
                     state, vm, spec, onTheme,
-                    onOpenManage = { nav.navigate(Route.MANAGE) }, onOpenGoals = { nav.navigate(Route.GOALS) }, onOpenTrash = { nav.navigate(Route.TRASH) },
+                    onOpenManage = { nav.navigate(Route.MANAGE) }, onOpenGoals = { nav.navigate(Route.GOALS) }, onOpenPeople = { nav.navigate(Route.PEOPLE) }, onOpenTrash = { nav.navigate(Route.TRASH) },
                     onBack = { nav.popBackStack() },
                 )
             }
@@ -207,8 +217,20 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
                 val trash by vm.trash.collectAsState()
                 TrashScreen(
                     state, trash,
+                    onRestorePerson = { vm.restorePerson(it.id) }, onForeverPerson = { vm.deletePersonForever(it.id) },
                     onRestoreTx = vm::restore, onRestoreBill = { vm.restoreBill(it.id) }, onRestoreGoal = { vm.restoreGoal(it.id) },
                     onForeverTx = { vm.deleteForever(it) }, onForeverBill = { vm.deleteForever(it) }, onForeverGoal = { vm.deleteForever(it) },
+                    onBack = { nav.popBackStack() },
+                )
+            }
+            composable(Route.PEOPLE) {
+                PeopleScreen(state, onOpenPerson = { nav.navigate(Route.person(it)) }, onSavePerson = { p, done -> vm.savePerson(p, done) }, onBack = { nav.popBackStack() })
+            }
+            composable(Route.PERSON, arguments = listOf(navArgument("id") { type = NavType.LongType })) { entry ->
+                PersonScreen(
+                    entry.arguments?.getLong("id") ?: 0L, state,
+                    onLend = { pid, d, amt, acc, due, note -> vm.lend(pid, d, amt, acc, java.time.LocalDate.now().toEpochDay(), due, note) },
+                    onRepay = { lid, amt, acc -> vm.repay(lid, amt, acc, java.time.LocalDate.now().toEpochDay()) }, onSavePerson = { vm.savePerson(it) }, onDeletePerson = vm::deletePerson,
                     onBack = { nav.popBackStack() },
                 )
             }

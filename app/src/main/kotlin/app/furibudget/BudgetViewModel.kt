@@ -7,6 +7,9 @@ import app.furibudget.core.Currency
 import app.furibudget.core.Money
 import app.furibudget.core.Periods
 import app.furibudget.data.AccountEntity
+import app.furibudget.data.LoanDirection
+import app.furibudget.data.LoanEntity
+import app.furibudget.data.PersonEntity
 import app.furibudget.data.TagEntity
 import app.furibudget.data.TransactionSplitEntity
 import app.furibudget.data.TransactionTagEntity
@@ -51,6 +54,8 @@ data class BudgetState(
     val billPayments: List<BillPaymentEntity> = emptyList(),
     val templates: List<TemplateEntity> = emptyList(),
     val tags: List<TagEntity> = emptyList(),
+    val people: List<PersonEntity> = emptyList(),
+    val loans: List<LoanEntity> = emptyList(),
     val transactionTags: List<TransactionTagEntity> = emptyList(),
     val splits: List<TransactionSplitEntity> = emptyList(),
     val settings: AppSettings = AppSettings(),
@@ -72,8 +77,8 @@ private suspend fun Application.widgetUpdate() = app.furibudget.widget.WidgetUpd
 const val TRASH_DAYS = 30L
 
 /** Everything in Recently deleted, newest first. */
-data class Trash(val transactions: List<TransactionEntity> = emptyList(), val bills: List<BillEntity> = emptyList(), val goals: List<GoalEntity> = emptyList()) {
-    val isEmpty: Boolean get() = transactions.isEmpty() && bills.isEmpty() && goals.isEmpty()
+data class Trash(val transactions: List<TransactionEntity> = emptyList(), val bills: List<BillEntity> = emptyList(), val goals: List<GoalEntity> = emptyList(), val people: List<PersonEntity> = emptyList()) {
+    val isEmpty: Boolean get() = transactions.isEmpty() && bills.isEmpty() && goals.isEmpty() && people.isEmpty()
 }
 
 class BudgetViewModel(private val app: Application) : AndroidViewModel(app) {
@@ -87,14 +92,23 @@ class BudgetViewModel(private val app: Application) : AndroidViewModel(app) {
     private val billsFlow = combine(repo.bills, repo.billPayments, repo.templates) { b, p, t -> Triple(b, p, t) }
 
     private val tagFlow = combine(repo.tags, repo.transactionTags, repo.splits) { t, l, s -> Triple(t, l, s) }
+    private val peopleFlow = combine(repo.people, repo.loans) { p, l -> p to l }
 
-    val state: StateFlow<BudgetState> = combine(base, billsFlow, settingsRepo.settings, tagFlow) { s, bills, set, tg ->
-        s.copy(bills = bills.first, billPayments = bills.second, templates = bills.third, tags = tg.first, transactionTags = tg.second, splits = tg.third, settings = set, currency = Currency.byCode(set.currencyCode), startDay = set.startDay)
+    val state: StateFlow<BudgetState> = combine(base, billsFlow, settingsRepo.settings, tagFlow, peopleFlow) { s, bills, set, tg, pl ->
+        s.copy(bills = bills.first, billPayments = bills.second, templates = bills.third, people = pl.first, loans = pl.second, tags = tg.first, transactionTags = tg.second, splits = tg.third, settings = set, currency = Currency.byCode(set.currencyCode), startDay = set.startDay)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), BudgetState())
 
-    val trash: StateFlow<Trash> = combine(repo.deletedTransactions, repo.deletedBills, repo.deletedGoals) { t, b, g -> Trash(t, b, g) }
+    val trash: StateFlow<Trash> = combine(repo.deletedTransactions, repo.deletedBills, repo.deletedGoals, repo.deletedPeople) { t, b, g, p -> Trash(t, b, g, p) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), Trash())
 
+    fun savePerson(p: PersonEntity, onDone: (Long) -> Unit = {}) { viewModelScope.launch { onDone(repo.savePerson(p)) } }
+    fun deletePerson(id: Long) { viewModelScope.launch { repo.softDeletePerson(id, System.currentTimeMillis()) } }
+    fun restorePerson(id: Long) { viewModelScope.launch { repo.restorePerson(id) } }
+    fun deletePersonForever(id: Long) { viewModelScope.launch { repo.deletePersonForever(id) } }
+    fun lend(personId: Long, direction: LoanDirection, amountMinor: Long, accountId: Long, epochDay: Long, dueEpochDay: Long?, note: String) {
+        viewModelScope.launch { repo.lend(personId, direction, amountMinor, accountId, epochDay, dueEpochDay, note) }
+    }
+    fun repay(loanId: Long, amountMinor: Long, accountId: Long, epochDay: Long) { viewModelScope.launch { repo.repay(loanId, amountMinor, accountId, epochDay) } }
     fun restoreBill(id: Long) { viewModelScope.launch { repo.restoreBill(id) } }
     fun restoreGoal(id: Long) { viewModelScope.launch { repo.restoreGoal(id) } }
     fun deleteForever(tx: TransactionEntity) { viewModelScope.launch { repo.deleteTxForever(tx) } }

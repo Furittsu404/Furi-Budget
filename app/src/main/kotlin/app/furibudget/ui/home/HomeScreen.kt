@@ -43,6 +43,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import app.furibudget.BudgetState
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Spacer
+import app.furibudget.data.People
 import app.furibudget.R
 import app.furibudget.core.Periods
 import app.furibudget.data.Ledger
@@ -54,7 +57,7 @@ import java.time.LocalDate
 
 /** Interim Home (M2). M3 replaces it with the budget ring, category strip and goals. */
 @Composable
-fun HomeScreen(state: BudgetState, onOpenAppearance: () -> Unit, onOpenGoals: () -> Unit, onOpenBills: () -> Unit, onQuickAdd: (app.furibudget.data.TemplateEntity) -> Unit, onOpenSettings: () -> Unit, onOpenBudgets: () -> Unit, onOpenTx: (Long) -> Unit) {
+fun HomeScreen(state: BudgetState, onOpenAppearance: () -> Unit, onOpenGoals: () -> Unit, onOpenPeople: () -> Unit, onOpenBills: () -> Unit, onQuickAdd: (app.furibudget.data.TemplateEntity) -> Unit, onOpenSettings: () -> Unit, onOpenBudgets: () -> Unit, onOpenTx: (Long) -> Unit) {
     val c = Furi.colors
     val month = state.month()
     val totals = Ledger.totals(state.transactions, month)
@@ -150,6 +153,22 @@ fun HomeScreen(state: BudgetState, onOpenAppearance: () -> Unit, onOpenGoals: ()
                     if (state.goals.isEmpty()) stringResource(R.string.no_goals_title) else state.goals.size.toString(),
                     style = MaterialTheme.typography.labelMedium, color = c.onSurfaceVariant,
                 )
+            }
+        }
+        run {
+            val (owedToYou, youOwe) = People.totals(People.balances(state.people, state.loans, state.transactions))
+            if (state.people.isNotEmpty() || owedToYou + youOwe > 0) {
+                FuriCard(Modifier.fillMaxWidth().clickable(onClick = onOpenPeople)) {
+                    Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(stringResource(R.string.people), Modifier.weight(1f), style = MaterialTheme.typography.titleSmall, color = c.onSurface)
+                            if (owedToYou > 0) Text("+ " + state.currency.format(Money(owedToYou), true), style = MaterialTheme.typography.labelLarge, color = c.income)
+                            if (owedToYou > 0 && youOwe > 0) Spacer(Modifier.width(10.dp))
+                            if (youOwe > 0) Text("− " + state.currency.format(Money(youOwe), true), style = MaterialTheme.typography.labelLarge, color = c.expense)
+                        }
+                        if (owedToYou + youOwe > 0) app.furibudget.ui.people.BalanceBar(owedToYou, youOwe)
+                    }
+                }
             }
         }
         val top = Insights.spendByCategory(state.transactions, month, state.splits).take(3)

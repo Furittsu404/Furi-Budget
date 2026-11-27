@@ -32,6 +32,8 @@ abstract class BudgetDatabase : RoomDatabase() {
     abstract fun billAlerts(): BillAlertDao
     abstract fun templates(): TemplateDao
     abstract fun tags(): TagDao
+    abstract fun people(): PersonDao
+    abstract fun loans(): LoanDao
     abstract fun transactionTags(): TransactionTagDao
     abstract fun splits(): SplitDao
 

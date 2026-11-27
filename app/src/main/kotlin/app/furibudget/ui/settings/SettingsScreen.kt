@@ -66,6 +66,7 @@ fun SettingsScreen(
     onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit,
     onOpenManage: () -> Unit,
     onOpenGoals: () -> Unit,
+    onOpenPeople: () -> Unit,
     onOpenTrash: () -> Unit,
     onBack: () -> Unit,
 ) {
@@ -133,6 +134,7 @@ fun SettingsScreen(
             )
             LinkRow(stringResource(R.string.accounts_categories), chevron = true, onClick = onOpenManage)
             LinkRow(stringResource(R.string.goals_link), chevron = true, onClick = onOpenGoals)
+            LinkRow(stringResource(R.string.people), chevron = true, onClick = onOpenPeople)
         }
 
         Group(stringResource(R.string.notifications)) {

@@ -148,6 +148,8 @@ private fun androidx.compose.foundation.lazy.LazyItemScope.SwipeRow(
 ) {
     val c = Furi.colors
     val deleteLabel = stringResource(R.string.delete)
+    // The money handed out for a loan is removed by deleting the person, not by swiping it away on its own.
+    val deletable = tx.role != app.furibudget.data.TxRole.LOAN
     // Not the saveable variant: that one keeps "already swiped away" for a row id, so a row brought back by
     // Undo came back stuck and the next swipe opened the editor instead. A fresh state per row entry fixes that.
     val density = androidx.compose.ui.platform.LocalDensity.current
@@ -164,9 +166,10 @@ private fun androidx.compose.foundation.lazy.LazyItemScope.SwipeRow(
         state = dismiss,
         modifier = modifier.animateItem().semantics {
             // Swipe is not reachable with a screen reader, so offer the same action by name.
-            customActions = listOf(CustomAccessibilityAction(deleteLabel) { onDelete(tx); true })
+            if (deletable) customActions = listOf(CustomAccessibilityAction(deleteLabel) { onDelete(tx); true })
         },
         enableDismissFromStartToEnd = false,
+        enableDismissFromEndToStart = deletable,
         backgroundContent = {
             // progress reads 1 while the row sits still, so only draw the red layer once a swipe is under way.
             val swiping = dismiss.dismissDirection == SwipeToDismissBoxValue.EndToStart

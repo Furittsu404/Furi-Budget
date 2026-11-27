@@ -120,7 +120,7 @@ private fun Dot(color: Color, icon: String) {
 }
 
 @Composable
-private fun ColorRow(selected: Int, onPick: (Int) -> Unit) {
+fun ColorRow(selected: Int, onPick: (Int) -> Unit) {
     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Accents.swatches.forEach { sw ->
             Box(

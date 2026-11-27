@@ -45,6 +45,7 @@ import app.furibudget.core.Money
 import app.furibudget.data.BillEntity
 import app.furibudget.data.Budgeting
 import app.furibudget.data.GoalEntity
+import app.furibudget.data.PersonEntity
 import app.furibudget.data.TransactionEntity
 import app.furibudget.data.TxKind
 import app.furibudget.ui.components.BudgetRing
@@ -58,6 +59,8 @@ private const val DAY_MS = 86_400_000L
 fun TrashScreen(
     state: BudgetState,
     trash: Trash,
+    onRestorePerson: (PersonEntity) -> Unit,
+    onForeverPerson: (PersonEntity) -> Unit,
     onRestoreTx: (TransactionEntity) -> Unit,
     onRestoreBill: (BillEntity) -> Unit,
     onRestoreGoal: (GoalEntity) -> Unit,
@@ -78,6 +81,8 @@ fun TrashScreen(
         Text(stringResource(R.string.trash_hint, TRASH_DAYS.toInt()), style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant)
         if (trash.isEmpty) EmptyTrash()
 
+        if (trash.people.isNotEmpty()) Section(stringResource(R.string.trash_people))
+        trash.people.forEach { p -> Item(p.name, p.note.ifBlank { stringResource(R.string.people) }, p.deletedAt, { onRestorePerson(p) }, { onForeverPerson(p) }) }
         if (trash.transactions.isNotEmpty()) Section(stringResource(R.string.trash_transactions))
         trash.transactions.forEach { tx ->
             val cat = state.category(tx.categoryId)

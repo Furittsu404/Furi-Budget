@@ -180,3 +180,30 @@ interface SplitDao {
     @Query("DELETE FROM transaction_splits") suspend fun deleteAll()
     @Insert suspend fun insertAll(s: List<TransactionSplitEntity>)
 }
+
+@Dao
+interface PersonDao {
+    @Query("SELECT * FROM people WHERE deletedAt IS NULL ORDER BY name COLLATE NOCASE") fun observeAll(): Flow<List<PersonEntity>>
+    @Query("SELECT * FROM people ORDER BY id") suspend fun all(): List<PersonEntity>
+    @Query("SELECT * FROM people WHERE deletedAt IS NOT NULL ORDER BY deletedAt DESC") fun observeDeleted(): Flow<List<PersonEntity>>
+    @Query("DELETE FROM people") suspend fun deleteAll()
+    @Insert suspend fun insert(p: PersonEntity): Long
+    @Insert suspend fun insertAll(p: List<PersonEntity>)
+    @Update suspend fun update(p: PersonEntity)
+    @Query("UPDATE people SET deletedAt = :at WHERE id = :id") suspend fun markDeleted(id: Long, at: Long)
+    @Query("UPDATE people SET deletedAt = NULL WHERE id = :id") suspend fun restoreDeleted(id: Long)
+    @Query("DELETE FROM people WHERE id = :id") suspend fun deleteForever(id: Long)
+    @Query("DELETE FROM people WHERE deletedAt IS NOT NULL AND deletedAt < :before") suspend fun purge(before: Long)
+}
+
+@Dao
+interface LoanDao {
+    @Query("SELECT * FROM loans WHERE deletedAt IS NULL ORDER BY openedEpochDay DESC, id DESC") fun observeAll(): Flow<List<LoanEntity>>
+    @Query("SELECT * FROM loans ORDER BY id") suspend fun all(): List<LoanEntity>
+    @Query("SELECT * FROM loans WHERE id = :id") suspend fun get(id: Long): LoanEntity?
+    @Query("DELETE FROM loans") suspend fun deleteAll()
+    @Insert suspend fun insert(l: LoanEntity): Long
+    @Insert suspend fun insertAll(l: List<LoanEntity>)
+    @Query("UPDATE loans SET deletedAt = :at WHERE personId = :personId") suspend fun markPersonDeleted(personId: Long, at: Long)
+    @Query("UPDATE loans SET deletedAt = NULL WHERE personId = :personId") suspend fun restorePerson(personId: Long)
+}

@@ -15,6 +15,9 @@ class BudgetRepository(private val db: BudgetDatabase) {
     val billPayments: Flow<List<BillPaymentEntity>> = db.billPayments().observeAll()
     val templates: Flow<List<TemplateEntity>> = db.templates().observeAll()
     val tags: Flow<List<TagEntity>> = db.tags().observeAll()
+    val people: Flow<List<PersonEntity>> = db.people().observeAll()
+    val loans: Flow<List<LoanEntity>> = db.loans().observeAll()
+    val deletedPeople: Flow<List<PersonEntity>> = db.people().observeDeleted()
     val transactionTags: Flow<List<TransactionTagEntity>> = db.transactionTags().observeAll()
     val splits: Flow<List<TransactionSplitEntity>> = db.splits().observeAll()
     val deletedTransactions: Flow<List<TransactionEntity>> = db.transactions().observeDeleted()
@@ -46,6 +49,38 @@ class BudgetRepository(private val db: BudgetDatabase) {
     }
 
     suspend fun saveTag(t: TagEntity): Long = db.tags().insert(t)
+
+    suspend fun savePerson(p: PersonEntity): Long = if (p.id == 0L) db.people().insert(p) else { db.people().update(p); p.id }
+    suspend fun softDeletePerson(id: Long, at: Long) = db.withTransaction { db.people().markDeleted(id, at); db.loans().markPersonDeleted(id, at) }
+    suspend fun restorePerson(id: Long) = db.withTransaction { db.people().restoreDeleted(id); db.loans().restorePerson(id) }
+    suspend fun deletePersonForever(id: Long) = db.people().deleteForever(id)
+
+    /** Lending money out is an expense-direction transaction, borrowing is income-direction; both tagged so totals skip them. */
+    suspend fun lend(personId: Long, direction: LoanDirection, amountMinor: Long, accountId: Long, epochDay: Long, dueEpochDay: Long?, note: String): Long = db.withTransaction {
+        val loanId = db.loans().insert(LoanEntity(personId = personId, direction = direction, principalMinor = amountMinor, openedEpochDay = epochDay, dueEpochDay = dueEpochDay, note = note))
+        db.transactions().insert(
+            TransactionEntity(
+                kind = if (direction == LoanDirection.LENT) TxKind.EXPENSE else TxKind.INCOME, amountMinor = amountMinor, accountId = accountId,
+                note = note, epochDay = epochDay, role = TxRole.LOAN, loanId = loanId,
+            ),
+        )
+        loanId
+    }
+
+    /** Money coming back (for a loan you made) or going out (for one you took). Capped at what is still open. */
+    suspend fun repay(loanId: Long, amountMinor: Long, accountId: Long, epochDay: Long, note: String = ""): Boolean = db.withTransaction {
+        val loan = db.loans().get(loanId) ?: return@withTransaction false
+        val repaid = db.transactions().all().filter { it.role == TxRole.REPAYMENT && it.loanId == loanId && it.deletedAt == null }.sumOf { it.amountMinor }
+        val amount = amountMinor.coerceAtMost(loan.principalMinor - repaid)
+        if (amount <= 0) return@withTransaction false
+        db.transactions().insert(
+            TransactionEntity(
+                kind = if (loan.direction == LoanDirection.LENT) TxKind.INCOME else TxKind.EXPENSE, amountMinor = amount, accountId = accountId,
+                note = note, epochDay = epochDay, role = TxRole.REPAYMENT, loanId = loanId,
+            ),
+        )
+        true
+    }
     suspend fun deleteTag(t: TagEntity) = db.tags().delete(t)
 
     /** Moves a transaction to Recently deleted. Restoring it brings it back exactly as it was, bill payment included. */
@@ -62,9 +97,10 @@ class BudgetRepository(private val db: BudgetDatabase) {
     }
 
     /** Removes everything that has sat in Recently deleted for longer than [retentionMs]. */
+    suspend fun purgePeople(before: Long) = db.people().purge(before)
     suspend fun purgeDeleted(now: Long, retentionMs: Long) {
         val before = now - retentionMs
-        db.transactions().purge(before); db.bills().purge(before); db.goals().purge(before)
+        db.transactions().purge(before); db.bills().purge(before); db.goals().purge(before); db.people().purge(before)
     }
 
     suspend fun saveBudget(b: BudgetEntity) = db.budgets().upsert(b)
@@ -170,18 +206,19 @@ class BudgetRepository(private val db: BudgetDatabase) {
         BackupFile(
             accounts = db.accounts().all(), categories = db.categories().all(), transactions = db.transactions().all(),
             budgets = db.budgets().all(), goals = db.goals().all(), bills = db.bills().all(), billPayments = db.billPayments().all(),
-            templates = db.templates().all(), tags = db.tags().all(), transactionTags = db.transactionTags().all(), splits = db.splits().all(), theme = theme, currency = currency, startDay = startDay,
+            templates = db.templates().all(), tags = db.tags().all(), people = db.people().all(), loans = db.loans().all(), transactionTags = db.transactionTags().all(), splits = db.splits().all(), theme = theme, currency = currency, startDay = startDay,
         )
     }
 
     /** Replaces everything with the backup's contents, keeping ids so links between rows survive. */
     suspend fun replaceAll(f: BackupFile) = db.withTransaction {
-        db.billPayments().deleteAll(); db.transactionTags().deleteAll(); db.splits().deleteAll(); db.tags().deleteAll(); db.transactions().deleteAll(); db.bills().deleteAll(); db.templates().deleteAll()
+        db.billPayments().deleteAll(); db.transactionTags().deleteAll(); db.splits().deleteAll(); db.loans().deleteAll(); db.people().deleteAll(); db.tags().deleteAll(); db.transactions().deleteAll(); db.bills().deleteAll(); db.templates().deleteAll()
         db.budgets().deleteAll(); db.goals().deleteAll(); db.categories().deleteAll(); db.accounts().deleteAll()
         db.accounts().insertAll(f.accounts); db.categories().insertAll(f.categories)
         db.transactions().insertAll(f.transactions); db.budgets().insertAll(f.budgets)
         db.goals().insertAll(f.goals); db.bills().insertAll(f.bills); db.billPayments().insertAll(f.billPayments)
         db.templates().insertAll(f.templates)
+        db.people().insertAll(f.people); db.loans().insertAll(f.loans)
         db.tags().insertAll(f.tags); db.transactionTags().insertAll(f.transactionTags); db.splits().insertAll(f.splits)
     }
 
