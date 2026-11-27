@@ -141,6 +141,23 @@ class BudgetRepository(private val db: BudgetDatabase) {
     suspend fun saveBudget(b: BudgetEntity) = db.budgets().upsert(b)
     suspend fun deleteBudget(b: BudgetEntity) = db.budgets().delete(b)
     suspend fun saveGoal(g: GoalEntity) { if (g.id == 0L) db.goals().insert(g) else db.goals().update(g) }
+    /**
+     * Puts money into a goal (positive [deltaMinor]) or takes it back out (negative), moving it from or to [accountId].
+     * The goal's saved amount and the account's balance change together; the transaction is tagged so it never counts as spending.
+     */
+    suspend fun moveGoal(goalId: Long, deltaMinor: Long, accountId: Long, epochDay: Long): Boolean = db.withTransaction {
+        val goal = db.goals().get(goalId) ?: return@withTransaction false
+        val delta = if (deltaMinor < 0) -minOf(-deltaMinor, goal.savedMinor) else deltaMinor
+        if (delta == 0L) return@withTransaction false
+        db.goals().update(goal.copy(savedMinor = goal.savedMinor + delta))
+        db.transactions().insert(
+            TransactionEntity(
+                kind = if (delta > 0) TxKind.EXPENSE else TxKind.INCOME, amountMinor = kotlin.math.abs(delta), accountId = accountId,
+                note = goal.name, epochDay = epochDay, role = TxRole.GOAL,
+            ),
+        )
+        true
+    }
     suspend fun deleteGoal(g: GoalEntity) = db.goals().markDeleted(g.id, System.currentTimeMillis())
     suspend fun restoreGoal(id: Long) = db.goals().restoreDeleted(id)
     suspend fun deleteGoalForever(g: GoalEntity) = db.goals().delete(g)

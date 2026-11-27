@@ -232,6 +232,7 @@ class BudgetViewModel(private val app: Application) : AndroidViewModel(app) {
     fun saveBudget(b: BudgetEntity) { viewModelScope.launch { repo.saveBudget(b) } }
     fun deleteBudget(b: BudgetEntity) { viewModelScope.launch { repo.deleteBudget(b) } }
     fun saveGoal(g: GoalEntity) { viewModelScope.launch { repo.saveGoal(g) } }
+    fun moveGoal(goalId: Long, deltaMinor: Long, accountId: Long) { viewModelScope.launch { repo.moveGoal(goalId, deltaMinor, accountId, LocalDate.now().toEpochDay()) } }
     fun deleteGoal(g: GoalEntity) { viewModelScope.launch { repo.deleteGoal(g) } }
     fun saveAccount(a: AccountEntity) { viewModelScope.launch { repo.saveAccount(a) } }
     fun saveCategory(c: CategoryEntity) { viewModelScope.launch { repo.saveCategory(c) } }

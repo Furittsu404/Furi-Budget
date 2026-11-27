@@ -13,7 +13,8 @@ enum class TxKind { INCOME, EXPENSE, TRANSFER }
 
 /** Why a transaction exists. Only NORMAL counts as spending or income in totals, Insights and budgets. */
 @Serializable
-enum class TxRole { NORMAL, ADJUSTMENT, LOAN, REPAYMENT }
+/** GOAL: money put into or taken out of a savings goal. It moves an account balance but is not spending or income. */
+enum class TxRole { NORMAL, ADJUSTMENT, LOAN, REPAYMENT, GOAL }
 
 @Serializable
 enum class LoanDirection { LENT, OWED }

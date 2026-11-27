@@ -413,7 +413,7 @@
     <string name="no_rates_for_foreign">No exchange rates yet. Add one in Settings, Exchange rates.</string>
     <string name="sound_haptics">Sound and haptics</string>
     <string name="sounds">Sounds</string>
-    <string name="sounds_hint">Short sounds for taps and events. Follows your phone\'s volume and touch-sound settings.</string>
+    <string name="sounds_hint">Short sounds for taps and events, played at your media volume.</string>
     <string name="volume">Volume %1$d%%</string>
     <string name="haptics">Haptics</string>
     <string name="haptics_hint">A small buzz on taps and events. Your phone\'s touch feedback setting still applies.</string>
@@ -445,4 +445,10 @@
     <string name="bills_empty_title">Nothing falls due</string>
     <string name="insights_empty_title">No numbers yet</string>
     <string name="activity_empty_title">A fresh page</string>
+    <string name="goal_money_account">From and back to</string>
+    <string name="goal_money_hint">The account balance changes by the same amount. This is not counted as spending.</string>
+    <string name="goal_saved_to">Saved to %1$s</string>
+    <string name="goal_taken_from">Taken from %1$s</string>
+    <string name="tab_more">More</string>
+    <string name="bill_deleted">Bill deleted</string>
 </resources>

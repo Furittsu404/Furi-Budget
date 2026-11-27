@@ -40,6 +40,9 @@ class MainActivity : ComponentActivity() {
             val spec = themeVm.spec.collectAsState().value ?: return@setContent
             val state = budgetVm.state.collectAsState().value
             val view = androidx.compose.ui.platform.LocalView.current
+            androidx.compose.runtime.LaunchedEffect(state.settings.soundOn, state.settings.soundStyles) {
+                if (state.settings.soundOn) (application as FuriBudgetApp).sounds.prepare(state.settings.soundStyles)
+            }
             val feedback = androidx.compose.runtime.remember(view, state.settings) {
                 app.furibudget.feedback.Feedback(view, state.settings, (application as FuriBudgetApp).sounds)
             }

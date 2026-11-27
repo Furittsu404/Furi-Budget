@@ -152,41 +152,9 @@ private fun androidx.compose.foundation.lazy.LazyItemScope.SwipeRow(
     modifier: Modifier,
 ) {
     val c = Furi.colors
-    val deleteLabel = stringResource(R.string.delete)
-    // The money handed out for a loan is removed by deleting the person, not by swiping it away on its own.
-    val deletable = tx.role != app.furibudget.data.TxRole.LOAN
-    // Not the saveable variant: that one keeps "already swiped away" for a row id, so a row brought back by
-    // Undo came back stuck and the next swipe opened the editor instead. A fresh state per row entry fixes that.
-    val density = androidx.compose.ui.platform.LocalDensity.current
-    val deleteNow by androidx.compose.runtime.rememberUpdatedState(onDelete)
-    val dismiss = remember(tx.id) {
-        SwipeToDismissBoxState(
-            initialValue = SwipeToDismissBoxValue.Settled,
-            density = density,
-            confirmValueChange = { v -> (v == SwipeToDismissBoxValue.EndToStart).also { if (it) deleteNow(tx) } },
-            positionalThreshold = { total -> total * 0.5f },
-        )
-    }
-    SwipeToDismissBox(
-        state = dismiss,
-        modifier = modifier.animateItem().semantics {
-            // Swipe is not reachable with a screen reader, so offer the same action by name.
-            if (deletable) customActions = listOf(CustomAccessibilityAction(deleteLabel) { onDelete(tx); true })
-        },
-        enableDismissFromStartToEnd = false,
-        enableDismissFromEndToStart = deletable,
-        backgroundContent = {
-            // progress reads 1 while the row sits still, so only draw the red layer once a swipe is under way.
-            val swiping = dismiss.dismissDirection == SwipeToDismissBoxValue.EndToStart
-            val p = if (swiping) dismiss.progress.coerceIn(0f, 1f) else 0f
-            Box(
-                Modifier.fillMaxSize().clip(MaterialTheme.shapes.medium).background(c.expense.copy(alpha = 0.45f * p)),
-                contentAlignment = Alignment.CenterEnd,
-            ) {
-                if (swiping) Icon(Icons.Rounded.Delete, stringResource(R.string.delete), Modifier.padding(end = 20.dp).scale(0.8f + 0.4f * p), tint = c.expense)
-            }
-        },
-    ) {
+    // Money handed out for a loan or put into a goal is undone from its person or goal, not by swiping it away.
+    val deletable = tx.role != app.furibudget.data.TxRole.LOAN && tx.role != app.furibudget.data.TxRole.GOAL
+    app.furibudget.ui.components.SwipeToDelete(tx.id, onDelete = { onDelete(tx) }, modifier = modifier.animateItem(), enabled = deletable) {
         TxRow(tx, state, Modifier.background(c.background.copy(alpha = 0f))) { onOpen(tx.id) }
     }
 }

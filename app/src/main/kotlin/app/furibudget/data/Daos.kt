@@ -83,6 +83,9 @@ interface GoalDao {
     @Query("SELECT * FROM goals WHERE deletedAt IS NOT NULL ORDER BY deletedAt DESC")
     fun observeDeleted(): Flow<List<GoalEntity>>
 
+    @Query("SELECT * FROM goals WHERE id = :id")
+    suspend fun get(id: Long): GoalEntity?
+
     @Query("UPDATE goals SET deletedAt = :at WHERE id = :id") suspend fun markDeleted(id: Long, at: Long)
     @Query("UPDATE goals SET deletedAt = NULL WHERE id = :id") suspend fun restoreDeleted(id: Long)
     @Query("DELETE FROM goals WHERE deletedAt IS NOT NULL AND deletedAt < :before") suspend fun purge(before: Long)

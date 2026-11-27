@@ -33,15 +33,16 @@ import kotlin.math.sin
  * alive without asking for attention. Dots hold still when motion is off.
  */
 @Composable
-fun EmptyState(icon: ImageVector, title: String, hint: String, modifier: Modifier = Modifier, action: (@Composable () -> Unit)? = null) {
+fun EmptyState(icon: ImageVector, title: String, hint: String, modifier: Modifier = Modifier, compact: Boolean = false, action: (@Composable () -> Unit)? = null) {
     val c = Furi.colors
     val turn by rememberInfiniteTransition(label = "empty").animateFloat(0f, 1f, infiniteRepeatable(tween(9000, easing = androidx.compose.animation.core.LinearEasing), RepeatMode.Restart), label = "turn")
     val t = if (Furi.motion.enabled) turn else 0.1f
     val tint = c.accentText
     val disc = c.accentContainer.copy(alpha = 0.5f)
-    Column(modifier.fillMaxWidth().padding(vertical = 24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Box(Modifier.size(132.dp), contentAlignment = Alignment.Center) {
-            Canvas(Modifier.size(132.dp)) {
+    Column(modifier.fillMaxWidth().padding(vertical = if (compact) 8.dp else 24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        val box = if (compact) 88.dp else 132.dp
+        Box(Modifier.size(box), contentAlignment = Alignment.Center) {
+            Canvas(Modifier.size(box)) {
                 val center = Offset(size.width / 2, size.height / 2)
                 drawCircle(disc, size.minDimension * 0.34f, center)
                 listOf(0f to 5f, 0.33f to 4f, 0.66f to 3f).forEach { (phase, r) ->
@@ -50,7 +51,7 @@ fun EmptyState(icon: ImageVector, title: String, hint: String, modifier: Modifie
                     drawCircle(tint.copy(alpha = 0.7f), r.dp.toPx(), Offset(center.x + cos(a) * rad, center.y + sin(a) * rad))
                 }
             }
-            Icon(icon, null, Modifier.size(44.dp), tint = tint)
+            Icon(icon, null, Modifier.size(if (compact) 30.dp else 44.dp), tint = tint)
         }
         Text(title, style = MaterialTheme.typography.titleMedium, color = c.onSurface, textAlign = TextAlign.Center)
         Text(hint, style = MaterialTheme.typography.bodyMedium, color = c.onSurfaceVariant, textAlign = TextAlign.Center)

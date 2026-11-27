@@ -40,6 +40,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import app.furibudget.ui.components.SwipeToDelete
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -103,6 +104,7 @@ fun BillsScreen(
     onSkip: (BillOccurrence) -> Unit,
     onClearSkip: (BillOccurrence) -> Unit,
     onEditBill: (Long) -> Unit,
+    onDeleteBill: (BillEntity) -> Unit,
     focusDay: Long? = null,
 ) {
     val c = Furi.colors
@@ -131,7 +133,7 @@ fun BillsScreen(
         if (state.bills.isEmpty()) {
             app.furibudget.ui.components.EmptyState(androidx.compose.material.icons.Icons.Rounded.CalendarMonth, stringResource(R.string.bills_empty_title), stringResource(R.string.no_bills_yet))
         } else if (showAll) {
-            AllBills(state, today, onEditBill)
+            AllBills(state, today, onEditBill, onDeleteBill)
         } else {
             if (overdue.isNotEmpty()) {
                 val total = overdue.sumOf { it.amount() }
@@ -177,13 +179,13 @@ fun BillsScreen(
             if (onDay.isEmpty()) {
                 Text(stringResource(R.string.nothing_due), style = MaterialTheme.typography.bodyMedium, color = c.onSurfaceVariant)
             }
-            onDay.forEach { BillRow(it, state, today, onPay, onUnpay, onSkip, onClearSkip, onEditBill) }
+            onDay.forEach { BillRow(it, state, today, onPay, onUnpay, onSkip, onClearSkip, onEditBill, onDeleteBill) }
             val soon = remember(all, filter, selected) {
                 Bills.upcoming(state.bills, state.billPayments, today, 30).filter { it.matches(filter) && it.due != day && !it.due.isBefore(today) }
             }
             if (soon.isNotEmpty()) {
                 Text(stringResource(R.string.next_30_days), style = MaterialTheme.typography.titleMedium, color = c.onSurface, modifier = Modifier.padding(top = 8.dp))
-                soon.forEach { BillRow(it, state, today, onPay, onUnpay, onSkip, onClearSkip, onEditBill) }
+                soon.forEach { BillRow(it, state, today, onPay, onUnpay, onSkip, onClearSkip, onEditBill, onDeleteBill) }
             }
         }
     }
@@ -288,12 +290,14 @@ fun BillRow(
     onSkip: (BillOccurrence) -> Unit,
     onClearSkip: (BillOccurrence) -> Unit,
     onEdit: (Long) -> Unit,
+    onDelete: (BillEntity) -> Unit,
 ) {
     val c = Furi.colors
     val b = occ.bill
     var menu by remember { mutableStateOf(false) }
     val tint = Color(b.colorArgb)
     val income = b.kind == TxKind.INCOME
+    SwipeToDelete(b.id, onDelete = { onDelete(b) }, shape = MaterialTheme.shapes.large) {
     FuriCard(Modifier.fillMaxWidth()) {
         Row(Modifier.padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Box(Modifier.size(44.dp).clip(CircleShape).background(tint.copy(alpha = 0.22f)), contentAlignment = Alignment.Center) {
@@ -330,10 +334,11 @@ fun BillRow(
             }
         }
     }
+    }
 }
 
 @Composable
-private fun AllBills(state: BudgetState, today: LocalDate, onEdit: (Long) -> Unit) {
+private fun AllBills(state: BudgetState, today: LocalDate, onEdit: (Long) -> Unit, onDelete: (BillEntity) -> Unit) {
     val c = Furi.colors
     val cur = state.currency
     val subs = state.bills.filter { it.active && it.type == BillType.SUBSCRIPTION }
@@ -349,6 +354,7 @@ private fun AllBills(state: BudgetState, today: LocalDate, onEdit: (Long) -> Uni
     }
     state.bills.sortedWith(compareBy({ !it.active }, { it.type.ordinal }, { it.name.lowercase() })).forEach { b ->
         val next = Bills.upcoming(listOf(b), state.billPayments, today, 400).firstOrNull()
+        SwipeToDelete(b.id, onDelete = { onDelete(b) }, shape = MaterialTheme.shapes.large) {
         FuriCard(Modifier.fillMaxWidth().clickable { onEdit(b.id) }) {
             Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Box(Modifier.size(44.dp).clip(CircleShape).background(Color(b.colorArgb).copy(alpha = 0.22f)), contentAlignment = Alignment.Center) {
@@ -370,6 +376,7 @@ private fun AllBills(state: BudgetState, today: LocalDate, onEdit: (Long) -> Uni
                     style = Furi.figures.copy(fontSize = MaterialTheme.typography.bodyMedium.fontSize), color = if (b.kind == TxKind.INCOME) c.income else c.onSurface,
                 )
             }
+        }
         }
     }
 }

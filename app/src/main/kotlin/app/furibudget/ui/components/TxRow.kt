@@ -43,7 +43,9 @@ fun TxRow(tx: TransactionEntity, state: BudgetState, modifier: Modifier = Modifi
     }
     val tint = if (tx.role != TxRole.NORMAL) c.accentText else if (tx.kind == TxKind.TRANSFER) c.accentText else Color(category?.colorArgb ?: 0xFF94A3B8.toInt())
     val person = remember(state.loans, state.people, tx.loanId) { tx.loanId?.let { id -> state.loans.firstOrNull { it.id == id } }?.let { l -> state.people.firstOrNull { it.id == l.personId } } }
-    val title = if (tx.role == TxRole.ADJUSTMENT) {
+    val title = if (tx.role == TxRole.GOAL) {
+        stringResource(if (tx.kind == TxKind.EXPENSE) R.string.goal_saved_to else R.string.goal_taken_from, tx.note)
+    } else if (tx.role == TxRole.ADJUSTMENT) {
         stringResource(R.string.balance_adjustment)
     } else if (person != null && tx.role == TxRole.LOAN) {
         stringResource(if (tx.kind == TxKind.EXPENSE) R.string.lent_to else R.string.borrowed_from, person.name)
@@ -60,7 +62,7 @@ fun TxRow(tx: TransactionEntity, state: BudgetState, modifier: Modifier = Modifi
     val original = if (tx.origCurrency != null && tx.origAmountMinor != null) {
         app.furibudget.core.Currency.all.firstOrNull { it.code == tx.origCurrency }?.let { it.format(Money(tx.origAmountMinor), true) } ?: ""
     } else ""
-    val subtitle = listOf(original, tx.note.ifBlank { if (tx.kind == TxKind.TRANSFER) stringResource(R.string.kind_transfer) else state.account(tx.accountId)?.name.orEmpty() }, tagLine).filter { it.isNotBlank() }.joinToString(" · ")
+    val subtitle = listOf(original, if (tx.role == TxRole.GOAL) state.account(tx.accountId)?.name.orEmpty() else tx.note.ifBlank { if (tx.kind == TxKind.TRANSFER) stringResource(R.string.kind_transfer) else state.account(tx.accountId)?.name.orEmpty() }, tagLine).filter { it.isNotBlank() }.joinToString(" · ")
     val amount = state.currency.format(Money(tx.amountMinor), withSymbol = true)
     val (text, color) = when (tx.kind) {
         TxKind.INCOME -> "+ $amount" to c.income
@@ -77,7 +79,7 @@ fun TxRow(tx: TransactionEntity, state: BudgetState, modifier: Modifier = Modifi
         horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         Box(Modifier.size(44.dp).clip(CircleShape).background(tint.copy(alpha = 0.2f)), contentAlignment = Alignment.Center) {
-            FuriIcon(if (person != null) person.icon else if (tx.kind == TxKind.TRANSFER) "transfer" else category?.icon ?: "other", tint = tint)
+            FuriIcon(if (tx.role == TxRole.GOAL) "flag" else if (person != null) person.icon else if (tx.kind == TxKind.TRANSFER) "transfer" else category?.icon ?: "other", tint = tint)
         }
         Column(Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.bodyLarge, color = c.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)

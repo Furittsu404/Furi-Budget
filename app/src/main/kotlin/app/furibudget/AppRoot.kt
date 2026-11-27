@@ -39,6 +39,10 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.Composable
+import androidx.compose.material.icons.rounded.MoreHoriz
+import androidx.compose.material.icons.rounded.DeleteSweep
+import androidx.compose.material.icons.rounded.Savings
+import androidx.compose.material.icons.rounded.Group
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -59,6 +63,8 @@ import androidx.navigation.navArgument
 import app.furibudget.ui.activity.ActivityScreen
 import app.furibudget.ui.appearance.AppearanceScreen
 import app.furibudget.ui.components.FuriNavBar
+import app.furibudget.ui.components.MoreEntry
+import app.furibudget.ui.components.MoreMenu
 import app.furibudget.ui.components.NavItem
 import app.furibudget.ui.edit.EditScreen
 import app.furibudget.ui.bills.BillEditScreen
@@ -111,8 +117,12 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
     val nav = rememberNavController()
     val backStack by nav.currentBackStackEntryAsState()
     val route = backStack?.destination?.route
-    val tabs = listOf(Route.HOME, Route.ACTIVITY, Route.BUDGETS, Route.INSIGHTS, Route.BILLS)
-    val showBar = route in tabs
+    val tabs = listOf(Route.HOME, Route.ACTIVITY, Route.INSIGHTS, Route.BILLS)
+    // Budgets, Goals, People, Funds and Recently deleted live behind the fifth item, More.
+    var moreOpen by remember { mutableStateOf(false) }
+    val showBar = route in tabs || route == Route.BUDGETS
+    androidx.compose.runtime.LaunchedEffect(route) { moreOpen = false }
+    androidx.activity.compose.BackHandler(enabled = moreOpen) { moreOpen = false }
     val m = Furi.motion
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -163,6 +173,16 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
         }
     }
 
+    val billDeletedMsg = stringResource(R.string.bill_deleted)
+    val deleteBillWithUndo: (app.furibudget.data.BillEntity) -> Unit = { b ->
+        fb.deleted()
+        vm.deleteBill(b)
+        scope.launch {
+            snackbar.currentSnackbarData?.dismiss()
+            if (snackbar.showSnackbar(billDeletedMsg, undo, duration = androidx.compose.material3.SnackbarDuration.Long) == SnackbarResult.ActionPerformed) vm.restoreBill(b.id)
+        }
+    }
+
     Box(Modifier.fillMaxSize()) {
         FuriBackground()
         // Tablets and landscape: keep content in a phone-width column in the middle.
@@ -171,10 +191,12 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
         NavHost(
             navController = nav,
             startDestination = Route.HOME,
-            enterTransition = { fadeIn(m.tween(220)) + slideInHorizontally(m.spring()) { it / 10 } },
-            exitTransition = { fadeOut(m.tween(160)) + slideOutHorizontally(m.spring()) { -it / 10 } },
-            popEnterTransition = { fadeIn(m.tween(220)) + slideInHorizontally(m.spring()) { -it / 10 } },
-            popExitTransition = { fadeOut(m.tween(160)) + slideOutHorizontally(m.spring()) { it / 10 } },
+            // Plain tweens, not springs: a spring keeps the old screen on top for most of a second while it settles,
+            // and that tail is what made Back feel late.
+            enterTransition = { fadeIn(m.tween(180)) + slideInHorizontally(m.tween(220)) { it / 14 } },
+            exitTransition = { fadeOut(m.tween(110)) + slideOutHorizontally(m.tween(180)) { -it / 14 } },
+            popEnterTransition = { fadeIn(m.tween(180)) + slideInHorizontally(m.tween(220)) { -it / 14 } },
+            popExitTransition = { fadeOut(m.tween(100)) + slideOutHorizontally(m.tween(160)) { it / 14 } },
         ) {
             composable(Route.HOME) {
                 HomeScreen(state, onOpenAppearance = { nav.navigate(Route.APPEARANCE) }, onOpenGoals = { nav.navigate(Route.GOALS) }, onOpenPeople = { nav.navigate(Route.PEOPLE) }, onOpenFunds = { nav.navigate(Route.FUNDS) }, onOpenBills = { nav.navigate(Route.BILLS) { popUpTo(Route.HOME) { saveState = true }; launchSingleTop = true; restoreState = true } }, onOpenSettings = { nav.navigate(Route.SETTINGS) }, onOpenBudgets = { nav.navigate(Route.BUDGETS) { popUpTo(Route.HOME) { saveState = true }; launchSingleTop = true; restoreState = true } }, onOpenTx = { nav.navigate(Route.edit(it)) }, onQuickAdd = { t -> vm.quickAdd(t) { tx -> scope.launch { snackbar.currentSnackbarData?.dismiss(); if (snackbar.showSnackbar(resources.getString(R.string.added_template, t.name), undo, duration = androidx.compose.material3.SnackbarDuration.Long) == SnackbarResult.ActionPerformed) vm.delete(tx) } } })
@@ -188,6 +210,7 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
                         val loan = t?.loanId?.let { lid -> state.loans.firstOrNull { it.id == lid } }
                         when {
                             loan != null -> nav.navigate(Route.person(loan.personId))
+                            t?.role == app.furibudget.data.TxRole.GOAL -> nav.navigate(Route.GOALS)
                             t != null && t.role != app.furibudget.data.TxRole.NORMAL && t.role != app.furibudget.data.TxRole.ADJUSTMENT -> Unit // its person was deleted
                             else -> nav.navigate(Route.edit(id))
                         }
@@ -197,7 +220,7 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
             }
             composable(Route.INSIGHTS) { InsightsScreen(state) }
             composable(Route.BUDGETS) { BudgetsScreen(state, vm::saveBudget, vm::deleteBudget) }
-            composable(Route.GOALS) { GoalsScreen(state, vm::saveGoal, vm::deleteGoal) }
+            composable(Route.GOALS) { GoalsScreen(state, vm::saveGoal, vm::deleteGoal, vm::moveGoal) }
             composable(Route.BILLS) {
                 BillsScreen(
                     state,
@@ -206,14 +229,15 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
                     onSkip = { vm.skipBill(it.bill, it.due) },
                     onClearSkip = { occ -> occ.payment?.let(vm::clearPayment) },
                     onEditBill = { nav.navigate(Route.bill(it)) },
+                    onDeleteBill = deleteBillWithUndo,
                     focusDay = focusDay,
                 )
             }
             composable(
                 Route.BILL_EDIT,
                 arguments = listOf(navArgument("id") { type = NavType.LongType }),
-                enterTransition = { fadeIn(m.tween(200)) + slideInVertically(m.spring()) { it / 6 } },
-                popExitTransition = { fadeOut(m.tween(160)) + slideOutVertically(m.spring()) { it / 6 } },
+                enterTransition = { fadeIn(m.tween(180)) + slideInVertically(m.tween(240)) { it / 8 } },
+                popExitTransition = { fadeOut(m.tween(100)) + slideOutVertically(m.tween(170)) { it / 8 } },
             ) { entry ->
                 BillEditScreen(entry.arguments?.getLong("id") ?: 0L, state, onSave = vm::saveBill, onDelete = vm::deleteBill, onClose = { nav.popBackStack() })
             }
@@ -259,8 +283,8 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
             composable(
                 Route.EDIT,
                 arguments = listOf(navArgument("id") { type = NavType.LongType }, navArgument("kind") { type = NavType.StringType; defaultValue = "EXPENSE" }),
-                enterTransition = { fadeIn(m.tween(200)) + slideInVertically(m.spring()) { it / 6 } },
-                popExitTransition = { fadeOut(m.tween(160)) + slideOutVertically(m.spring()) { it / 6 } },
+                enterTransition = { fadeIn(m.tween(180)) + slideInVertically(m.tween(240)) { it / 8 } },
+                popExitTransition = { fadeOut(m.tween(100)) + slideOutVertically(m.tween(170)) { it / 8 } },
             ) { entry ->
                 EditScreen(entry.arguments?.getLong("id") ?: 0L, state, onSave = vm::save, onAddTag = { n, done -> vm.addTag(n, 0xFF8B7CFF.toInt(), done) }, onSaveBill = vm::saveBill, onDelete = deleteWithUndo, onSaveTemplate = vm::saveTemplate, onDeleteTemplate = vm::deleteTemplate, onClose = { nav.popBackStack() },
                     initialKind = runCatching { app.furibudget.data.TxKind.valueOf(entry.arguments?.getString("kind") ?: "EXPENSE") }.getOrDefault(app.furibudget.data.TxKind.EXPENSE))
@@ -282,8 +306,34 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
                 OnboardingScreen(state, spec, onTheme, vm::saveAccount) { vm.updateSettings { it.copy(onboarded = true) } }
             }
         }
+        if (moreOpen) {
+            // Tapping anywhere outside the menu closes it.
+            Box(Modifier.fillMaxSize().clickable(interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }, indication = null) { moreOpen = false })
+        }
         Column(Modifier.align(Alignment.BottomCenter).widthIn(max = 640.dp).navigationBarsPadding()) {
             SnackbarHost(snackbar, Modifier.padding(horizontal = 16.dp))
+            // Right edge lines up with the bar, not the add button beside it (68dp button + 12dp gap).
+            Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 96.dp), horizontalAlignment = Alignment.End) {
+                AnimatedVisibility(
+                    visible = moreOpen && showBar && !onboarding,
+                    enter = fadeIn(m.tween(140)) + slideInVertically(m.tween(200)) { it / 3 } + androidx.compose.animation.scaleIn(m.tween(200), initialScale = 0.9f, transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.9f, 1f)),
+                    exit = fadeOut(m.tween(100)) + slideOutVertically(m.tween(140)) { it / 4 },
+                ) {
+                    MoreMenu(
+                        listOf(
+                            MoreEntry(stringResource(R.string.tab_budgets), Icons.Rounded.AccountBalanceWallet, Route.BUDGETS),
+                            MoreEntry(stringResource(R.string.tab_goals), Icons.Rounded.Flag, Route.GOALS),
+                            MoreEntry(stringResource(R.string.people), Icons.Rounded.Group, Route.PEOPLE),
+                            MoreEntry(stringResource(R.string.funds), Icons.Rounded.Savings, Route.FUNDS),
+                            MoreEntry(stringResource(R.string.recently_deleted), Icons.Rounded.DeleteSweep, Route.TRASH),
+                        ),
+                        current = route,
+                    ) { target ->
+                        moreOpen = false
+                        nav.navigate(target) { launchSingleTop = true }
+                    }
+                }
+            }
             AnimatedVisibility(
                 visible = showBar && !onboarding,
                 enter = fadeIn(m.tween(200)) + slideInVertically(m.spring()) { it },
@@ -295,9 +345,11 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     FuriNavBar(
-                        items = listOf(NavItem(stringResource(R.string.tab_home), Icons.Rounded.Home), NavItem(stringResource(R.string.tab_activity), Icons.Rounded.Receipt), NavItem(stringResource(R.string.tab_budgets), Icons.Rounded.AccountBalanceWallet), NavItem(stringResource(R.string.tab_insights), Icons.Rounded.PieChart), NavItem(stringResource(R.string.tab_bills), Icons.Rounded.CalendarMonth)),
-                        selected = tabs.indexOf(route).coerceAtLeast(0),
+                        items = listOf(NavItem(stringResource(R.string.tab_home), Icons.Rounded.Home), NavItem(stringResource(R.string.tab_activity), Icons.Rounded.Receipt), NavItem(stringResource(R.string.tab_insights), Icons.Rounded.PieChart), NavItem(stringResource(R.string.tab_bills), Icons.Rounded.CalendarMonth), NavItem(stringResource(R.string.tab_more), Icons.Rounded.MoreHoriz)),
+                        selected = if (moreOpen || route == Route.BUDGETS) tabs.size else tabs.indexOf(route).coerceAtLeast(0),
                         onSelect = { i ->
+                            if (i == tabs.size) { moreOpen = !moreOpen; return@FuriNavBar }
+                            moreOpen = false
                             nav.navigate(tabs[i]) {
                                 popUpTo(Route.HOME) { saveState = true }
                                 launchSingleTop = true

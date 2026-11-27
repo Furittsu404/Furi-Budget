@@ -33,6 +33,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
+import app.furibudget.ui.components.FuriIcon
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -65,7 +67,7 @@ import java.util.Locale
 private val dateFmt = DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.getDefault())
 
 @Composable
-fun GoalsScreen(state: BudgetState, onSave: (GoalEntity) -> Unit, onDelete: (GoalEntity) -> Unit) {
+fun GoalsScreen(state: BudgetState, onSave: (GoalEntity) -> Unit, onDelete: (GoalEntity) -> Unit, onMove: (goalId: Long, deltaMinor: Long, accountId: Long) -> Unit) {
     val c = Furi.colors
     val cur = state.currency
     val today = LocalDate.now()
@@ -133,10 +135,10 @@ fun GoalsScreen(state: BudgetState, onSave: (GoalEntity) -> Unit, onDelete: (Goa
     topping?.let { g ->
         MoneyDialog(
             state, g, onDismiss = { topping = null },
-            onApply = { delta ->
+            onApply = { delta, accountId ->
                 val next = (g.savedMinor + delta).coerceAtLeast(0)
                 if (next >= g.targetMinor && g.savedMinor < g.targetMinor) { confetti += 1; fb.goal() }
-                onSave(g.copy(savedMinor = next))
+                onMove(g.id, delta, accountId)
                 topping = null
             },
         )
@@ -212,18 +214,35 @@ private fun GoalDialog(state: BudgetState, existing: GoalEntity?, onDismiss: () 
 }
 
 @Composable
-private fun MoneyDialog(state: BudgetState, goal: GoalEntity, onDismiss: () -> Unit, onApply: (Long) -> Unit) {
+private fun MoneyDialog(state: BudgetState, goal: GoalEntity, onDismiss: () -> Unit, onApply: (Long, Long) -> Unit) {
     val cur = state.currency
     var text by remember { mutableStateOf("") }
+    var account by remember { mutableStateOf(state.accounts.firstOrNull()?.id ?: 0L) }
     val amount = cur.parse(text)
+    val ok = amount != null && amount.minor > 0 && account != 0L
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(goal.name) },
-        text = { AmountField(text, { text = it }, cur, stringResource(R.string.amount), Modifier.fillMaxWidth()) },
-        confirmButton = { TextButton(enabled = amount != null && amount.minor > 0, onClick = { onApply(amount!!.minor) }) { Text(stringResource(R.string.add_money)) } },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                AmountField(text, { text = it }, cur, stringResource(R.string.amount), Modifier.fillMaxWidth())
+                Text(stringResource(R.string.goal_money_account), style = MaterialTheme.typography.labelLarge, color = Furi.colors.onSurfaceVariant)
+                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    state.accounts.forEach { a ->
+                        FilterChip(
+                            selected = account == a.id, onClick = { account = a.id },
+                            label = { Text(a.name + " · " + cur.format(state.balances[a.id] ?: app.furibudget.core.Money.ZERO)) },
+                            leadingIcon = { FuriIcon(a.icon, size = 18.dp, tint = Color(a.colorArgb)) },
+                        )
+                    }
+                }
+                Text(stringResource(R.string.goal_money_hint), style = MaterialTheme.typography.bodySmall, color = Furi.colors.onSurfaceVariant)
+            }
+        },
+        confirmButton = { TextButton(enabled = ok, onClick = { onApply(amount!!.minor, account) }) { Text(stringResource(R.string.add_money)) } },
         dismissButton = {
             Row {
-                TextButton(enabled = amount != null && amount.minor > 0, onClick = { onApply(-amount!!.minor) }) { Text(stringResource(R.string.withdraw)) }
+                TextButton(enabled = ok && goal.savedMinor > 0, onClick = { onApply(-minOf(amount!!.minor, goal.savedMinor), account) }) { Text(stringResource(R.string.withdraw)) }
                 TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
             }
         },
