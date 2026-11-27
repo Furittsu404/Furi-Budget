@@ -13,5 +13,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Android-Budget_App"
+rootProject.name = "Furi-Budget"
 include(":core", ":app")

@@ -70,7 +70,7 @@ An offline-first Android budget tracker where the look and feel is the point: fi
 
 ```bash
 git clone <this repository>
-cd Android-Budget_App
+cd Furi-Budget
 
 # point Gradle at your Android SDK if it is not already set
 echo "sdk.dir=/path/to/Android/Sdk" > local.properties
