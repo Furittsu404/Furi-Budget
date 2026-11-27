@@ -57,6 +57,8 @@ import app.furibudget.data.BillEntity
 import app.furibudget.data.BillType
 import app.furibudget.data.TemplateEntity
 import app.furibudget.data.TransactionEntity
+import app.furibudget.data.TransactionSplitEntity
+import app.furibudget.data.TxRole
 import app.furibudget.ui.components.repeatLabel
 import app.furibudget.data.TxKind
 import app.furibudget.ui.components.AnimatedAmount
@@ -80,7 +82,8 @@ private val KeypadSaver = listSaver<KeypadEntry, Any>(
 fun EditScreen(
     txId: Long,
     state: BudgetState,
-    onSave: (TransactionEntity) -> Unit,
+    onSave: (TransactionEntity, List<TransactionSplitEntity>, Set<Long>) -> Unit,
+    onAddTag: (String, (Long) -> Unit) -> Unit,
     onSaveBill: (BillEntity) -> Unit,
     onDelete: (TransactionEntity) -> Unit,
     onSaveTemplate: (TemplateEntity) -> Unit,
@@ -104,6 +107,13 @@ fun EditScreen(
     val date = LocalDate.ofEpochDay(dateDay)
     var picking by rememberSaveable { mutableStateOf(false) }
     var repeat by rememberSaveable { mutableStateOf(Repeat.NONE) }
+    // Tags and split rows. Rows are kept as plain lists of numbers and text so they survive rotation.
+    var tagIds by rememberSaveable(*key) { mutableStateOf(existing?.let { e -> state.transactionTags.filter { it.transactionId == e.id }.map { it.tagId } } ?: emptyList()) }
+    val existingSplits = remember(existing, state.splits) { existing?.let { e -> state.splits.filter { it.transactionId == e.id } }.orEmpty() }
+    var splitOn by rememberSaveable(*key) { mutableStateOf(existingSplits.isNotEmpty()) }
+    var splitCats by rememberSaveable(*key) { mutableStateOf(existingSplits.map { it.categoryId ?: -1L }.ifEmpty { listOf(-1L, -1L) }) }
+    var splitTexts by rememberSaveable(*key) { mutableStateOf(existingSplits.map { state.currency.format(Money(it.amountMinor)).replace(",", "") }.ifEmpty { listOf("", "") }) }
+    val splitRows = splitCats.zip(splitTexts) { cat, text -> SplitRow(cat.takeIf { it >= 0 }, text) }
 
     val amount = entry.toMoney()
     val kindColor by animateColorAsState(
@@ -111,7 +121,10 @@ fun EditScreen(
         Furi.motion.tween(240), label = "kind-color",
     )
     val transferTarget = toAccountId ?: state.accounts.firstOrNull { it.id != accountId }?.id
-    val canSave = amount.minor > 0 && accountId != 0L && (kind != TxKind.TRANSFER || (transferTarget != null && transferTarget != accountId))
+    val sliceMinor = splitRows.map { state.currency.parse(it.text)?.minor ?: 0L }
+    val splitting = splitOn && kind != TxKind.TRANSFER
+    val splitValid = !splitting || (sliceMinor.sum() == amount.minor && sliceMinor.all { it > 0 })
+    val canSave = amount.minor > 0 && accountId != 0L && splitValid && (kind != TxKind.TRANSFER || (transferTarget != null && transferTarget != accountId))
 
     Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 20.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -162,7 +175,7 @@ fun EditScreen(
                     rollFromZero = false,
                 )
             }
-            if (kind != TxKind.TRANSFER) {
+            if (kind != TxKind.TRANSFER && !splitOn) {
                 ChipRow(stringResource(R.string.category)) {
                     state.categories.filter { it.kind == kind && !it.archived }.forEach { cat ->
                         val col = Color(cat.colorArgb)
@@ -174,6 +187,18 @@ fun EditScreen(
                         )
                     }
                 }
+            }
+            if (kind != TxKind.TRANSFER) {
+                SplitEditor(
+                    on = splitOn, onToggle = { splitOn = it },
+                    rows = splitRows, onRows = { r -> splitCats = r.map { it.categoryId ?: -1L }; splitTexts = r.map { it.text } },
+                    total = amount, currency = state.currency, categories = state.categories.filter { it.kind == kind && !it.archived },
+                )
+                TagsRow(
+                    state.tags, tagIds.toSet(),
+                    onToggle = { id -> tagIds = if (id in tagIds) tagIds - id else tagIds + id },
+                    onAdd = { n -> onAddTag(n) { id -> tagIds = tagIds + id } },
+                )
             }
             ChipRow(stringResource(if (kind == TxKind.TRANSFER) R.string.from_account else R.string.account)) {
                 state.accounts.forEach { acc ->
@@ -252,11 +277,15 @@ fun EditScreen(
                             amountMinor = amount.minor,
                             accountId = accountId,
                             toAccountId = if (kind == TxKind.TRANSFER) transferTarget else null,
-                            categoryId = if (kind == TxKind.TRANSFER) null else categoryId,
+                            categoryId = if (kind == TxKind.TRANSFER || splitting) null else categoryId,
                             note = note.trim(),
                             epochDay = date.toEpochDay(),
                             createdAt = existing?.createdAt ?: System.currentTimeMillis(),
+                            role = existing?.role ?: TxRole.NORMAL, loanId = existing?.loanId,
+                            origAmountMinor = existing?.origAmountMinor, origCurrency = existing?.origCurrency, rateMicro = existing?.rateMicro,
                         ),
+                        if (splitting) splitRows.mapIndexed { i, r -> TransactionSplitEntity(transactionId = existing?.id ?: 0, categoryId = r.categoryId, amountMinor = sliceMinor[i]) } else emptyList(),
+                        if (kind == TxKind.TRANSFER) emptySet() else tagIds.toSet(),
                     )
                     if (repeat != Repeat.NONE && existing == null) {
                         // The transaction above is the first one; the bill takes over from the next due date, paying itself.

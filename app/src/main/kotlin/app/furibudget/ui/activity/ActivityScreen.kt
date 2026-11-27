@@ -66,11 +66,13 @@ fun ActivityScreen(state: BudgetState, onOpenTx: (Long) -> Unit, onDelete: (Tran
     var searching by rememberSaveable { mutableStateOf(false) }
     var query by rememberSaveable { mutableStateOf("") }
     var kindFilter by rememberSaveable { mutableStateOf<TxKind?>(null) }
-    val inMonth = remember(state.transactions, range, query, kindFilter, searching) {
+    val inMonth = remember(state.transactions, state.transactionTags, state.tags, range, query, kindFilter, searching) {
         val q = if (searching) query.trim().lowercase() else ""
+        val tagNames = state.tags.associate { it.id to it.name.lowercase() }
+        val tagsOf = state.transactionTags.groupBy({ it.transactionId }, { tagNames[it.tagId].orEmpty() })
         state.transactions.filter { t ->
             LocalDate.ofEpochDay(t.epochDay) in range && (!searching || kindFilter == null || t.kind == kindFilter) &&
-                (q.isEmpty() || listOf(t.note, state.category(t.categoryId)?.name.orEmpty(), state.account(t.accountId)?.name.orEmpty(), state.currency.format(app.furibudget.core.Money(t.amountMinor)))
+                (q.isEmpty() || listOf(t.note, state.category(t.categoryId)?.name.orEmpty(), state.account(t.accountId)?.name.orEmpty(), state.currency.format(app.furibudget.core.Money(t.amountMinor))) .plus(tagsOf[t.id].orEmpty())
                     .any { it.lowercase().contains(q) })
         }
     }

@@ -8,7 +8,7 @@ import kotlinx.serialization.json.Json
 /** Everything the app stores, in one file the user can keep. Background photos are not included. */
 @Serializable
 data class BackupFile(
-    val version: Int = 2,
+    val version: Int = 3,
     val exportedAt: Long = System.currentTimeMillis(),
     val accounts: List<AccountEntity> = emptyList(),
     val categories: List<CategoryEntity> = emptyList(),
@@ -20,6 +20,9 @@ data class BackupFile(
     val bills: List<BillEntity> = emptyList(),
     val billPayments: List<BillPaymentEntity> = emptyList(),
     val templates: List<TemplateEntity> = emptyList(),
+    val tags: List<TagEntity> = emptyList(),
+    val transactionTags: List<TransactionTagEntity> = emptyList(),
+    val splits: List<TransactionSplitEntity> = emptyList(),
     val theme: ThemeSpec? = null,
     val currency: String? = null,
     val startDay: Int? = null,
@@ -49,7 +52,7 @@ object Backup {
 
     /** Null when the text is not a backup this version understands. Old recurring transactions become auto-pay bills. */
     fun decode(text: String): BackupFile? {
-        val f = runCatching { json.decodeFromString<BackupFile>(text) }.getOrNull()?.takeIf { it.version in 1..2 } ?: return null
+        val f = runCatching { json.decodeFromString<BackupFile>(text) }.getOrNull()?.takeIf { it.version in 1..3 } ?: return null
         if (f.recurrences.isEmpty()) return f
         var nextId = (f.bills.maxOfOrNull { it.id } ?: 0L) + 1
         val converted = f.recurrences.map { r ->
@@ -73,6 +76,8 @@ object Backup {
         return f.transactions.all { t -> t.accountId in acc && (t.toAccountId == null || t.toAccountId in acc) && (t.categoryId == null || t.categoryId in categories) && t.amountMinor > 0 } &&
             f.bills.all { r -> r.accountId in acc && (r.toAccountId == null || r.toAccountId in acc) && (r.categoryId == null || r.categoryId in categories) && r.amountMinor >= 0 } &&
             f.billPayments.all { p -> f.bills.any { it.id == p.billId } && (p.transactionId == null || f.transactions.any { it.id == p.transactionId }) } &&
+            f.transactionTags.all { tt -> f.transactions.any { it.id == tt.transactionId } && f.tags.any { it.id == tt.tagId } } &&
+            f.splits.all { sp -> f.transactions.any { it.id == sp.transactionId } && (sp.categoryId == null || sp.categoryId in categories) } &&
             f.templates.all { t -> t.accountId in acc && (t.categoryId == null || t.categoryId in categories) && t.amountMinor > 0 } &&
             f.budgets.all { b -> b.categoryId == null || b.categoryId in categories } &&
             f.goals.all { it.targetMinor > 0 && it.savedMinor >= 0 }
@@ -88,7 +93,10 @@ object Backup {
             val s = safe(raw)
             return if (s.any { it == ',' || it == '"' || it == '\n' || it == '\r' }) "\"" + s.replace("\"", "\"\"") + "\"" else s
         }
-        val sb = StringBuilder("date,type,amount,account,to_account,category,note\n")
+        val sb = StringBuilder("date,type,amount,account,to_account,category,note,tags,split,original_currency,original_amount\n")
+        val tagNames = state.tags.associate { it.id to it.name }
+        val tagsOf = state.transactionTags.groupBy({ it.transactionId }, { tagNames[it.tagId].orEmpty() })
+        val splitsOf = state.splits.groupBy { it.transactionId }
         for (t in state.transactions.sortedBy { it.epochDay }) {
             sb.append(java.time.LocalDate.ofEpochDay(t.epochDay)).append(',')
                 .append(t.kind.name.lowercase()).append(',')
@@ -96,7 +104,11 @@ object Backup {
                 .append(q(state.account(t.accountId)?.name.orEmpty())).append(',')
                 .append(q(state.account(t.toAccountId)?.name.orEmpty())).append(',')
                 .append(q(state.category(t.categoryId)?.name.orEmpty())).append(',')
-                .append(q(t.note)).append('\n')
+                .append(q(t.note)).append(',')
+                .append(q(tagsOf[t.id].orEmpty().joinToString(";"))).append(',')
+                .append(q(splitsOf[t.id].orEmpty().joinToString(";") { sp -> (state.category(sp.categoryId)?.name ?: "?") + "=" + state.currency.format(app.furibudget.core.Money(sp.amountMinor)).replace(",", "") })).append(',')
+                .append(q(t.origCurrency.orEmpty())).append(',')
+                .append(if (t.origAmountMinor != null) (t.origAmountMinor / 100.0).toString() else "").append('\n')
         }
         return sb.toString()
     }

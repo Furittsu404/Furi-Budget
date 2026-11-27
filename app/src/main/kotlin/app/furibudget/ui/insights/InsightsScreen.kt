@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -69,7 +70,7 @@ fun InsightsScreen(state: BudgetState) {
     val range = remember(offset, state.startDay) { Periods.shiftMonth(state.month(today), offset, state.startDay) }
     val prevRange = remember(range) { Periods.shiftMonth(range, -1, state.startDay) }
 
-    val cats = remember(state.transactions, range) { Insights.spendByCategory(state.transactions, range) }
+    val cats = remember(state.transactions, state.splits, range) { Insights.spendByCategory(state.transactions, range, state.splits) }
     val fallback = c.onSurfaceVariant
     val slices = cats.map { ct ->
         val cat = state.category(ct.categoryId)
@@ -118,6 +119,29 @@ fun InsightsScreen(state: BudgetState) {
                             Text(s.label, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge, color = c.onSurface)
                             Text("${(s.value * 100f / spent.minor.coerceAtLeast(1)).roundToInt()}%", style = MaterialTheme.typography.labelMedium, color = c.onSurfaceVariant)
                             Text(cur.format(Money(s.value)), style = Furi.figures.copy(fontSize = MaterialTheme.typography.titleSmall.fontSize), color = c.onSurface)
+                        }
+                    }
+                }
+            }
+        }
+
+        val byTag = remember(state.transactions, state.transactionTags, range) { Insights.spendByTag(state.transactions, range, state.transactionTags) }
+        if (byTag.isNotEmpty()) {
+            FuriCard(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.by_tag), style = MaterialTheme.typography.titleMedium, color = c.onSurface)
+                    val top = byTag.first().second.minor.coerceAtLeast(1)
+                    byTag.take(8).forEach { (id, amt) ->
+                        val name = state.tags.firstOrNull { it.id == id }?.name ?: return@forEach
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(name, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge, color = c.onSurface)
+                                Text(cur.format(amt), style = Furi.figures.copy(fontSize = MaterialTheme.typography.titleSmall.fontSize), color = c.onSurface)
+                            }
+                            val frac by androidx.compose.animation.core.animateFloatAsState(amt.minor.toFloat() / top, Furi.motion.spring(), label = "tag-bar")
+                            Box(Modifier.fillMaxWidth().height(6.dp).clip(CircleShape).background(c.onSurface.copy(alpha = 0.1f))) {
+                                Box(Modifier.fillMaxWidth(frac).height(6.dp).clip(CircleShape).background(c.accent))
+                            }
                         }
                     }
                 }

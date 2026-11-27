@@ -31,6 +31,9 @@ abstract class BudgetDatabase : RoomDatabase() {
     abstract fun billPayments(): BillPaymentDao
     abstract fun billAlerts(): BillAlertDao
     abstract fun templates(): TemplateDao
+    abstract fun tags(): TagDao
+    abstract fun transactionTags(): TransactionTagDao
+    abstract fun splits(): SplitDao
 
     companion object {
         fun create(context: Context): BudgetDatabase =

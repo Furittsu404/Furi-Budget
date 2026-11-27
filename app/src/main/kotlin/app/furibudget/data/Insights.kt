@@ -10,17 +10,27 @@ object Insights {
     data class CategoryTotal(val categoryId: Long?, val amount: Money)
 
     /** Spending per category inside [range], biggest first. Uncategorised spending is grouped under null. */
-    fun spendByCategory(txs: List<TransactionEntity>, range: DateRange): List<CategoryTotal> =
-        txs.filter { it.kind == TxKind.EXPENSE && LocalDate.ofEpochDay(it.epochDay) in range }
+    fun spendByCategory(txs: List<TransactionEntity>, range: DateRange, splits: List<TransactionSplitEntity> = emptyList()): List<CategoryTotal> =
+        Spending.lines(txs, splits).filter { LocalDate.ofEpochDay(it.epochDay) in range }
             .groupBy { it.categoryId }
             .map { (id, list) -> CategoryTotal(id, Money(list.sumOf { it.amountMinor })) }
             .sortedByDescending { it.amount.minor }
+
+    /** Spending per tag inside [range]. A transaction with several tags counts once under each of them. */
+    fun spendByTag(txs: List<TransactionEntity>, range: DateRange, links: List<TransactionTagEntity>): List<Pair<Long, Money>> {
+        val tagsOf = links.groupBy({ it.transactionId }, { it.tagId })
+        return txs.filter { it.kind == TxKind.EXPENSE && it.role == TxRole.NORMAL && it.deletedAt == null && LocalDate.ofEpochDay(it.epochDay) in range }
+            .flatMap { t -> tagsOf[t.id].orEmpty().map { it to t.amountMinor } }
+            .groupBy({ it.first }, { it.second })
+            .map { (id, v) -> id to Money(v.sum()) }
+            .sortedByDescending { it.second.minor }
+    }
 
     /** Cumulative spending for each day of [range]; days after [upTo] repeat the last value so the line stops flat. */
     fun cumulativeSpend(txs: List<TransactionEntity>, range: DateRange, upTo: LocalDate? = null): List<Long> {
         val perDay = LongArray(range.days.toInt())
         for (t in txs) {
-            if (t.kind != TxKind.EXPENSE) continue
+            if (t.kind != TxKind.EXPENSE || t.role != TxRole.NORMAL) continue
             val d = LocalDate.ofEpochDay(t.epochDay)
             if (d in range) perDay[(t.epochDay - range.start.toEpochDay()).toInt()] += t.amountMinor
         }

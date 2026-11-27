@@ -22,11 +22,11 @@ object Budgeting {
 
     const val CLOSE_AT = 0.8f
 
-    private fun spentIn(txs: List<TransactionEntity>, range: DateRange, categoryId: Long?): Money {
+    private fun spentIn(txs: List<TransactionEntity>, splits: List<TransactionSplitEntity>, range: DateRange, categoryId: Long?): Money {
         var sum = 0L
-        for (t in txs) {
-            if (t.kind != TxKind.EXPENSE || LocalDate.ofEpochDay(t.epochDay) !in range) continue
-            if (categoryId == null || t.categoryId == categoryId) sum += t.amountMinor
+        for (l in Spending.lines(txs, splits)) {
+            if (LocalDate.ofEpochDay(l.epochDay) !in range) continue
+            if (categoryId == null || l.categoryId == categoryId) sum += l.amountMinor
         }
         return Money(sum)
     }
@@ -36,13 +36,13 @@ object Budgeting {
         if (b.period == BudgetPeriod.WEEK) Periods.weekContaining(today, firstDay) else Periods.monthContaining(today, startDay)
 
     /** Limit for [range]: the base limit plus last period's unspent amount when rollover is on (never below zero). */
-    fun status(b: BudgetEntity, txs: List<TransactionEntity>, range: DateRange, startDay: Int = 1): Status {
+    fun status(b: BudgetEntity, txs: List<TransactionEntity>, range: DateRange, startDay: Int = 1, splits: List<TransactionSplitEntity> = emptyList()): Status {
         var limit = b.limitMinor
         if (b.rollover) {
             val prev = if (b.period == BudgetPeriod.WEEK) DateRange(range.start.minusWeeks(1), range.end.minusWeeks(1)) else Periods.shiftMonth(range, -1, startDay)
-            limit += (b.limitMinor - spentIn(txs, prev, b.categoryId).minor).coerceAtLeast(0)
+            limit += (b.limitMinor - spentIn(txs, splits, prev, b.categoryId).minor).coerceAtLeast(0)
         }
-        return Status(Money(limit), spentIn(txs, range, b.categoryId))
+        return Status(Money(limit), spentIn(txs, splits, range, b.categoryId))
     }
 
     data class GoalPlan(val remaining: Money, val monthlyNeeded: Money?, val reached: Boolean, val overdue: Boolean)

@@ -7,6 +7,9 @@ import app.furibudget.core.Currency
 import app.furibudget.core.Money
 import app.furibudget.core.Periods
 import app.furibudget.data.AccountEntity
+import app.furibudget.data.TagEntity
+import app.furibudget.data.TransactionSplitEntity
+import app.furibudget.data.TransactionTagEntity
 import app.furibudget.data.AppSettings
 import app.furibudget.data.Backup
 import app.furibudget.data.BackupFile
@@ -47,6 +50,9 @@ data class BudgetState(
     val bills: List<BillEntity> = emptyList(),
     val billPayments: List<BillPaymentEntity> = emptyList(),
     val templates: List<TemplateEntity> = emptyList(),
+    val tags: List<TagEntity> = emptyList(),
+    val transactionTags: List<TransactionTagEntity> = emptyList(),
+    val splits: List<TransactionSplitEntity> = emptyList(),
     val settings: AppSettings = AppSettings(),
 ) {
     val total: Money get() = accounts.fold(Money.ZERO) { a, acc -> a + (balances[acc.id] ?: Money.ZERO) }
@@ -80,8 +86,10 @@ class BudgetViewModel(private val app: Application) : AndroidViewModel(app) {
 
     private val billsFlow = combine(repo.bills, repo.billPayments, repo.templates) { b, p, t -> Triple(b, p, t) }
 
-    val state: StateFlow<BudgetState> = combine(base, billsFlow, settingsRepo.settings) { s, bills, set ->
-        s.copy(bills = bills.first, billPayments = bills.second, templates = bills.third, settings = set, currency = Currency.byCode(set.currencyCode), startDay = set.startDay)
+    private val tagFlow = combine(repo.tags, repo.transactionTags, repo.splits) { t, l, s -> Triple(t, l, s) }
+
+    val state: StateFlow<BudgetState> = combine(base, billsFlow, settingsRepo.settings, tagFlow) { s, bills, set, tg ->
+        s.copy(bills = bills.first, billPayments = bills.second, templates = bills.third, tags = tg.first, transactionTags = tg.second, splits = tg.third, settings = set, currency = Currency.byCode(set.currencyCode), startDay = set.startDay)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), BudgetState())
 
     val trash: StateFlow<Trash> = combine(repo.deletedTransactions, repo.deletedBills, repo.deletedGoals) { t, b, g -> Trash(t, b, g) }
@@ -113,23 +121,30 @@ class BudgetViewModel(private val app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun save(tx: TransactionEntity) {
+    fun save(tx: TransactionEntity, splits: List<TransactionSplitEntity> = emptyList(), tagIds: Set<Long> = emptySet()) {
         val before = state.value
         viewModelScope.launch {
-            repo.save(tx)
-            if (tx.kind == TxKind.EXPENSE && before.settings.budgetAlerts) checkAlerts(before, tx)
+            val id = repo.saveFull(tx, splits, tagIds)
+            if (tx.kind == TxKind.EXPENSE && before.settings.budgetAlerts) checkAlerts(before, tx.copy(id = id), splits)
         }
     }
 
+    /** Creates a tag and hands back its id, so the editor can select it straight away. */
+    fun addTag(name: String, colorArgb: Int, onDone: (Long) -> Unit) {
+        viewModelScope.launch { onDone(repo.saveTag(TagEntity(name = name.trim().take(24), colorArgb = colorArgb))) }
+    }
+    fun deleteTag(t: TagEntity) { viewModelScope.launch { repo.deleteTag(t) } }
+
     /** Notifies when this expense carries a budget across 80% of its limit. */
-    private fun checkAlerts(before: BudgetState, tx: TransactionEntity) {
+    private fun checkAlerts(before: BudgetState, tx: TransactionEntity, newSplits: List<TransactionSplitEntity>) {
         val today = LocalDate.now()
         val after = before.transactions.filterNot { it.id == tx.id } + tx
+        val splitsAfter = before.splits.filterNot { it.transactionId == tx.id } + newSplits.map { it.copy(transactionId = tx.id) }
         for (b in before.budgets) {
-            if (b.categoryId != null && b.categoryId != tx.categoryId) continue
+            if (b.categoryId != null && b.categoryId != tx.categoryId && newSplits.none { it.categoryId == b.categoryId }) continue
             val range = Budgeting.rangeFor(b, today, before.startDay, before.firstDay)
-            val f0 = Budgeting.status(b, before.transactions, range, before.startDay).fraction
-            val st = Budgeting.status(b, after, range, before.startDay)
+            val f0 = Budgeting.status(b, before.transactions, range, before.startDay, before.splits).fraction
+            val st = Budgeting.status(b, after, range, before.startDay, splitsAfter)
             if (f0 < Budgeting.CLOSE_AT && st.fraction >= Budgeting.CLOSE_AT) {
                 Notifier.budgetAlert(app, before.category(b.categoryId)?.name ?: app.getString(R.string.monthly_budget), (st.fraction * 100).toInt())
             }
@@ -180,7 +195,7 @@ class BudgetViewModel(private val app: Application) : AndroidViewModel(app) {
             )
             val saved = tx.copy(id = repo.save(tx))
             onAdded(saved)
-            if (saved.kind == TxKind.EXPENSE && state.value.settings.budgetAlerts) checkAlerts(state.value, saved)
+            if (saved.kind == TxKind.EXPENSE && state.value.settings.budgetAlerts) checkAlerts(state.value, saved, emptyList())
         }
     }
 

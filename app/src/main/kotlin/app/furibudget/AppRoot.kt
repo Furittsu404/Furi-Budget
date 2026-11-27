@@ -219,7 +219,7 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
                 enterTransition = { fadeIn(m.tween(200)) + slideInVertically(m.spring()) { it / 6 } },
                 popExitTransition = { fadeOut(m.tween(160)) + slideOutVertically(m.spring()) { it / 6 } },
             ) { entry ->
-                EditScreen(entry.arguments?.getLong("id") ?: 0L, state, onSave = vm::save, onSaveBill = vm::saveBill, onDelete = deleteWithUndo, onSaveTemplate = vm::saveTemplate, onDeleteTemplate = vm::deleteTemplate, onClose = { nav.popBackStack() },
+                EditScreen(entry.arguments?.getLong("id") ?: 0L, state, onSave = vm::save, onAddTag = { n, done -> vm.addTag(n, 0xFF8B7CFF.toInt(), done) }, onSaveBill = vm::saveBill, onDelete = deleteWithUndo, onSaveTemplate = vm::saveTemplate, onDeleteTemplate = vm::deleteTemplate, onClose = { nav.popBackStack() },
                     initialKind = runCatching { app.furibudget.data.TxKind.valueOf(entry.arguments?.getString("kind") ?: "EXPENSE") }.getOrDefault(app.furibudget.data.TxKind.EXPENSE))
             }
         }

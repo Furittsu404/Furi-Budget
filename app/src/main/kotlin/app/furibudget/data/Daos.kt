@@ -152,3 +152,31 @@ interface TemplateDao {
     @Insert suspend fun insert(t: TemplateEntity): Long
     @Delete suspend fun delete(t: TemplateEntity)
 }
+
+@Dao
+interface TagDao {
+    @Query("SELECT * FROM tags ORDER BY name COLLATE NOCASE") fun observeAll(): Flow<List<TagEntity>>
+    @Query("SELECT * FROM tags ORDER BY id") suspend fun all(): List<TagEntity>
+    @Query("DELETE FROM tags") suspend fun deleteAll()
+    @Insert suspend fun insertAll(t: List<TagEntity>)
+    @Insert suspend fun insert(t: TagEntity): Long
+    @Delete suspend fun delete(t: TagEntity)
+}
+
+@Dao
+interface TransactionTagDao {
+    @Query("SELECT * FROM transaction_tags") fun observeAll(): Flow<List<TransactionTagEntity>>
+    @Query("SELECT * FROM transaction_tags") suspend fun all(): List<TransactionTagEntity>
+    @Query("DELETE FROM transaction_tags WHERE transactionId = :txId") suspend fun deleteFor(txId: Long)
+    @Query("DELETE FROM transaction_tags") suspend fun deleteAll()
+    @Insert suspend fun insertAll(t: List<TransactionTagEntity>)
+}
+
+@Dao
+interface SplitDao {
+    @Query("SELECT * FROM transaction_splits") fun observeAll(): Flow<List<TransactionSplitEntity>>
+    @Query("SELECT * FROM transaction_splits ORDER BY id") suspend fun all(): List<TransactionSplitEntity>
+    @Query("DELETE FROM transaction_splits WHERE transactionId = :txId") suspend fun deleteFor(txId: Long)
+    @Query("DELETE FROM transaction_splits") suspend fun deleteAll()
+    @Insert suspend fun insertAll(s: List<TransactionSplitEntity>)
+}

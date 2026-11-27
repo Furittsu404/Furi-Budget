@@ -15,6 +15,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -34,12 +35,17 @@ import app.furibudget.ui.theme.Furi
 fun TxRow(tx: TransactionEntity, state: BudgetState, modifier: Modifier = Modifier, onClick: (() -> Unit)? = null) {
     val c = Furi.colors
     val category = state.category(tx.categoryId)
+    val splitCount = remember(state.splits, tx.id) { state.splits.count { it.transactionId == tx.id } }
+    val tagLine = remember(state.tags, state.transactionTags, tx.id) {
+        val ids = state.transactionTags.filter { it.transactionId == tx.id }.map { it.tagId }
+        state.tags.filter { it.id in ids }.joinToString(" ") { "#" + it.name }
+    }
     val tint = if (tx.kind == TxKind.TRANSFER) c.accentText else Color(category?.colorArgb ?: 0xFF94A3B8.toInt())
     val title = when (tx.kind) {
         TxKind.TRANSFER -> stringResource(R.string.transfer_to, state.account(tx.accountId)?.name ?: stringResource(R.string.unknown), state.account(tx.toAccountId)?.name ?: stringResource(R.string.unknown))
-        else -> category?.name ?: stringResource(R.string.uncategorised)
+        else -> if (splitCount > 1) stringResource(R.string.split_title, splitCount) else category?.name ?: stringResource(R.string.uncategorised)
     }
-    val subtitle = tx.note.ifBlank { if (tx.kind == TxKind.TRANSFER) stringResource(R.string.kind_transfer) else state.account(tx.accountId)?.name.orEmpty() }
+    val subtitle = listOf(tx.note.ifBlank { if (tx.kind == TxKind.TRANSFER) stringResource(R.string.kind_transfer) else state.account(tx.accountId)?.name.orEmpty() }, tagLine).filter { it.isNotBlank() }.joinToString(" · ")
     val amount = state.currency.format(Money(tx.amountMinor), withSymbol = true)
     val (text, color) = when (tx.kind) {
         TxKind.INCOME -> "+ $amount" to c.income

@@ -65,7 +65,7 @@ class BackupTest {
             transactions = listOf(TransactionEntity(1, TxKind.EXPENSE, 12_345, 1, note = "a,\"b\"", epochDay = 20000)),
         )
         val lines = Backup.csv(state).trim().lines()
-        assertEquals("date,type,amount,account,to_account,category,note", lines[0])
-        assertEquals("2024-10-04,expense,123.45,Cash,,,\"a,\"\"b\"\"\"", lines[1])
+        assertEquals("date,type,amount,account,to_account,category,note,tags,split,original_currency,original_amount", lines[0])
+        assertEquals("2024-10-04,expense,123.45,Cash,,,\"a,\"\"b\"\"\",,,,", lines[1])
     }
 }

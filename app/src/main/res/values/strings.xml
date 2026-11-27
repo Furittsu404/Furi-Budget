@@ -312,4 +312,16 @@
     <string name="type_emoji">Type or paste an emoji</string>
     <string name="use">Use</string>
     <string name="change_icon">Change icon</string>
+    <string name="add">Add</string>
+    <string name="remove">Remove</string>
+    <string name="tags">Tags</string>
+    <string name="new_tag">New tag</string>
+    <string name="tag_name">Tag name</string>
+    <string name="split_across">Split across categories</string>
+    <string name="split_left">%1$s left to assign</string>
+    <string name="split_over">%1$s over the total</string>
+    <string name="add_row">Add row</string>
+    <string name="fill_last">Fill the rest</string>
+    <string name="by_tag">By tag</string>
+    <string name="split_title">Split · %1$d categories</string>
 </resources>

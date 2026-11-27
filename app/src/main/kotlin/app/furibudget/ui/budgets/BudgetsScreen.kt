@@ -80,7 +80,7 @@ fun BudgetsScreen(state: BudgetState, onSave: (BudgetEntity) -> Unit, onDelete: 
             }
         } else {
             val range = Budgeting.rangeFor(overall, today, state.startDay, state.firstDay)
-            val st = Budgeting.status(overall, state.transactions, range, state.startDay)
+            val st = Budgeting.status(overall, state.transactions, range, state.startDay, state.splits)
             val daysLeft = ChronoUnit.DAYS.between(today, range.end).toInt() + 1
             FuriCard(Modifier.fillMaxWidth().clickable { editing = overall }) {
                 Column(Modifier.fillMaxWidth().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -115,7 +115,7 @@ fun BudgetsScreen(state: BudgetState, onSave: (BudgetEntity) -> Unit, onDelete: 
         Text(stringResource(R.string.by_category), style = MaterialTheme.typography.titleMedium, color = c.onSurface)
         perCategory.forEach { b ->
             val cat = state.category(b.categoryId)
-            val st = Budgeting.status(b, state.transactions, Budgeting.rangeFor(b, today, state.startDay, state.firstDay), state.startDay)
+            val st = Budgeting.status(b, state.transactions, Budgeting.rangeFor(b, today, state.startDay, state.firstDay), state.startDay, state.splits)
             FuriCard(Modifier.fillMaxWidth().clickable { editing = b }) {
                 Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     BudgetRing(st.fraction, st.level, Modifier.size(64.dp), stroke = 7.dp) {

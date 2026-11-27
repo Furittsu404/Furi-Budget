@@ -27,7 +27,7 @@ object Ledger {
         var income = 0L
         var expense = 0L
         for (t in txs) {
-            if (LocalDate.ofEpochDay(t.epochDay) !in range) continue
+            if (t.role != TxRole.NORMAL || LocalDate.ofEpochDay(t.epochDay) !in range) continue
             when (t.kind) {
                 TxKind.INCOME -> income += t.amountMinor
                 TxKind.EXPENSE -> expense += t.amountMinor

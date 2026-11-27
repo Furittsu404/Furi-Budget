@@ -14,6 +14,9 @@ class BudgetRepository(private val db: BudgetDatabase) {
     val bills: Flow<List<BillEntity>> = db.bills().observeAll()
     val billPayments: Flow<List<BillPaymentEntity>> = db.billPayments().observeAll()
     val templates: Flow<List<TemplateEntity>> = db.templates().observeAll()
+    val tags: Flow<List<TagEntity>> = db.tags().observeAll()
+    val transactionTags: Flow<List<TransactionTagEntity>> = db.transactionTags().observeAll()
+    val splits: Flow<List<TransactionSplitEntity>> = db.splits().observeAll()
     val deletedTransactions: Flow<List<TransactionEntity>> = db.transactions().observeDeleted()
     val deletedBills: Flow<List<BillEntity>> = db.bills().observeDeleted()
     val deletedGoals: Flow<List<GoalEntity>> = db.goals().observeDeleted()
@@ -31,6 +34,19 @@ class BudgetRepository(private val db: BudgetDatabase) {
 
     suspend fun save(tx: TransactionEntity): Long =
         if (tx.id == 0L) db.transactions().insert(tx) else { db.transactions().update(tx); tx.id }
+
+    /** Saves a transaction together with its split slices and tags in one transaction, replacing any earlier ones. */
+    suspend fun saveFull(tx: TransactionEntity, splits: List<TransactionSplitEntity>, tagIds: Set<Long>): Long = db.withTransaction {
+        val id = save(tx)
+        db.splits().deleteFor(id)
+        if (splits.isNotEmpty()) db.splits().insertAll(splits.map { it.copy(id = 0, transactionId = id) })
+        db.transactionTags().deleteFor(id)
+        if (tagIds.isNotEmpty()) db.transactionTags().insertAll(tagIds.map { TransactionTagEntity(id, it) })
+        id
+    }
+
+    suspend fun saveTag(t: TagEntity): Long = db.tags().insert(t)
+    suspend fun deleteTag(t: TagEntity) = db.tags().delete(t)
 
     /** Moves a transaction to Recently deleted. Restoring it brings it back exactly as it was, bill payment included. */
     suspend fun softDeleteTx(id: Long) = db.transactions().markDeleted(id, System.currentTimeMillis())
@@ -154,18 +170,19 @@ class BudgetRepository(private val db: BudgetDatabase) {
         BackupFile(
             accounts = db.accounts().all(), categories = db.categories().all(), transactions = db.transactions().all(),
             budgets = db.budgets().all(), goals = db.goals().all(), bills = db.bills().all(), billPayments = db.billPayments().all(),
-            templates = db.templates().all(), theme = theme, currency = currency, startDay = startDay,
+            templates = db.templates().all(), tags = db.tags().all(), transactionTags = db.transactionTags().all(), splits = db.splits().all(), theme = theme, currency = currency, startDay = startDay,
         )
     }
 
     /** Replaces everything with the backup's contents, keeping ids so links between rows survive. */
     suspend fun replaceAll(f: BackupFile) = db.withTransaction {
-        db.billPayments().deleteAll(); db.transactions().deleteAll(); db.bills().deleteAll(); db.templates().deleteAll()
+        db.billPayments().deleteAll(); db.transactionTags().deleteAll(); db.splits().deleteAll(); db.tags().deleteAll(); db.transactions().deleteAll(); db.bills().deleteAll(); db.templates().deleteAll()
         db.budgets().deleteAll(); db.goals().deleteAll(); db.categories().deleteAll(); db.accounts().deleteAll()
         db.accounts().insertAll(f.accounts); db.categories().insertAll(f.categories)
         db.transactions().insertAll(f.transactions); db.budgets().insertAll(f.budgets)
         db.goals().insertAll(f.goals); db.bills().insertAll(f.bills); db.billPayments().insertAll(f.billPayments)
         db.templates().insertAll(f.templates)
+        db.tags().insertAll(f.tags); db.transactionTags().insertAll(f.transactionTags); db.splits().insertAll(f.splits)
     }
 
     /** Clears every row, including the seeded defaults. */

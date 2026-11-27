@@ -95,7 +95,7 @@ fun HomeScreen(state: BudgetState, onOpenAppearance: () -> Unit, onOpenGoals: ()
         }
         val overall = state.budgets.firstOrNull { it.categoryId == null }
         if (overall != null) {
-            val st = Budgeting.status(overall, state.transactions, Budgeting.rangeFor(overall, LocalDate.now(), state.startDay, state.firstDay), state.startDay)
+            val st = Budgeting.status(overall, state.transactions, Budgeting.rangeFor(overall, LocalDate.now(), state.startDay, state.firstDay), state.startDay, state.splits)
             FuriCard(Modifier.fillMaxWidth().clickable(onClick = onOpenBudgets)) {
                 Row(Modifier.fillMaxWidth().padding(20.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
                     BudgetRing(st.fraction, st.level, Modifier.size(92.dp), stroke = 9.dp) {
@@ -152,7 +152,7 @@ fun HomeScreen(state: BudgetState, onOpenAppearance: () -> Unit, onOpenGoals: ()
                 )
             }
         }
-        val top = Insights.spendByCategory(state.transactions, month).take(3)
+        val top = Insights.spendByCategory(state.transactions, month, state.splits).take(3)
         if (top.isNotEmpty()) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(stringResource(R.string.top_spending), style = MaterialTheme.typography.titleMedium, color = c.onSurface)
