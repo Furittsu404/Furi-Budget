@@ -68,6 +68,7 @@ import app.furibudget.ui.budgets.BudgetsScreen
 import app.furibudget.ui.goals.GoalsScreen
 import app.furibudget.ui.home.HomeScreen
 import app.furibudget.ui.onboarding.OnboardingScreen
+import app.furibudget.ui.feedback.SoundSettingsScreen
 import app.furibudget.ui.funds.FundsScreen
 import app.furibudget.ui.people.PeopleScreen
 import app.furibudget.ui.rates.ExchangeRatesScreen
@@ -91,6 +92,7 @@ private object Route {
     const val PEOPLE = "people"
     const val FUNDS = "funds"
     const val RATES = "rates"
+    const val FEEDBACK = "feedback"
     const val PERSON = "person/{id}"
     const val BILLS = "bills"
     const val BILL_EDIT = "bill/{id}"
@@ -149,7 +151,9 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
         }
     }
 
+    val fb = app.furibudget.feedback.LocalFeedback.current
     val deleteWithUndo: (app.furibudget.data.TransactionEntity) -> Unit = { tx ->
+        fb.deleted()
         vm.delete(tx)
         scope.launch {
             snackbar.currentSnackbarData?.dismiss()
@@ -213,7 +217,7 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
             composable(Route.SETTINGS) {
                 SettingsScreen(
                     state, vm, spec, onTheme,
-                    onOpenManage = { nav.navigate(Route.MANAGE) }, onOpenGoals = { nav.navigate(Route.GOALS) }, onOpenPeople = { nav.navigate(Route.PEOPLE) }, onOpenFunds = { nav.navigate(Route.FUNDS) }, onOpenRates = { nav.navigate(Route.RATES) }, onOpenTrash = { nav.navigate(Route.TRASH) },
+                    onOpenManage = { nav.navigate(Route.MANAGE) }, onOpenGoals = { nav.navigate(Route.GOALS) }, onOpenPeople = { nav.navigate(Route.PEOPLE) }, onOpenFunds = { nav.navigate(Route.FUNDS) }, onOpenRates = { nav.navigate(Route.RATES) }, onOpenFeedback = { nav.navigate(Route.FEEDBACK) }, onOpenTrash = { nav.navigate(Route.TRASH) },
                     onBack = { nav.popBackStack() },
                 )
             }
@@ -228,6 +232,7 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
                     onBack = { nav.popBackStack() },
                 )
             }
+            composable(Route.FEEDBACK) { SoundSettingsScreen(state, vm) { nav.popBackStack() } }
             composable(Route.RATES) {
                 val fetching by vm.fetchingRates.collectAsState()
                 ExchangeRatesScreen(state, fetching, onUpdate = { vm.refreshRates(force = true) }, onSetManual = vm::setManualRate, onClear = vm::clearRate, onBack = { nav.popBackStack() })
@@ -316,6 +321,7 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
             onConfirm = { amount, account, date ->
                 paying = null
                 vm.payBill(occ.bill, occ.due, amount, account, date) { payment ->
+                    fb.paid()
                     if (payment != null) scope.launch {
                         snackbar.currentSnackbarData?.dismiss()
                         if (snackbar.showSnackbar(resources.getString(R.string.bill_paid_msg, occ.bill.name), undo, duration = androidx.compose.material3.SnackbarDuration.Long) == SnackbarResult.ActionPerformed) {

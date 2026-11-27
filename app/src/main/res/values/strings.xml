@@ -146,7 +146,7 @@
     <string name="backup_restored">Backup restored.</string>
     <string name="sample_loaded">Sample data added.</string>
     <string name="about">About</string>
-    <string name="about_text">Furi Budget keeps everything on this phone. No account, no network. Fonts: Manrope, Sora, Fredoka, Bricolage Grotesque and Hanken Grotesk, used under the SIL Open Font License.</string>
+    <string name="about_text">Furi Budget keeps everything on this phone. No account. The only network use is the optional exchange-rate update, which stays off until you switch it on, and it sends nothing personal. Fonts: Manrope, Sora, Fredoka, Bricolage Grotesque and Hanken Grotesk, used under the SIL Open Font License.</string>
     <string name="accounts">Accounts</string>
     <string name="add_account">Add account</string>
     <string name="edit_account">Edit account</string>
@@ -411,4 +411,30 @@
     <string name="home_currency">Back to %1$s</string>
     <string name="converted_line">About %1$s at 1 %2$s = %3$s</string>
     <string name="no_rates_for_foreign">No exchange rates yet. Add one in Settings, Exchange rates.</string>
+    <string name="sound_haptics">Sound and haptics</string>
+    <string name="sounds">Sounds</string>
+    <string name="sounds_hint">Short sounds for taps and events. Follows your phone\'s volume and touch-sound settings.</string>
+    <string name="volume">Volume %1$d%%</string>
+    <string name="haptics">Haptics</string>
+    <string name="haptics_hint">A small buzz on taps and events. Your phone\'s touch feedback setting still applies.</string>
+    <string name="strength_light">Light</string>
+    <string name="strength_normal">Normal</string>
+    <string name="strength_strong">Strong</string>
+    <string name="ev_keypad">Keypad tap</string>
+    <string name="ev_saved">Transaction saved</string>
+    <string name="ev_paid">Bill paid</string>
+    <string name="ev_deleted">Deleted</string>
+    <string name="ev_goal">Goal reached or loan settled</string>
+    <string name="style_soft">Soft</string>
+    <string name="style_pop">Pop</string>
+    <string name="style_coins">Coins</string>
+    <string name="style_water">Water</string>
+    <string name="style_retro">Retro</string>
+    <string name="style_silent">Silent</string>
+    <string name="style_custom">Your file</string>
+    <string name="choose_another_file">Choose another file</string>
+    <string name="custom_sound_hint">Your file can be any common audio format, up to about 3 seconds and 1 MB. It is copied into the app and never leaves the phone.</string>
+    <string name="sound_too_big">That file is bigger than 1 MB.</string>
+    <string name="sound_too_long">That sound is longer than about 3 seconds.</string>
+    <string name="sound_unreadable">That file could not be read as audio.</string>
 </resources>

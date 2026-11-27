@@ -310,8 +310,10 @@ fun EditScreen(
                     enabled = !saved && kind != TxKind.TRANSFER,
                 ) { Text(stringResource(if (saved) R.string.template_saved else R.string.save_as_template)) }
             }
+            val fb = app.furibudget.feedback.LocalFeedback.current
             Button(
                 onClick = {
+                    fb.saved()
                     onSave(
                         TransactionEntity(
                             id = existing?.id ?: 0,

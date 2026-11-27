@@ -85,7 +85,8 @@ fun FundsScreen(state: BudgetState, onSaveFund: (FundEntity) -> Unit, onDeleteFu
     var confetti by rememberSaveable { mutableIntStateOf(0) }
     val reachedNow = statuses.count { it.reached }
     var seen by rememberSaveable { mutableIntStateOf(reachedNow) }
-    LaunchedEffect(reachedNow) { if (reachedNow > seen) confetti++; seen = reachedNow }
+    val fb = app.furibudget.feedback.LocalFeedback.current
+    LaunchedEffect(reachedNow) { if (reachedNow > seen) { confetti++; fb.goal() }; seen = reachedNow }
 
     Box(Modifier.fillMaxSize()) {
         Column(

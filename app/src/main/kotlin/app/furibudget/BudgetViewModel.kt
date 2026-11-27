@@ -142,6 +142,14 @@ class BudgetViewModel(private val app: Application) : AndroidViewModel(app) {
     }
     /** Called right after the switch is turned on: the settings write has to land before the fetch reads it. */
     fun refreshRatesSoon() { viewModelScope.launch { state.first { it.settings.ratesOnline }; refreshRates(force = true) } }
+    private val player get() = (app as FuriBudgetApp).sounds
+    fun hasCustomSound(event: String) = player.hasCustom(event)
+    fun clearSound(event: String) = player.clearCustom(event)
+    /** Plays a style at the saved volume, even when the master switch is off, so you can hear it before choosing. */
+    fun previewSound(style: String, event: String) { player.play(style, event, state.value.settings.soundVolume.coerceAtLeast(20) / 100f) }
+    fun importSound(uri: android.net.Uri, event: String, onDone: (app.furibudget.feedback.SoundPlayer.ImportError?) -> Unit) {
+        viewModelScope.launch { onDone(player.importCustom(uri, event)) }
+    }
     fun setManualRate(code: String, rateMicro: Long) { viewModelScope.launch { repo.setManualRate(code, rateMicro, System.currentTimeMillis()) } }
     fun clearRate(code: String) { viewModelScope.launch { repo.clearRate(code) } }
 

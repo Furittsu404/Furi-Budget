@@ -29,9 +29,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -177,7 +175,7 @@ fun TrendLine(
 ) {
     val enter = rememberEntrance(values)
     val c = Furi.colors
-    val haptic = LocalHapticFeedback.current
+    val fb = app.furibudget.feedback.LocalFeedback.current
     val maxV = max(1L, max(values.maxOrNull() ?: 0L, previous.maxOrNull() ?: 0L)).toFloat()
     var lastTick by remember { mutableIntStateOf(-1) }
     Canvas(
@@ -190,7 +188,7 @@ fun TrendLine(
                 onDrag = { change, _ ->
                     change.consume()
                     val i = idx(change.position.x)
-                    if (i != lastTick) { lastTick = i; haptic.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick) }
+                    if (i != lastTick) { lastTick = i; fb.selection() }
                     onScrub(i)
                 },
             )

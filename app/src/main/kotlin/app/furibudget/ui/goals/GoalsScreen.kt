@@ -73,6 +73,7 @@ fun GoalsScreen(state: BudgetState, onSave: (GoalEntity) -> Unit, onDelete: (Goa
     var creating by remember { mutableStateOf(false) }
     var topping by remember { mutableStateOf<GoalEntity?>(null) }
     var confetti by remember { mutableIntStateOf(0) }
+    val fb = app.furibudget.feedback.LocalFeedback.current
 
     Box(Modifier.fillMaxSize()) {
         Column(
@@ -137,7 +138,7 @@ fun GoalsScreen(state: BudgetState, onSave: (GoalEntity) -> Unit, onDelete: (Goa
             state, g, onDismiss = { topping = null },
             onApply = { delta ->
                 val next = (g.savedMinor + delta).coerceAtLeast(0)
-                if (next >= g.targetMinor && g.savedMinor < g.targetMinor) confetti += 1
+                if (next >= g.targetMinor && g.savedMinor < g.targetMinor) { confetti += 1; fb.goal() }
                 onSave(g.copy(savedMinor = next))
                 topping = null
             },

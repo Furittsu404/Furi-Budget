@@ -25,9 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -76,7 +74,7 @@ private fun Key(
     val source = remember { MutableInteractionSource() }
     val pressed by source.collectIsPressedAsState()
     val scale by animateFloatAsState(if (pressed) 0.93f else 1f, Furi.motion.spring(), label = "key")
-    val haptic = LocalHapticFeedback.current
+    val fb = app.furibudget.feedback.LocalFeedback.current
     val shape = MaterialTheme.shapes.medium
     Box(
         modifier
@@ -88,8 +86,8 @@ private fun Key(
             .combinedClickable(
                 interactionSource = source,
                 indication = null,
-                onClick = { haptic.performHapticFeedback(HapticFeedbackType.VirtualKey); onClick() },
-                onLongClick = onLongClick?.let { { haptic.performHapticFeedback(HapticFeedbackType.LongPress); it() } },
+                onClick = { fb.keypad(); onClick() },
+                onLongClick = onLongClick?.let { { fb.selection(); it() } },
             )
             .then(if (label != null) Modifier.semantics { contentDescription = label } else Modifier),
         contentAlignment = Alignment.Center,

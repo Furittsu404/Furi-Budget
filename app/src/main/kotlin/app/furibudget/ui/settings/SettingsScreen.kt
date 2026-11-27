@@ -74,6 +74,7 @@ fun SettingsScreen(
     onOpenPeople: () -> Unit,
     onOpenFunds: () -> Unit,
     onOpenRates: () -> Unit,
+    onOpenFeedback: () -> Unit,
     onOpenTrash: () -> Unit,
     onBack: () -> Unit,
 ) {
@@ -150,6 +151,7 @@ fun SettingsScreen(
                 Switch(s.ratesOnline, { on -> vm.updateSettings { it.copy(ratesOnline = on) }; if (on) vm.refreshRatesSoon() })
             }
             LinkRow(stringResource(R.string.exchange_rates), chevron = true, onClick = onOpenRates)
+            LinkRow(stringResource(R.string.sound_haptics), chevron = true, onClick = onOpenFeedback)
             Text(stringResource(R.string.month_starts, s.startDay), style = MaterialTheme.typography.bodyMedium, color = c.onSurfaceVariant)
             androidx.compose.material3.Slider(
                 value = s.startDay.toFloat(), onValueChange = { v -> vm.updateSettings { it.copy(startDay = v.toInt()) } },

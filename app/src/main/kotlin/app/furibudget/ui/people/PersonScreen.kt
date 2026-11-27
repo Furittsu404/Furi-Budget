@@ -87,7 +87,8 @@ fun PersonScreen(
     val settledNow = balance.loans.count { it.settled }
     var confetti by rememberSaveable { mutableIntStateOf(0) }
     var seen by rememberSaveable { mutableIntStateOf(settledNow) }
-    LaunchedEffect(settledNow) { if (settledNow > seen) confetti++; seen = settledNow }
+    val fb = app.furibudget.feedback.LocalFeedback.current
+    LaunchedEffect(settledNow) { if (settledNow > seen) { confetti++; fb.goal() }; seen = settledNow }
 
     Box(Modifier.fillMaxSize()) {
         Column(

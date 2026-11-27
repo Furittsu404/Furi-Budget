@@ -39,12 +39,18 @@ class MainActivity : ComponentActivity() {
         setContent {
             val spec = themeVm.spec.collectAsState().value ?: return@setContent
             val state = budgetVm.state.collectAsState().value
+            val view = androidx.compose.ui.platform.LocalView.current
+            val feedback = androidx.compose.runtime.remember(view, state.settings) {
+                app.furibudget.feedback.Feedback(view, state.settings, (application as FuriBudgetApp).sounds)
+            }
+            androidx.compose.runtime.CompositionLocalProvider(app.furibudget.feedback.LocalFeedback provides feedback) {
             FuriTheme(spec) {
                 if (!state.loaded) {
                     FuriBackground()
                 } else {
                     LockGate(enabled = state.settings.appLock) { AppRoot(spec, themeVm::update, budgetVm, launch.value) { launch.value = null } }
                 }
+            }
             }
         }
     }
