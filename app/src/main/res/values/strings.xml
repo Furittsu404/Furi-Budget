@@ -437,4 +437,12 @@
     <string name="sound_too_big">That file is bigger than 1 MB.</string>
     <string name="sound_too_long">That sound is longer than about 3 seconds.</string>
     <string name="sound_unreadable">That file could not be read as audio.</string>
+    <string name="settings_money">Money</string>
+    <string name="view_rates">See and edit rates</string>
+    <string name="loan_lent_generic">Money lent</string>
+    <string name="loan_borrowed_generic">Money borrowed</string>
+    <string name="loan_payment_generic">Loan payment</string>
+    <string name="bills_empty_title">Nothing falls due</string>
+    <string name="insights_empty_title">No numbers yet</string>
+    <string name="activity_empty_title">A fresh page</string>
 </resources>

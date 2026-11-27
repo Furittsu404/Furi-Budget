@@ -97,7 +97,7 @@ fun PersonScreen(
         ) {
             Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back)) }
-                Text(person.name, Modifier.weight(1f), style = MaterialTheme.typography.titleLarge, color = c.onSurface, maxLines = 1)
+                Text(person.name, Modifier.weight(1f), style = MaterialTheme.typography.titleLarge, color = c.onSurface, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                 IconButton(onClick = { editing = true }) { Icon(Icons.Rounded.Edit, stringResource(R.string.edit_person)) }
                 IconButton(onClick = { onDeletePerson(person.id); onBack() }) { Icon(Icons.Rounded.Delete, stringResource(R.string.delete), tint = c.expense) }
             }

@@ -16,7 +16,7 @@ A single person tracking their own money on their phone. Quick check-ins (log an
 Personal budget tracker: income and expenses, categories, per-category monthly budgets, accounts, savings goals, recurring transactions and reminders. The logic is deliberately simple; the product bets on a front end people enjoy opening.
 
 ## Positioning
-A budget app whose look is the user's own: theme packs, accent colors, photo and animated backgrounds, and animation as a feature, not a coat of paint. Offline, no account, local data only.
+A budget app whose look is the user's own: theme packs, accent colors, photo and animated backgrounds, and animation as a feature, not a coat of paint. Offline-first, no account, local data. The one optional network use is fetching exchange rates, off until the user switches it on.
 
 ## Operating Context
 Used one-handed on a phone, often in short moments (after a purchase, at a till). Dark and light both matter; the user changes appearance often. Money is stored as whole minor units.
@@ -24,7 +24,7 @@ Used one-handed on a phone, often in short moments (after a purchase, at a till)
 ## Capabilities and Constraints
 - Core: accounts, categories, transactions (income, expense, transfer), monthly/weekly budgets with rollover, charts (donut, bars, trend).
 - Extras: recurring transactions, savings goals, reminders, backup/export, app lock.
-- Offline only, no network, no accounts. Currency selectable. Default currency undecided.
+- Works fully offline, no accounts. The only network use is the optional exchange-rate update (Settings, Exchange rates): one request carrying just the main currency code, cached so everything still works offline, off by default. No bank linking, ever. Currency selectable (37 supported).
 - minSdk 26. Shader and blur effects need API 33/31 and must have fallbacks.
 - Final app name undecided (working name Furi Budget, part of the user's Furi app family).
 

@@ -120,7 +120,7 @@ private fun PersonCard(b: PersonBalance, state: BudgetState, onOpen: (Long) -> U
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             Avatar(b.person, 48.dp)
             Column(Modifier.weight(1f)) {
-                Text(b.person.name, style = MaterialTheme.typography.titleMedium, color = c.onSurface, maxLines = 1)
+                Text(b.person.name, style = MaterialTheme.typography.titleMedium, color = c.onSurface, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                 Text(
                     when { net > 0 -> stringResource(R.string.owes_you); net < 0 -> stringResource(R.string.you_owe_them); else -> stringResource(R.string.all_settled) },
                     style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant,

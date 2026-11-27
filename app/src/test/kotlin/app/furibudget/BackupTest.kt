@@ -5,7 +5,18 @@ import app.furibudget.data.AccountEntity
 import app.furibudget.data.Backup
 import app.furibudget.data.BackupFile
 import app.furibudget.data.BillEntity
+import app.furibudget.data.CategoryEntity
+import app.furibudget.data.FundEntity
+import app.furibudget.data.FundMoveEntity
 import app.furibudget.data.LegacyRecurrence
+import app.furibudget.data.LoanDirection
+import app.furibudget.data.LoanEntity
+import app.furibudget.data.PersonEntity
+import app.furibudget.data.RateEntity
+import app.furibudget.data.TagEntity
+import app.furibudget.data.TransactionSplitEntity
+import app.furibudget.data.TransactionTagEntity
+import app.furibudget.data.TxRole
 import app.furibudget.data.TransactionEntity
 import app.furibudget.data.TxKind
 import org.junit.Assert.assertEquals
@@ -67,5 +78,46 @@ class BackupTest {
         val lines = Backup.csv(state).trim().lines()
         assertEquals("date,type,amount,account,to_account,category,note,tags,split,original_currency,original_amount", lines[0])
         assertEquals("2024-10-04,expense,123.45,Cash,,,\"a,\"\"b\"\"\",,,,", lines[1])
+    }
+
+    @Test fun version3TablesRoundTripAndStayConsistent() {
+        val f = BackupFile(
+            accounts = listOf(AccountEntity(1, "Cash", 1, "cash", 500)),
+            categories = listOf(CategoryEntity(1, "Food", 1, "food", TxKind.EXPENSE)),
+            transactions = listOf(
+                TransactionEntity(7, TxKind.EXPENSE, 1000, 1, epochDay = 20000, deletedAt = 99L, origAmountMinor = 25, origCurrency = "USD", rateMicro = 58_000_000),
+                TransactionEntity(8, TxKind.EXPENSE, 500, 1, epochDay = 20001, role = TxRole.LOAN, loanId = 1),
+            ),
+            tags = listOf(TagEntity(1, "Trip", 5)),
+            transactionTags = listOf(TransactionTagEntity(7, 1)),
+            splits = listOf(TransactionSplitEntity(1, 7, 1, 600), TransactionSplitEntity(2, 7, null, 400)),
+            people = listOf(PersonEntity(1, "Ana", colorArgb = 3)),
+            loans = listOf(LoanEntity(1, 1, LoanDirection.LENT, 500, 20001)),
+            funds = listOf(FundEntity(1, "Trip", colorArgb = 4, targetMinor = 9000, monthlyMinor = 500)),
+            fundMoves = listOf(FundMoveEntity(1, 1, 500, 20001, monthKey = "2026-11")),
+            rates = listOf(RateEntity("USD", 58_000_000, 123L, manual = true)),
+        )
+        val back = Backup.decode(Backup.encode(f))!!
+        assertEquals(f.transactions, back.transactions)
+        assertEquals(f.tags, back.tags)
+        assertEquals(f.transactionTags, back.transactionTags)
+        assertEquals(f.splits, back.splits)
+        assertEquals(f.people, back.people)
+        assertEquals(f.loans, back.loans)
+        assertEquals(f.funds, back.funds)
+        assertEquals(f.fundMoves, back.fundMoves)
+        assertEquals(f.rates, back.rates)
+        assertEquals(true, Backup.isConsistent(back))
+        // a loan pointing at a person that is not in the file must be refused
+        assertEquals(false, Backup.isConsistent(back.copy(people = emptyList())))
+        assertEquals(false, Backup.isConsistent(back.copy(funds = emptyList())))
+    }
+
+    @Test fun versionTwoFileWithoutNewTablesStillLoads() {
+        val v2 = """{"version":2,"accounts":[{"id":1,"name":"Cash","colorArgb":1,"icon":"cash"}],"transactions":[{"id":3,"kind":"EXPENSE","amountMinor":100,"accountId":1,"epochDay":20000}]}"""
+        val back = Backup.decode(v2)!!
+        assertEquals(TxRole.NORMAL, back.transactions[0].role)
+        assertEquals(emptyList<PersonEntity>(), back.people)
+        assertEquals(true, Backup.isConsistent(back))
     }
 }

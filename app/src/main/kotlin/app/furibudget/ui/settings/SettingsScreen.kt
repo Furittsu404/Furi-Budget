@@ -143,6 +143,22 @@ fun SettingsScreen(
                     }
                 }
             }
+            Text(stringResource(R.string.month_starts, s.startDay), style = MaterialTheme.typography.bodyMedium, color = c.onSurfaceVariant)
+            androidx.compose.material3.Slider(
+                value = s.startDay.toFloat(), onValueChange = { v -> vm.updateSettings { it.copy(startDay = v.toInt()) } },
+                valueRange = 1f..28f, steps = 26,
+            )
+            LinkRow(stringResource(R.string.sound_haptics), chevron = true, onClick = onOpenFeedback)
+        }
+
+        Group(stringResource(R.string.settings_money)) {
+            LinkRow(stringResource(R.string.accounts_categories), chevron = true, onClick = onOpenManage)
+            LinkRow(stringResource(R.string.goals_link), chevron = true, onClick = onOpenGoals)
+            LinkRow(stringResource(R.string.people), chevron = true, onClick = onOpenPeople)
+            LinkRow(stringResource(R.string.funds), chevron = true, onClick = onOpenFunds)
+        }
+
+        Group(stringResource(R.string.exchange_rates)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(stringResource(R.string.rates_online_switch), style = MaterialTheme.typography.bodyMedium, color = c.onSurface)
@@ -150,17 +166,7 @@ fun SettingsScreen(
                 }
                 Switch(s.ratesOnline, { on -> vm.updateSettings { it.copy(ratesOnline = on) }; if (on) vm.refreshRatesSoon() })
             }
-            LinkRow(stringResource(R.string.exchange_rates), chevron = true, onClick = onOpenRates)
-            LinkRow(stringResource(R.string.sound_haptics), chevron = true, onClick = onOpenFeedback)
-            Text(stringResource(R.string.month_starts, s.startDay), style = MaterialTheme.typography.bodyMedium, color = c.onSurfaceVariant)
-            androidx.compose.material3.Slider(
-                value = s.startDay.toFloat(), onValueChange = { v -> vm.updateSettings { it.copy(startDay = v.toInt()) } },
-                valueRange = 1f..28f, steps = 26,
-            )
-            LinkRow(stringResource(R.string.accounts_categories), chevron = true, onClick = onOpenManage)
-            LinkRow(stringResource(R.string.goals_link), chevron = true, onClick = onOpenGoals)
-            LinkRow(stringResource(R.string.people), chevron = true, onClick = onOpenPeople)
-            LinkRow(stringResource(R.string.funds), chevron = true, onClick = onOpenFunds)
+            LinkRow(stringResource(R.string.view_rates), chevron = true, onClick = onOpenRates)
         }
 
         Group(stringResource(R.string.notifications)) {

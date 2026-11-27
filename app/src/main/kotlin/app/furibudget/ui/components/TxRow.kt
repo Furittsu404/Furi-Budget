@@ -49,6 +49,10 @@ fun TxRow(tx: TransactionEntity, state: BudgetState, modifier: Modifier = Modifi
         stringResource(if (tx.kind == TxKind.EXPENSE) R.string.lent_to else R.string.borrowed_from, person.name)
     } else if (person != null && tx.role == TxRole.REPAYMENT) {
         if (tx.kind == TxKind.INCOME) stringResource(R.string.paid_back_by, person.name) else stringResource(R.string.you_paid, person.name)
+    } else if (tx.role == TxRole.LOAN) {
+        stringResource(if (tx.kind == TxKind.EXPENSE) R.string.loan_lent_generic else R.string.loan_borrowed_generic)
+    } else if (tx.role == TxRole.REPAYMENT) {
+        stringResource(R.string.loan_payment_generic)
     } else when (tx.kind) {
         TxKind.TRANSFER -> stringResource(R.string.transfer_to, state.account(tx.accountId)?.name ?: stringResource(R.string.unknown), state.account(tx.toAccountId)?.name ?: stringResource(R.string.unknown))
         else -> if (splitCount > 1) stringResource(R.string.split_title, splitCount) else category?.name ?: stringResource(R.string.uncategorised)

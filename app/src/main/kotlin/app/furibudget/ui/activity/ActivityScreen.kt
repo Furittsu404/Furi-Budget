@@ -1,5 +1,6 @@
 package app.furibudget.ui.activity
 
+import androidx.compose.material.icons.rounded.Receipt
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -112,7 +113,11 @@ fun ActivityScreen(state: BudgetState, onOpenTx: (Long) -> Unit, onDelete: (Tran
         }
         if (grouped.isEmpty()) {
             Box(Modifier.fillMaxSize().padding(bottom = 120.dp), contentAlignment = Alignment.Center) {
-                Text(stringResource(if (searching) R.string.no_matches else R.string.empty_month), style = MaterialTheme.typography.bodyLarge, color = c.onSurfaceVariant)
+                app.furibudget.ui.components.EmptyState(
+                    if (searching) androidx.compose.material.icons.Icons.Rounded.Search else androidx.compose.material.icons.Icons.Rounded.Receipt,
+                    stringResource(if (searching) R.string.no_matches else R.string.activity_empty_title),
+                    if (searching) "" else stringResource(R.string.empty_month),
+                )
             }
         } else {
             LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 168.dp)) {

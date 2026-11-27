@@ -85,13 +85,10 @@ fun GoalsScreen(state: BudgetState, onSave: (GoalEntity) -> Unit, onDelete: (Goa
                 IconButton(onClick = { creating = true }) { Icon(Icons.Rounded.Add, stringResource(R.string.new_goal)) }
             }
             if (state.goals.isEmpty()) {
-                FuriCard(Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text(stringResource(R.string.no_goals_title), style = MaterialTheme.typography.titleMedium, color = c.onSurface)
-                        Text(stringResource(R.string.no_goals_hint), style = MaterialTheme.typography.bodyMedium, color = c.onSurfaceVariant)
-                        Button(onClick = { creating = true }) { Text(stringResource(R.string.new_goal)) }
-                    }
-                }
+                app.furibudget.ui.components.EmptyState(
+                    androidx.compose.material.icons.Icons.Rounded.Flag, stringResource(R.string.no_goals_title), stringResource(R.string.no_goals_hint),
+                    action = { Button(onClick = { creating = true }) { Text(stringResource(R.string.new_goal)) } },
+                )
             }
             state.goals.forEach { g ->
                 val plan = Budgeting.plan(g, today)

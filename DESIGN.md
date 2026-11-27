@@ -265,6 +265,24 @@ System-styled notification with one "Paid" action that records the expense at th
 ### Budget ring (BudgetRing)
 14dp stroke ring on a 12% on-surface track. OK sweeps an accent-to-accent2 gradient from 12 o'clock; CLOSE switches to warning; OVER fills to 360 in expense with a pulsing halo (alpha 0.25-0.7, 900ms). Sweeps with the pack spring.
 
+### Add / Edit transaction
+Amount hero on top, then a row of 76dp category tiles (52dp tinted disc, 2dp ring in the category colour when chosen, 1.06x spring), then one horizontally scrolling chip row for account (dropdown), date, foreign currency and More, then the note. Everything else (split, tags, pay from fund, repeat) lives in the More sheet so the keypad never crowds the form. A foreign-currency entry shows the typed symbol in the hero and a quiet "About P x at 1 USD = P y" line beneath it.
+
+### Icon picker (IconPickerSheet)
+Full-height bottom sheet: live preview bubble in the item's colour, Icons/Emoji tabs, search, group chips, 56dp tiles with a 1.1x spring and a 2dp ring when chosen. 210 Material Rounded icons in 12 groups, or any emoji (stored as `e:<emoji>`). `FuriIcon` draws either.
+
+### People (PeopleScreen, PersonScreen)
+Hero card with owed-to-you (income colour, left) and you-owe (expense colour, right) over a two-sided `BalanceBar` that springs to its share. Person cards carry a 48dp avatar disc, name, one status line and a coloured amount. A loan card is a `BudgetRing` of repayment progress with a check when settled; settling plays confetti. Loan transactions read as "Lent to Ana" in lists and never count as spending.
+
+### Funds (FundsScreen) and Free to spend
+A fund is a 64x84 jar: `LiquidFill` clipped to a rounded border in the fund colour, icon on top in `onSurface`, a coin drops in when money is added. "Free to spend" (balance minus reserved minus bills still due this month) sits as a hero on Funds and as a compact bar on Home; the bar splits into free (accent), bills due (warning) and reserved (income), and turns solid expense red when negative.
+
+### Sound and haptics (SoundSettingsScreen)
+One 84dp style card per sound; waveform bars jump when played, the chosen card sits on `accentContainer` with a 2dp accent ring. Sounds default off, haptics on; every event goes through `Feedback`, never through `LocalHapticFeedback` directly.
+
+### Empty states (EmptyState)
+Soft accent disc with the screen's icon and three small dots orbiting it (still when motion is off), a titleMedium line and a muted hint. Used on Activity, Bills, Goals, Insights. People and Funds draw their own Canvas art in the same spirit.
+
 ### Confetti (ConfettiBurst)
 One-shot burst of 48 14x8 rectangles from 40% screen height, 1600ms linear, fading as they fall, in `accent`, `accent2`, income, warning and expense. Used for goal completion; skipped entirely when motion is off.
 
@@ -292,6 +310,8 @@ Per-pack spring (damping, stiffness): Tidepool 0.8/220, Afterhours 0.9/500, Ledg
 - **Do** colour bill state through `statusColor` and always pair the colour with the due label text.
 - **Do** build widget colours from `resolveColors` (pack, accent, night) and nothing else.
 - **Do** show up to three status dots per calendar cell, 5dp, in `statusColor`.
+- **Do** route every tap of haptics and every sound through `LocalFeedback`.
+- **Do** put secondary fields behind the More sheet rather than adding rows to the Edit screen.
 
 ### Don't:
 - **Don't** ship a single house style with a dark/light toggle; a new surface must look right in all five packs.

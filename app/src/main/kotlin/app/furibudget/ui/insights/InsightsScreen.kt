@@ -1,5 +1,6 @@
 package app.furibudget.ui.insights
 
+import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -154,7 +155,7 @@ fun InsightsScreen(state: BudgetState) {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(stringResource(R.string.last_months), style = MaterialTheme.typography.titleMedium, color = c.onSurface)
                 if (bars.all { it.income.minor == 0L && it.expense.minor == 0L }) {
-                    Text(stringResource(R.string.nothing_recorded), style = MaterialTheme.typography.bodyMedium, color = c.onSurfaceVariant, modifier = Modifier.padding(vertical = 24.dp))
+                    app.furibudget.ui.components.EmptyState(androidx.compose.material.icons.Icons.Rounded.BarChart, stringResource(R.string.insights_empty_title), stringResource(R.string.nothing_recorded))
                 } else {
                     PairedBars(bars.map { BarGroup(it.range.start.format(monthShort), it.income.minor, it.expense.minor) }, c.income, c.expense, barSel, { barSel = it }, description = stringResource(R.string.chart_bars, bars[barSel].let { "${it.range.start.format(monthShort)}: +${cur.format(it.income)}, -${cur.format(it.expense)}" }))
                 }

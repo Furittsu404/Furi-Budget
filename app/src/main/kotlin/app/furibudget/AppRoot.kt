@@ -186,7 +186,11 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
                         // Money lent, borrowed or paid back is managed on the person's page, not in the plain editor.
                         val t = state.transactions.firstOrNull { it.id == id }
                         val loan = t?.loanId?.let { lid -> state.loans.firstOrNull { it.id == lid } }
-                        if (loan != null) nav.navigate(Route.person(loan.personId)) else nav.navigate(Route.edit(id))
+                        when {
+                            loan != null -> nav.navigate(Route.person(loan.personId))
+                            t != null && t.role != app.furibudget.data.TxRole.NORMAL && t.role != app.furibudget.data.TxRole.ADJUSTMENT -> Unit // its person was deleted
+                            else -> nav.navigate(Route.edit(id))
+                        }
                     },
                     onDelete = deleteWithUndo,
                 )

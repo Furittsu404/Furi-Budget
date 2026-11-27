@@ -162,7 +162,7 @@ private fun FundCard(st: FundStatus, state: BudgetState, onEdit: () -> Unit, onA
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 Box(Modifier.size(width = 64.dp, height = 84.dp).clip(MaterialTheme.shapes.large).border(2.dp, tint.copy(alpha = 0.6f), MaterialTheme.shapes.large)) {
                     LiquidFill(if (st.fund.targetMinor == null) (if (st.savedMinor > 0) 0.35f else 0f) else st.fraction, tint.copy(alpha = 0.75f), Modifier.fillMaxSize())
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { FuriIcon(st.fund.icon, tint = Color.White, size = 28.dp) }
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { FuriIcon(st.fund.icon, tint = c.onSurface.copy(alpha = 0.85f), size = 28.dp) }
                     if (coin.value < 1f) Canvas(Modifier.fillMaxSize()) {
                         val y = -8f + (size.height * 0.55f) * coin.value
                         drawCircle(Color(0xFFFFD54F).copy(alpha = 1f - coin.value * 0.7f), 7.dp.toPx(), Offset(size.width / 2, y))

@@ -1,5 +1,6 @@
 package app.furibudget.ui.bills
 
+import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.animateFloatAsState
@@ -128,9 +129,7 @@ fun BillsScreen(
             FilterChip(selected = showAll, onClick = { showAll = true }, label = { Text(stringResource(R.string.view_all_bills)) })
         }
         if (state.bills.isEmpty()) {
-            FuriCard(Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.no_bills_yet), Modifier.padding(20.dp), style = MaterialTheme.typography.bodyLarge, color = c.onSurfaceVariant)
-            }
+            app.furibudget.ui.components.EmptyState(androidx.compose.material.icons.Icons.Rounded.CalendarMonth, stringResource(R.string.bills_empty_title), stringResource(R.string.no_bills_yet))
         } else if (showAll) {
             AllBills(state, today, onEditBill)
         } else {
