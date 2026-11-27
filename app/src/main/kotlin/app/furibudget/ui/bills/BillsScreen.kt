@@ -66,6 +66,7 @@ import app.furibudget.data.BillOccurrence
 import app.furibudget.data.BillType
 import app.furibudget.data.Bills
 import app.furibudget.data.TxKind
+import app.furibudget.ui.components.FuriIcon
 import app.furibudget.ui.components.FuriIcons
 import app.furibudget.ui.theme.Furi
 import app.furibudget.ui.theme.FuriCard
@@ -297,7 +298,7 @@ fun BillRow(
     FuriCard(Modifier.fillMaxWidth()) {
         Row(Modifier.padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Box(Modifier.size(44.dp).clip(CircleShape).background(tint.copy(alpha = 0.22f)), contentAlignment = Alignment.Center) {
-                Icon(FuriIcons.byKey(b.iconKey()), null, tint = tint)
+                FuriIcon(b.iconKey(), tint = tint)
             }
             Column(Modifier.weight(1f).clickable { onEdit(b.id) }, verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(b.name, style = MaterialTheme.typography.bodyLarge, color = c.onSurface, maxLines = 1)
@@ -352,7 +353,7 @@ private fun AllBills(state: BudgetState, today: LocalDate, onEdit: (Long) -> Uni
         FuriCard(Modifier.fillMaxWidth().clickable { onEdit(b.id) }) {
             Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Box(Modifier.size(44.dp).clip(CircleShape).background(Color(b.colorArgb).copy(alpha = 0.22f)), contentAlignment = Alignment.Center) {
-                    Icon(FuriIcons.byKey(b.iconKey()), null, tint = Color(b.colorArgb))
+                    FuriIcon(b.iconKey(), tint = Color(b.colorArgb))
                 }
                 Column(Modifier.weight(1f)) {
                     Text(b.name, style = MaterialTheme.typography.bodyLarge, color = if (b.active) c.onSurface else c.onSurfaceVariant)

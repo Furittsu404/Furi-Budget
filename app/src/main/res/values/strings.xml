@@ -305,4 +305,11 @@
     <string name="days_left">%1$d days left</string>
     <string name="trash_empty">Nothing deleted</string>
     <string name="trash_empty_hint">Deleted transactions, bills and goals wait here so you can bring them back.</string>
+    <string name="choose_icon">Choose an icon</string>
+    <string name="icons_tab">Icons</string>
+    <string name="emoji_tab">Emoji</string>
+    <string name="search_icons">Search icons</string>
+    <string name="type_emoji">Type or paste an emoji</string>
+    <string name="use">Use</string>
+    <string name="change_icon">Change icon</string>
 </resources>

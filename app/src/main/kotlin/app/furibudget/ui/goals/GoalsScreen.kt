@@ -154,6 +154,7 @@ private fun GoalDialog(state: BudgetState, existing: GoalEntity?, onDismiss: () 
     var deadline by remember { mutableStateOf(existing?.deadlineEpochDay?.let { LocalDate.ofEpochDay(it) }) }
     var colorIdx by remember { mutableIntStateOf(existing?.let { g -> Accents.swatches.indexOfFirst { it.argb == g.colorArgb }.coerceAtLeast(0) } ?: (state.goals.size * 3) % Accents.swatches.size) }
     var picking by remember { mutableStateOf(false) }
+    var icon by remember { mutableStateOf(existing?.icon ?: "goal") }
     val amount = cur.parse(target)
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -162,6 +163,7 @@ private fun GoalDialog(state: BudgetState, existing: GoalEntity?, onDismiss: () 
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(name, { name = it.take(40) }, label = { Text(stringResource(R.string.goal_name)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 AmountField(target, { target = it }, cur, stringResource(R.string.goal_target), Modifier.fillMaxWidth())
+                app.furibudget.ui.settings.IconButtonRow(icon, Color(Accents.swatches[colorIdx].argb)) { icon = it }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     FilterChip(selected = deadline != null, onClick = { picking = true }, label = { Text(deadline?.format(dateFmt) ?: stringResource(R.string.deadline)) })
                     if (deadline != null) TextButton(onClick = { deadline = null }) { Text(stringResource(R.string.clear)) }
@@ -183,7 +185,7 @@ private fun GoalDialog(state: BudgetState, existing: GoalEntity?, onDismiss: () 
                 onClick = {
                     onSave(
                         (existing ?: GoalEntity(name = "", targetMinor = 0, colorArgb = 0)).copy(
-                            name = name.trim(), targetMinor = amount!!.minor, deadlineEpochDay = deadline?.toEpochDay(), colorArgb = Accents.swatches[colorIdx].argb,
+                            name = name.trim(), icon = icon, targetMinor = amount!!.minor, deadlineEpochDay = deadline?.toEpochDay(), colorArgb = Accents.swatches[colorIdx].argb,
                         ),
                     )
                 },

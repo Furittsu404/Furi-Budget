@@ -36,7 +36,8 @@ fun dueLabel(occ: BillOccurrence, today: LocalDate, dateText: (LocalDate) -> Str
     }
 }
 
-fun BillEntity.iconKey(): String = when (type) {
+/** The icon the user picked for this bill, or one that matches its type when they did not. */
+fun BillEntity.iconKey(): String = if (icon != "bills" && icon.isNotBlank()) icon else when (type) {
     BillType.SUBSCRIPTION -> "subscription"
     BillType.INSTALMENT -> "instalment"
     BillType.LOAN -> "loan"

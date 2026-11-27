@@ -57,6 +57,7 @@ import app.furibudget.data.PayStatus
 import app.furibudget.data.TxKind
 import app.furibudget.ui.components.AmountField
 import app.furibudget.ui.components.BudgetRing
+import app.furibudget.ui.components.FuriIcon
 import app.furibudget.ui.components.FuriIcons
 import app.furibudget.ui.components.plain
 import app.furibudget.ui.components.repeatLabel
@@ -98,6 +99,7 @@ fun BillEditScreen(billId: Long, state: BudgetState, onSave: (BillEntity) -> Uni
     var remind by rememberSaveable(*key) { mutableIntStateOf(existing?.remindDaysBefore ?: 3) }
     var autoPay by rememberSaveable(*key) { mutableStateOf(existing?.autoPay ?: false) }
     var note by rememberSaveable(*key) { mutableStateOf(existing?.note.orEmpty()) }
+    var icon by rememberSaveable(*key) { mutableStateOf(existing?.icon ?: "bills") }
     var pickingDue by rememberSaveable { mutableStateOf(false) }
     var pickingEnd by rememberSaveable { mutableStateOf(false) }
 
@@ -125,11 +127,12 @@ fun BillEditScreen(billId: Long, state: BudgetState, onSave: (BillEntity) -> Uni
                             if (t != BillType.INCOME && state.category(categoryId)?.kind == TxKind.INCOME) categoryId = null
                         },
                         label = { Text(billTypeLabel(t)) },
-                        leadingIcon = { Icon(FuriIcons.byKey(when (t) { BillType.SUBSCRIPTION -> "subscription"; BillType.INSTALMENT -> "instalment"; BillType.LOAN -> "loan"; BillType.INCOME -> "income"; else -> "bills" }), null, Modifier.size(18.dp)) },
+                        leadingIcon = { FuriIcon(when (t) { BillType.SUBSCRIPTION -> "subscription"; BillType.INSTALMENT -> "instalment"; BillType.LOAN -> "loan"; BillType.INCOME -> "income"; else -> "bills" }, size = 18.dp) },
                     )
                 }
             }
             OutlinedTextField(name, { name = it.take(40) }, label = { Text(stringResource(R.string.bill_name)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            app.furibudget.ui.settings.IconButtonRow(if (icon == "bills") BillEntity(name = "", type = type, accountId = 0, anchorDay = 1, firstDueEpochDay = 0, colorArgb = 0).iconKey() else icon, Color(typeColors.getValue(type))) { icon = it }
             if (!varies) AmountField(amountText, { amountText = it }, cur, stringResource(R.string.amount), Modifier.fillMaxWidth())
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(R.string.amount_varies_switch), Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, color = c.onSurface)
@@ -138,13 +141,13 @@ fun BillEditScreen(billId: Long, state: BudgetState, onSave: (BillEntity) -> Uni
             Text(stringResource(if (income) R.string.account else R.string.pay_from), style = MaterialTheme.typography.labelLarge, color = c.onSurfaceVariant)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 state.accounts.forEach { a ->
-                    FilterChip(selected = accountId == a.id, onClick = { accountId = a.id }, label = { Text(a.name) }, leadingIcon = { Icon(FuriIcons.byKey(a.icon), null, Modifier.size(18.dp), tint = Color(a.colorArgb)) })
+                    FilterChip(selected = accountId == a.id, onClick = { accountId = a.id }, label = { Text(a.name) }, leadingIcon = { FuriIcon(a.icon, size = 18.dp, tint = Color(a.colorArgb)) })
                 }
             }
             Text(stringResource(R.string.category), style = MaterialTheme.typography.labelLarge, color = c.onSurfaceVariant)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 state.categories.filter { it.kind == (if (income) TxKind.INCOME else TxKind.EXPENSE) && !it.archived }.forEach { cat ->
-                    FilterChip(selected = categoryId == cat.id, onClick = { categoryId = if (categoryId == cat.id) null else cat.id }, label = { Text(cat.name) }, leadingIcon = { Icon(FuriIcons.byKey(cat.icon), null, Modifier.size(18.dp), tint = Color(cat.colorArgb)) })
+                    FilterChip(selected = categoryId == cat.id, onClick = { categoryId = if (categoryId == cat.id) null else cat.id }, label = { Text(cat.name) }, leadingIcon = { FuriIcon(cat.icon, size = 18.dp, tint = Color(cat.colorArgb)) })
                 }
             }
             FilterChip(selected = false, onClick = { pickingDue = true }, label = { Text(stringResource(R.string.first_due) + ": " + LocalDate.ofEpochDay(dueDay).format(dateFmt)) }, leadingIcon = { Icon(Icons.Rounded.Event, null, Modifier.size(18.dp)) })
@@ -196,7 +199,7 @@ fun BillEditScreen(billId: Long, state: BudgetState, onSave: (BillEntity) -> Uni
                         endEpochDay = if (repeat != Repeat.NONE && endMode == 2) endDay else null,
                         paymentsTotal = if (repeat != Repeat.NONE && endMode == 1) payments else null,
                         autoPay = autoPay && !varies, remindDaysBefore = remind, note = note.trim(),
-                        icon = existing?.icon ?: "bills", colorArgb = cat?.colorArgb ?: typeColors.getValue(type), active = existing?.active ?: true,
+                        icon = icon, colorArgb = cat?.colorArgb ?: typeColors.getValue(type), active = existing?.active ?: true,
                     ),
                 )
                 onClose()

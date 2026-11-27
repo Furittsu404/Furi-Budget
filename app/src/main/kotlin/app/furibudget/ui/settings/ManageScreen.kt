@@ -48,13 +48,13 @@ import app.furibudget.data.AccountEntity
 import app.furibudget.data.CategoryEntity
 import app.furibudget.data.TxKind
 import app.furibudget.ui.components.AmountField
-import app.furibudget.ui.components.FuriIcons
+import app.furibudget.ui.components.FuriIcon
+import app.furibudget.ui.components.IconPickerSheet
 import app.furibudget.ui.components.plain
 import app.furibudget.ui.theme.Accents
 import app.furibudget.ui.theme.Furi
 import app.furibudget.ui.theme.FuriCard
 
-private val categoryIcons = listOf("food", "transport", "bills", "shopping", "health", "fun", "salary", "gift", "other")
 
 @Composable
 fun ManageScreen(state: BudgetState, onSaveAccount: (AccountEntity) -> Unit, onSaveCategory: (CategoryEntity) -> Unit, onBack: () -> Unit) {
@@ -115,7 +115,7 @@ fun ManageScreen(state: BudgetState, onSaveAccount: (AccountEntity) -> Unit, onS
 @Composable
 private fun Dot(color: Color, icon: String) {
     Box(Modifier.size(40.dp).clip(CircleShape).background(color.copy(alpha = 0.22f)), contentAlignment = Alignment.Center) {
-        Icon(FuriIcons.byKey(icon), null, tint = color)
+        FuriIcon(icon, tint = color)
     }
 }
 
@@ -151,9 +151,7 @@ private fun AccountDialog(state: BudgetState, existing: AccountEntity?, onDismis
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(name, { name = it.take(30) }, label = { Text(stringResource(R.string.goal_name)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 AmountField(balance, { balance = it }, cur, stringResource(R.string.balance_now), Modifier.fillMaxWidth())
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("cash", "bank").forEach { k -> FilterChip(selected = icon == k, onClick = { icon = k }, label = { Text(stringResource(if (k == "cash") R.string.type_cash else R.string.type_bank)) }, leadingIcon = { Icon(FuriIcons.byKey(k), null) }) }
-                }
+                IconButtonRow(icon, Color(color)) { icon = it }
                 ColorRow(color) { color = it }
                 if (canHide) Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(stringResource(R.string.hide_account), Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
@@ -184,15 +182,7 @@ private fun CategoryDialog(existing: CategoryEntity?, kind: TxKind, count: Int, 
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(name, { name = it.take(24) }, label = { Text(stringResource(R.string.goal_name)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    categoryIcons.forEach { k ->
-                        Box(
-                            Modifier.size(44.dp).clip(CircleShape).background(if (k == icon) Color(color).copy(alpha = 0.3f) else Color.Transparent)
-                                .clickable { icon = k },
-                            contentAlignment = Alignment.Center,
-                        ) { Icon(FuriIcons.byKey(k), k, tint = Color(color)) }
-                    }
-                }
+                IconButtonRow(icon, Color(color)) { icon = it }
                 ColorRow(color) { color = it }
                 if (existing != null) Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(stringResource(R.string.archive_category), Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
@@ -207,4 +197,20 @@ private fun CategoryDialog(existing: CategoryEntity?, kind: TxKind, count: Int, 
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
+}
+
+/** The current icon in a tinted bubble; tapping opens the full picker. */
+@Composable
+fun IconButtonRow(icon: String, tint: Color, onPick: (String) -> Unit) {
+    var picking by remember { mutableStateOf(false) }
+    Row(
+        Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).clickable { picking = true }.padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Box(Modifier.size(48.dp).clip(CircleShape).background(tint.copy(alpha = 0.22f)), contentAlignment = Alignment.Center) {
+            FuriIcon(icon, tint = tint, size = 26.dp)
+        }
+        Text(stringResource(R.string.change_icon), style = MaterialTheme.typography.bodyLarge, color = Furi.colors.accentText)
+    }
+    if (picking) IconPickerSheet(icon, tint, onPick = { onPick(it); picking = false }, onDismiss = { picking = false })
 }

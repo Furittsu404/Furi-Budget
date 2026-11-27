@@ -60,6 +60,7 @@ import app.furibudget.data.TransactionEntity
 import app.furibudget.ui.components.repeatLabel
 import app.furibudget.data.TxKind
 import app.furibudget.ui.components.AnimatedAmount
+import app.furibudget.ui.components.FuriIcon
 import app.furibudget.ui.components.FuriIcons
 import app.furibudget.ui.components.Keypad
 import app.furibudget.ui.theme.Furi
@@ -169,7 +170,7 @@ fun EditScreen(
                             selected = categoryId == cat.id,
                             onClick = { categoryId = if (categoryId == cat.id) null else cat.id },
                             label = { Text(cat.name) },
-                            leadingIcon = { Icon(FuriIcons.byKey(cat.icon), null, Modifier.size(18.dp), tint = col) },
+                            leadingIcon = { FuriIcon(cat.icon, size = 18.dp, tint = col) },
                         )
                     }
                 }
@@ -180,7 +181,7 @@ fun EditScreen(
                         selected = accountId == acc.id,
                         onClick = { accountId = acc.id },
                         label = { Text(acc.name) },
-                        leadingIcon = { Icon(FuriIcons.byKey(acc.icon), null, Modifier.size(18.dp), tint = Color(acc.colorArgb)) },
+                        leadingIcon = { FuriIcon(acc.icon, size = 18.dp, tint = Color(acc.colorArgb)) },
                     )
                 }
             }
@@ -191,7 +192,7 @@ fun EditScreen(
                             selected = transferTarget == acc.id,
                             onClick = { toAccountId = acc.id },
                             label = { Text(acc.name) },
-                            leadingIcon = { Icon(FuriIcons.byKey(acc.icon), null, Modifier.size(18.dp), tint = Color(acc.colorArgb)) },
+                            leadingIcon = { FuriIcon(acc.icon, size = 18.dp, tint = Color(acc.colorArgb)) },
                         )
                     }
                 }

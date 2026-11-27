@@ -37,6 +37,7 @@ import app.furibudget.core.Money
 import app.furibudget.data.BillOccurrence
 import app.furibudget.data.TxKind
 import app.furibudget.ui.components.AmountField
+import app.furibudget.ui.components.FuriIcon
 import app.furibudget.ui.components.FuriIcons
 import app.furibudget.ui.components.plain
 import app.furibudget.ui.theme.Furi
@@ -71,7 +72,7 @@ fun PaySheet(state: BudgetState, occ: BillOccurrence, onConfirm: (amountMinor: L
                 state.accounts.forEach { a ->
                     FilterChip(
                         selected = accountId == a.id, onClick = { accountId = a.id }, label = { Text(a.name) },
-                        leadingIcon = { Icon(FuriIcons.byKey(a.icon), null, Modifier.size(18.dp), tint = Color(a.colorArgb)) },
+                        leadingIcon = { FuriIcon(a.icon, size = 18.dp, tint = Color(a.colorArgb)) },
                     )
                 }
             }

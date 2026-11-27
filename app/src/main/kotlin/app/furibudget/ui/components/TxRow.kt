@@ -56,7 +56,7 @@ fun TxRow(tx: TransactionEntity, state: BudgetState, modifier: Modifier = Modifi
         horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         Box(Modifier.size(44.dp).clip(CircleShape).background(tint.copy(alpha = 0.2f)), contentAlignment = Alignment.Center) {
-            Icon(FuriIcons.byKey(if (tx.kind == TxKind.TRANSFER) "transfer" else category?.icon ?: "other"), null, tint = tint)
+            FuriIcon(if (tx.kind == TxKind.TRANSFER) "transfer" else category?.icon ?: "other", tint = tint)
         }
         Column(Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.bodyLarge, color = c.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
