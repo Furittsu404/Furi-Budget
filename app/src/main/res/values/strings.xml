@@ -324,4 +324,9 @@
     <string name="fill_last">Fill the rest</string>
     <string name="by_tag">By tag</string>
     <string name="split_title">Split · %1$d categories</string>
+    <string name="more">More</string>
+    <string name="more_count">More · %1$d</string>
+    <string name="more_options">More options</string>
+    <string name="done">Done</string>
+    <string name="split_summary">Split into %1$d parts</string>
 </resources>

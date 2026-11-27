@@ -43,6 +43,26 @@ import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import app.furibudget.data.CategoryEntity
+import app.furibudget.data.AccountEntity
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.clip
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material.icons.rounded.ArrowDropDown
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.border
+import androidx.compose.foundation.background
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
@@ -106,6 +126,7 @@ fun EditScreen(
     var dateDay by rememberSaveable(*key) { mutableLongStateOf(existing?.epochDay ?: LocalDate.now().toEpochDay()) }
     val date = LocalDate.ofEpochDay(dateDay)
     var picking by rememberSaveable { mutableStateOf(false) }
+    var details by rememberSaveable { mutableStateOf(false) }
     var repeat by rememberSaveable { mutableStateOf(Repeat.NONE) }
     // Tags and split rows. Rows are kept as plain lists of numbers and text so they survive rotation.
     var tagIds by rememberSaveable(*key) { mutableStateOf(existing?.let { e -> state.transactionTags.filter { it.transactionId == e.id }.map { it.tagId } } ?: emptyList()) }
@@ -175,73 +196,41 @@ fun EditScreen(
                     rollFromZero = false,
                 )
             }
-            if (kind != TxKind.TRANSFER && !splitOn) {
-                ChipRow(stringResource(R.string.category)) {
-                    state.categories.filter { it.kind == kind && !it.archived }.forEach { cat ->
-                        val col = Color(cat.colorArgb)
-                        FilterChip(
-                            selected = categoryId == cat.id,
-                            onClick = { categoryId = if (categoryId == cat.id) null else cat.id },
-                            label = { Text(cat.name) },
-                            leadingIcon = { FuriIcon(cat.icon, size = 18.dp, tint = col) },
-                        )
-                    }
-                }
-            }
             if (kind != TxKind.TRANSFER) {
-                SplitEditor(
-                    on = splitOn, onToggle = { splitOn = it },
-                    rows = splitRows, onRows = { r -> splitCats = r.map { it.categoryId ?: -1L }; splitTexts = r.map { it.text } },
-                    total = amount, currency = state.currency, categories = state.categories.filter { it.kind == kind && !it.archived },
-                )
-                TagsRow(
-                    state.tags, tagIds.toSet(),
-                    onToggle = { id -> tagIds = if (id in tagIds) tagIds - id else tagIds + id },
-                    onAdd = { n -> onAddTag(n) { id -> tagIds = tagIds + id } },
-                )
-            }
-            ChipRow(stringResource(if (kind == TxKind.TRANSFER) R.string.from_account else R.string.account)) {
-                state.accounts.forEach { acc ->
-                    FilterChip(
-                        selected = accountId == acc.id,
-                        onClick = { accountId = acc.id },
-                        label = { Text(acc.name) },
-                        leadingIcon = { FuriIcon(acc.icon, size = 18.dp, tint = Color(acc.colorArgb)) },
-                    )
+                if (splitting) {
+                    Text(stringResource(R.string.split_summary, splitRows.size), style = MaterialTheme.typography.bodyMedium, color = c.onSurfaceVariant)
+                } else {
+                    CategoryTiles(state.categories.filter { it.kind == kind && !it.archived }, categoryId) { categoryId = if (categoryId == it) null else it }
                 }
             }
-            if (kind == TxKind.TRANSFER) {
-                ChipRow(stringResource(R.string.to_account)) {
-                    state.accounts.filter { it.id != accountId }.forEach { acc ->
-                        FilterChip(
-                            selected = transferTarget == acc.id,
-                            onClick = { toAccountId = acc.id },
-                            label = { Text(acc.name) },
-                            leadingIcon = { FuriIcon(acc.icon, size = 18.dp, tint = Color(acc.colorArgb)) },
-                        )
-                    }
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                AccountChip(stringResource(if (kind == TxKind.TRANSFER) R.string.from_account else R.string.account), state.accounts, accountId) { accountId = it }
+                if (kind == TxKind.TRANSFER) {
+                    AccountChip(stringResource(R.string.to_account), state.accounts.filter { it.id != accountId }, transferTarget) { toAccountId = it }
                 }
-            }
-            if (existing == null) {
-                ChipRow(stringResource(R.string.repeat)) {
-                    Repeat.entries.forEach { r -> FilterChip(selected = repeat == r, onClick = { repeat = r }, label = { Text(repeatLabel(r)) }) }
-                }
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                 FilterChip(
                     selected = false,
                     onClick = { picking = true },
                     label = { Text(dateLabel(date)) },
                     leadingIcon = { Icon(Icons.Rounded.Event, null, Modifier.size(18.dp)) },
                 )
-                OutlinedTextField(
-                    value = note,
-                    onValueChange = { note = it.take(80) },
-                    placeholder = { Text(stringResource(R.string.note)) },
-                    singleLine = true,
-                    modifier = Modifier.weight(1f),
-                )
+                if (kind != TxKind.TRANSFER || existing == null) {
+                    val extras = (if (splitting) 1 else 0) + tagIds.size + (if (repeat != Repeat.NONE) 1 else 0)
+                    FilterChip(
+                        selected = extras > 0,
+                        onClick = { details = true },
+                        label = { Text(if (extras > 0) stringResource(R.string.more_count, extras) else stringResource(R.string.more)) },
+                        leadingIcon = { Icon(Icons.Rounded.Tune, null, Modifier.size(18.dp)) },
+                    )
+                }
             }
+            OutlinedTextField(
+                value = note,
+                onValueChange = { note = it.take(80) },
+                placeholder = { Text(stringResource(R.string.note)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
         Column(Modifier.padding(top = 10.dp, bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Keypad(
@@ -311,6 +300,32 @@ fun EditScreen(
         }
     }
 
+    if (details) {
+        ModalBottomSheet(onDismissRequest = { details = false }, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = MaterialTheme.colorScheme.surfaceContainerHigh) {
+            Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).navigationBarsPadding().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Text(stringResource(R.string.more_options), style = MaterialTheme.typography.titleLarge, color = c.onSurface)
+                if (kind != TxKind.TRANSFER) {
+                    SplitEditor(
+                        on = splitOn, onToggle = { splitOn = it },
+                        rows = splitRows, onRows = { r -> splitCats = r.map { it.categoryId ?: -1L }; splitTexts = r.map { it.text } },
+                        total = amount, currency = state.currency, categories = state.categories.filter { it.kind == kind && !it.archived },
+                    )
+                    TagsRow(
+                        state.tags, tagIds.toSet(),
+                        onToggle = { id -> tagIds = if (id in tagIds) tagIds - id else tagIds + id },
+                        onAdd = { n -> onAddTag(n) { id -> tagIds = tagIds + id } },
+                    )
+                }
+                if (existing == null) {
+                    ChipRow(stringResource(R.string.repeat)) {
+                        Repeat.entries.forEach { r -> FilterChip(selected = repeat == r, onClick = { repeat = r }, label = { Text(repeatLabel(r)) }) }
+                    }
+                }
+                Button(onClick = { details = false }, Modifier.fillMaxWidth().padding(bottom = 16.dp)) { Text(stringResource(R.string.done)) }
+            }
+        }
+    }
+
     if (picking) {
         val pickerState = rememberDatePickerState(initialSelectedDateMillis = date.toEpochDay() * 86_400_000L)
         DatePickerDialog(
@@ -346,3 +361,56 @@ private fun ChipRow(label: String, content: @Composable () -> Unit) {
 
 @Composable
 private fun stateName(kind: TxKind) = stringResource(when (kind) { TxKind.EXPENSE -> R.string.kind_expense; TxKind.INCOME -> R.string.kind_income; TxKind.TRANSFER -> R.string.kind_transfer })
+
+/** Big tappable category tiles: an icon disc over the name. The chosen one gets a ring in its own colour. */
+@Composable
+private fun CategoryTiles(categories: List<CategoryEntity>, selected: Long?, onPick: (Long) -> Unit) {
+    val c = Furi.colors
+    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        categories.forEach { cat ->
+            val on = cat.id == selected
+            val col = Color(cat.colorArgb)
+            val scale by animateFloatAsState(if (on) 1.06f else 1f, Furi.motion.spring(), label = "cat-tile")
+            Column(
+                Modifier
+                    .width(76.dp)
+                    .graphicsLayer { scaleX = scale; scaleY = scale }
+                    .clip(MaterialTheme.shapes.medium)
+                    .clickable { onPick(cat.id) }
+                    .semantics { role = Role.RadioButton; this.selected = on }
+                    .padding(vertical = 6.dp),
+                horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Box(
+                    Modifier.size(52.dp).clip(CircleShape).background(col.copy(alpha = if (on) 0.34f else 0.16f))
+                        .then(if (on) Modifier.border(2.dp, col, CircleShape) else Modifier),
+                    contentAlignment = Alignment.Center,
+                ) { FuriIcon(cat.icon, tint = col, size = 26.dp) }
+                Text(cat.name, style = MaterialTheme.typography.labelMedium, color = if (on) c.onSurface else c.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+        }
+    }
+}
+
+/** One chip showing the chosen account; tapping opens a menu of the others. */
+@Composable
+private fun AccountChip(label: String, accounts: List<AccountEntity>, selectedId: Long?, onPick: (Long) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    val acc = accounts.firstOrNull { it.id == selectedId }
+    Box {
+        FilterChip(
+            selected = false, onClick = { open = true },
+            label = { Text(acc?.name ?: label) },
+            leadingIcon = { if (acc != null) FuriIcon(acc.icon, size = 18.dp, tint = Color(acc.colorArgb)) },
+            trailingIcon = { Icon(Icons.Rounded.ArrowDropDown, null, Modifier.size(18.dp)) },
+        )
+        DropdownMenu(open, { open = false }) {
+            accounts.forEach { a ->
+                DropdownMenuItem(
+                    text = { Text(a.name) }, onClick = { onPick(a.id); open = false },
+                    leadingIcon = { FuriIcon(a.icon, size = 20.dp, tint = Color(a.colorArgb)) },
+                )
+            }
+        }
+    }
+}
