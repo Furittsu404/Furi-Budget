@@ -297,4 +297,12 @@
     <string name="quick_add">Quick add</string>
     <string name="added_template">%1$s added</string>
     <string name="widget_description">Balance, upcoming bills and a quick add button.</string>
+    <string name="recently_deleted">Recently deleted</string>
+    <string name="trash_hint">Deleted items stay here for %1$d days, then go for good.</string>
+    <string name="trash_transactions">Transactions</string>
+    <string name="restore">Restore</string>
+    <string name="delete_forever">Delete forever</string>
+    <string name="days_left">%1$d days left</string>
+    <string name="trash_empty">Nothing deleted</string>
+    <string name="trash_empty_hint">Deleted transactions, bills and goals wait here so you can bring them back.</string>
 </resources>

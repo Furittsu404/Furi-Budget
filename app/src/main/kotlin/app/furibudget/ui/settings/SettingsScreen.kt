@@ -66,6 +66,7 @@ fun SettingsScreen(
     onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit,
     onOpenManage: () -> Unit,
     onOpenGoals: () -> Unit,
+    onOpenTrash: () -> Unit,
     onBack: () -> Unit,
 ) {
     val c = Furi.colors
@@ -173,6 +174,7 @@ fun SettingsScreen(
             LinkRow(stringResource(R.string.export_csv)) { exportCsv.launch("furibudget-transactions-${LocalDate.now()}.csv") }
             LinkRow(stringResource(R.string.import_backup)) { importFile.launch(arrayOf("application/json", "text/plain", "*/*")) }
             LinkRow(stringResource(R.string.load_sample)) { vm.loadSample(); message = msg_sample_loaded }
+            LinkRow(stringResource(R.string.recently_deleted), chevron = true, onClick = onOpenTrash)
             LinkRow(stringResource(R.string.erase_all), danger = true) { confirmWipe = true }
         }
 

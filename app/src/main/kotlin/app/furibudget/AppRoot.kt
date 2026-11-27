@@ -70,6 +70,7 @@ import app.furibudget.ui.home.HomeScreen
 import app.furibudget.ui.onboarding.OnboardingScreen
 import app.furibudget.ui.settings.ManageScreen
 import app.furibudget.ui.settings.SettingsScreen
+import app.furibudget.ui.trash.TrashScreen
 import app.furibudget.ui.insights.InsightsScreen
 import app.furibudget.ui.theme.Furi
 import app.furibudget.ui.theme.FuriBackground
@@ -82,6 +83,7 @@ private object Route {
     const val INSIGHTS = "insights"
     const val BUDGETS = "budgets"
     const val GOALS = "goals"
+    const val TRASH = "trash"
     const val BILLS = "bills"
     const val BILL_EDIT = "bill/{id}"
     const val APPEARANCE = "appearance"
@@ -197,7 +199,16 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
             composable(Route.SETTINGS) {
                 SettingsScreen(
                     state, vm, spec, onTheme,
-                    onOpenManage = { nav.navigate(Route.MANAGE) }, onOpenGoals = { nav.navigate(Route.GOALS) },
+                    onOpenManage = { nav.navigate(Route.MANAGE) }, onOpenGoals = { nav.navigate(Route.GOALS) }, onOpenTrash = { nav.navigate(Route.TRASH) },
+                    onBack = { nav.popBackStack() },
+                )
+            }
+            composable(Route.TRASH) {
+                val trash by vm.trash.collectAsState()
+                TrashScreen(
+                    state, trash,
+                    onRestoreTx = vm::restore, onRestoreBill = { vm.restoreBill(it.id) }, onRestoreGoal = { vm.restoreGoal(it.id) },
+                    onForeverTx = { vm.deleteForever(it) }, onForeverBill = { vm.deleteForever(it) }, onForeverGoal = { vm.deleteForever(it) },
                     onBack = { nav.popBackStack() },
                 )
             }

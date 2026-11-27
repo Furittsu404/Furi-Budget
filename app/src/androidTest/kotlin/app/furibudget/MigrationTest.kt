@@ -36,4 +36,27 @@ class MigrationTest {
         }
         db.query("SELECT name FROM sqlite_master WHERE name = 'recurrences'").use { assertEquals(0, it.count) }
     }
+
+    @Test
+    fun v2ToV3KeepsRowsAndAddsSoftDeleteAndRole() {
+        helper.createDatabase("mig3", 2).apply {
+            execSQL("INSERT INTO accounts(id,name,colorArgb,icon,startBalance,sortOrder,archived) VALUES(1,'Cash',-1,'cash',500,0,0)")
+            execSQL("INSERT INTO categories(id,name,colorArgb,icon,kind,sortOrder,archived) VALUES(3,'Bills',-65536,'bills','EXPENSE',0,0)")
+            execSQL("INSERT INTO transactions(id,kind,amountMinor,accountId,toAccountId,categoryId,note,epochDay,createdAt) VALUES(7,'EXPENSE',2500,1,NULL,3,'lunch',20000,1)")
+            execSQL("INSERT INTO bills(id,name,kind,type,amountMinor,accountId,toAccountId,categoryId,`repeat`,repeatEvery,anchorDay,firstDueEpochDay,endEpochDay,paymentsTotal,autoPay,remindDaysBefore,note,icon,colorArgb,active) VALUES(1,'Rent','EXPENSE','BILL',1200000,1,NULL,3,'MONTHLY',1,5,20100,NULL,NULL,0,3,'','bills',-1,1)")
+            execSQL("INSERT INTO bill_payments(id,billId,dueEpochDay,status,paidEpochDay,amountMinor,transactionId) VALUES(1,1,20100,'PAID',20100,1200000,7)")
+            execSQL("INSERT INTO goals(id,name,targetMinor,savedMinor,deadlineEpochDay,icon,colorArgb,createdAt) VALUES(1,'Trip',100000,5000,NULL,'goal',-1,1)")
+            close()
+        }
+        val db = helper.runMigrationsAndValidate("mig3", 3, true, Migrations.MIGRATION_1_2, Migrations.MIGRATION_2_3)
+        db.query("SELECT role, loanId, origAmountMinor, deletedAt FROM transactions WHERE id = 7").use {
+            it.moveToFirst(); assertEquals("NORMAL", it.getString(0)); assertEquals(true, it.isNull(1)); assertEquals(true, it.isNull(2)); assertEquals(true, it.isNull(3))
+        }
+        db.query("SELECT deletedAt FROM bills").use { it.moveToFirst(); assertEquals(true, it.isNull(0)) }
+        db.query("SELECT deletedAt FROM goals").use { it.moveToFirst(); assertEquals(true, it.isNull(0)) }
+        db.query("SELECT COUNT(*) FROM bill_payments").use { it.moveToFirst(); assertEquals(1, it.getInt(0)) }
+        for (t in listOf("tags", "transaction_tags", "transaction_splits", "people", "loans", "funds", "fund_moves", "rates")) {
+            db.query("SELECT name FROM sqlite_master WHERE name = '$t'").use { assertEquals(t, 1, it.count) }
+        }
+    }
 }

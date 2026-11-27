@@ -1,5 +1,6 @@
 package app.furibudget.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -9,6 +10,13 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 enum class TxKind { INCOME, EXPENSE, TRANSFER }
+
+/** Why a transaction exists. Only NORMAL counts as spending or income in totals, Insights and budgets. */
+@Serializable
+enum class TxRole { NORMAL, ADJUSTMENT, LOAN, REPAYMENT }
+
+@Serializable
+enum class LoanDirection { LENT, OWED }
 
 @Entity(tableName = "accounts")
 @Serializable
@@ -59,6 +67,15 @@ data class TransactionEntity(
     /** LocalDate.toEpochDay(). */
     val epochDay: Long,
     val createdAt: Long = System.currentTimeMillis(),
+    @ColumnInfo(defaultValue = "NORMAL") val role: TxRole = TxRole.NORMAL,
+    /** The loan this money movement belongs to (lending, borrowing or a repayment). */
+    val loanId: Long? = null,
+    /** For foreign-currency entries: what was typed, in which currency, and the rate used (main currency per 1 unit, times 1,000,000). */
+    val origAmountMinor: Long? = null,
+    val origCurrency: String? = null,
+    val rateMicro: Long? = null,
+    /** Epoch millis when moved to Recently deleted; null while live. */
+    val deletedAt: Long? = null,
 )
 
 @Serializable
@@ -92,6 +109,7 @@ data class GoalEntity(
     val icon: String = "goal",
     val colorArgb: Int,
     val createdAt: Long = System.currentTimeMillis(),
+    val deletedAt: Long? = null,
 )
 
 @Serializable
@@ -141,6 +159,7 @@ data class BillEntity(
     val icon: String = "bills",
     val colorArgb: Int,
     val active: Boolean = true,
+    val deletedAt: Long? = null,
 )
 
 /** What happened to one due date of a bill. Absence of a row means still waiting. */
@@ -190,4 +209,115 @@ data class TemplateEntity(
     val accountId: Long,
     val categoryId: Long? = null,
     val note: String = "",
+)
+
+// ---- Tables for tags, splits, people, funds and exchange rates (their screens arrive milestone by milestone)
+
+@Serializable
+@Entity(tableName = "tags")
+data class TagEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String,
+    val colorArgb: Int,
+)
+
+@Serializable
+@Entity(
+    tableName = "transaction_tags",
+    primaryKeys = ["transactionId", "tagId"],
+    foreignKeys = [
+        ForeignKey(TransactionEntity::class, ["id"], ["transactionId"], onDelete = ForeignKey.CASCADE),
+        ForeignKey(TagEntity::class, ["id"], ["tagId"], onDelete = ForeignKey.CASCADE),
+    ],
+    indices = [Index("tagId")],
+)
+data class TransactionTagEntity(val transactionId: Long, val tagId: Long)
+
+/** One slice of a split transaction. The parent's category is null and the slices add up to its amount. */
+@Serializable
+@Entity(
+    tableName = "transaction_splits",
+    foreignKeys = [
+        ForeignKey(TransactionEntity::class, ["id"], ["transactionId"], onDelete = ForeignKey.CASCADE),
+        ForeignKey(CategoryEntity::class, ["id"], ["categoryId"], onDelete = ForeignKey.SET_NULL),
+    ],
+    indices = [Index("transactionId"), Index("categoryId")],
+)
+data class TransactionSplitEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val transactionId: Long,
+    val categoryId: Long? = null,
+    val amountMinor: Long,
+    val note: String = "",
+)
+
+@Serializable
+@Entity(tableName = "people")
+data class PersonEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String,
+    val icon: String = "person",
+    val colorArgb: Int,
+    val note: String = "",
+    val deletedAt: Long? = null,
+)
+
+/** Money lent to someone or borrowed from them. Repayments are transactions with the same loanId. */
+@Serializable
+@Entity(
+    tableName = "loans",
+    foreignKeys = [ForeignKey(PersonEntity::class, ["id"], ["personId"], onDelete = ForeignKey.CASCADE)],
+    indices = [Index("personId")],
+)
+data class LoanEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val personId: Long,
+    val direction: LoanDirection,
+    val principalMinor: Long,
+    val openedEpochDay: Long,
+    val dueEpochDay: Long? = null,
+    val note: String = "",
+    val deletedAt: Long? = null,
+)
+
+/** A sinking fund: money reserved inside your accounts for a future cost. */
+@Serializable
+@Entity(tableName = "funds")
+data class FundEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String,
+    val icon: String = "savings",
+    val colorArgb: Int,
+    val targetMinor: Long? = null,
+    /** Reserved automatically each month; null for manual funds. */
+    val monthlyMinor: Long? = null,
+    val deletedAt: Long? = null,
+)
+
+/** Money put into (positive) or taken out of (negative) a fund. monthKey ("2026-11") makes the monthly reserve idempotent. */
+@Serializable
+@Entity(
+    tableName = "fund_moves",
+    foreignKeys = [ForeignKey(FundEntity::class, ["id"], ["fundId"], onDelete = ForeignKey.CASCADE)],
+    indices = [Index("fundId", "monthKey", unique = true), Index("transactionId")],
+)
+data class FundMoveEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val fundId: Long,
+    val amountMinor: Long,
+    val epochDay: Long,
+    val note: String = "",
+    val transactionId: Long? = null,
+    val monthKey: String? = null,
+)
+
+/** Cached exchange rate: [perBaseMicro] units of this currency per 1 unit of the base currency, times 1,000,000. */
+@Serializable
+@Entity(tableName = "rates")
+data class RateEntity(
+    @PrimaryKey val code: String,
+    val perBaseMicro: Long,
+    val fetchedAt: Long,
+    /** True when the user typed this rate; online updates never overwrite it. */
+    val manual: Boolean = false,
 )

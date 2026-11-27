@@ -62,6 +62,14 @@ data class BudgetState(
 
 private suspend fun Application.widgetUpdate() = app.furibudget.widget.WidgetUpdater.update(this)
 
+/** How long deleted items stay in Recently deleted. */
+const val TRASH_DAYS = 30L
+
+/** Everything in Recently deleted, newest first. */
+data class Trash(val transactions: List<TransactionEntity> = emptyList(), val bills: List<BillEntity> = emptyList(), val goals: List<GoalEntity> = emptyList()) {
+    val isEmpty: Boolean get() = transactions.isEmpty() && bills.isEmpty() && goals.isEmpty()
+}
+
 class BudgetViewModel(private val app: Application) : AndroidViewModel(app) {
     private val repo = (app as FuriBudgetApp).repository
     private val settingsRepo = (app as FuriBudgetApp).settings
@@ -76,6 +84,15 @@ class BudgetViewModel(private val app: Application) : AndroidViewModel(app) {
         s.copy(bills = bills.first, billPayments = bills.second, templates = bills.third, settings = set, currency = Currency.byCode(set.currencyCode), startDay = set.startDay)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), BudgetState())
 
+    val trash: StateFlow<Trash> = combine(repo.deletedTransactions, repo.deletedBills, repo.deletedGoals) { t, b, g -> Trash(t, b, g) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), Trash())
+
+    fun restoreBill(id: Long) { viewModelScope.launch { repo.restoreBill(id) } }
+    fun restoreGoal(id: Long) { viewModelScope.launch { repo.restoreGoal(id) } }
+    fun deleteForever(tx: TransactionEntity) { viewModelScope.launch { repo.deleteTxForever(tx) } }
+    fun deleteForever(b: BillEntity) { viewModelScope.launch { repo.deleteBillForever(b) } }
+    fun deleteForever(g: GoalEntity) { viewModelScope.launch { repo.deleteGoalForever(g) } }
+
     init {
         // The three most used templates become long-press shortcuts on the launcher icon.
         viewModelScope.launch { repo.templates.collect { Shortcuts.publishTemplates(app, it) } }
@@ -87,6 +104,7 @@ class BudgetViewModel(private val app: Application) : AndroidViewModel(app) {
         }
         viewModelScope.launch {
             repo.seedIfEmpty()
+            repo.purgeDeleted(System.currentTimeMillis(), TRASH_DAYS * 86_400_000L)
             repo.postAutoPay(LocalDate.now())
             // Force-stopping the app clears its alarms, so put the reminder back each time it opens.
             val s = settingsRepo.settings.first()
@@ -118,16 +136,8 @@ class BudgetViewModel(private val app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /** Payments removed together with their expense, kept so Undo can put both back. */
-    private val removedPayments = HashMap<Long, BillPaymentEntity>()
-
-    fun delete(tx: TransactionEntity) {
-        viewModelScope.launch { repo.delete(tx)?.let { removedPayments[tx.id] = it } }
-    }
-
-    fun restore(tx: TransactionEntity) {
-        viewModelScope.launch { repo.restore(tx, removedPayments.remove(tx.id)) }
-    }
+    fun delete(tx: TransactionEntity) { viewModelScope.launch { repo.softDeleteTx(tx.id) } }
+    fun restore(tx: TransactionEntity) { viewModelScope.launch { repo.restoreTx(tx.id) } }
     fun saveBudget(b: BudgetEntity) { viewModelScope.launch { repo.saveBudget(b) } }
     fun deleteBudget(b: BudgetEntity) { viewModelScope.launch { repo.deleteBudget(b) } }
     fun saveGoal(g: GoalEntity) { viewModelScope.launch { repo.saveGoal(g) } }
@@ -154,7 +164,7 @@ class BudgetViewModel(private val app: Application) : AndroidViewModel(app) {
     }
 
     fun redoPayment(tx: TransactionEntity?, p: BillPaymentEntity) {
-        viewModelScope.launch { repo.restore(tx ?: return@launch, p) }
+        viewModelScope.launch { repo.reinsert(tx ?: return@launch, p) }
     }
 
     fun skipBill(bill: BillEntity, due: LocalDate) { viewModelScope.launch { repo.skipBill(bill, due, LocalDate.now()) } }

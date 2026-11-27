@@ -14,6 +14,9 @@ class BudgetRepository(private val db: BudgetDatabase) {
     val bills: Flow<List<BillEntity>> = db.bills().observeAll()
     val billPayments: Flow<List<BillPaymentEntity>> = db.billPayments().observeAll()
     val templates: Flow<List<TemplateEntity>> = db.templates().observeAll()
+    val deletedTransactions: Flow<List<TransactionEntity>> = db.transactions().observeDeleted()
+    val deletedBills: Flow<List<BillEntity>> = db.bills().observeDeleted()
+    val deletedGoals: Flow<List<GoalEntity>> = db.goals().observeDeleted()
 
     suspend fun seedIfEmpty() {
         db.withTransaction {
@@ -29,29 +32,31 @@ class BudgetRepository(private val db: BudgetDatabase) {
     suspend fun save(tx: TransactionEntity): Long =
         if (tx.id == 0L) db.transactions().insert(tx) else { db.transactions().update(tx); tx.id }
 
-    /**
-     * Deletes a transaction. If it was the payment of a bill, that due date goes back to unpaid and the removed
-     * payment is returned so an undo can put both back.
-     */
-    suspend fun delete(tx: TransactionEntity): BillPaymentEntity? = db.withTransaction {
-        val payment = db.billPayments().byTransaction(tx.id)
-        if (payment != null) db.billPayments().delete(payment)
-        db.transactions().delete(tx)
-        payment
-    }
+    /** Moves a transaction to Recently deleted. Restoring it brings it back exactly as it was, bill payment included. */
+    suspend fun softDeleteTx(id: Long) = db.transactions().markDeleted(id, System.currentTimeMillis())
+    suspend fun restoreTx(id: Long) = db.transactions().restoreDeleted(id)
+    suspend fun deleteTxForever(tx: TransactionEntity) = db.transactions().delete(tx)
 
-    /** Puts a deleted transaction back with its old id, and its bill payment if it had one (for the undo snackbar). */
-    suspend fun restore(tx: TransactionEntity, payment: BillPaymentEntity? = null) {
+    /** Puts a transaction and its bill payment back after an unpay was undone. */
+    suspend fun reinsert(tx: TransactionEntity, payment: BillPaymentEntity? = null) {
         db.withTransaction {
             db.transactions().insert(tx)
             if (payment != null) db.billPayments().insert(payment)
         }
     }
 
+    /** Removes everything that has sat in Recently deleted for longer than [retentionMs]. */
+    suspend fun purgeDeleted(now: Long, retentionMs: Long) {
+        val before = now - retentionMs
+        db.transactions().purge(before); db.bills().purge(before); db.goals().purge(before)
+    }
+
     suspend fun saveBudget(b: BudgetEntity) = db.budgets().upsert(b)
     suspend fun deleteBudget(b: BudgetEntity) = db.budgets().delete(b)
     suspend fun saveGoal(g: GoalEntity) { if (g.id == 0L) db.goals().insert(g) else db.goals().update(g) }
-    suspend fun deleteGoal(g: GoalEntity) = db.goals().delete(g)
+    suspend fun deleteGoal(g: GoalEntity) = db.goals().markDeleted(g.id, System.currentTimeMillis())
+    suspend fun restoreGoal(id: Long) = db.goals().restoreDeleted(id)
+    suspend fun deleteGoalForever(g: GoalEntity) = db.goals().delete(g)
 
     suspend fun saveAccount(a: AccountEntity) { if (a.id == 0L) db.accounts().insert(a) else db.accounts().update(a) }
     suspend fun saveCategory(c: CategoryEntity) { if (c.id == 0L) db.categories().insert(c) else db.categories().update(c) }
@@ -64,14 +69,22 @@ class BudgetRepository(private val db: BudgetDatabase) {
     suspend fun bill(id: Long) = db.bills().get(id)
     suspend fun activeBills() = db.bills().active()
     suspend fun saveBill(b: BillEntity): Long = if (b.id == 0L) db.bills().insert(b) else { db.bills().update(b); b.id }
-    suspend fun deleteBill(b: BillEntity) = db.bills().delete(b)
+    suspend fun deleteBill(b: BillEntity) = db.bills().markDeleted(b.id, System.currentTimeMillis())
+    suspend fun restoreBill(id: Long) = db.bills().restoreDeleted(id)
+    suspend fun deleteBillForever(b: BillEntity) = db.bills().delete(b)
 
     /**
      * Records one due date as paid: an expense (or income, or transfer, matching the bill) plus the payment row,
      * in one transaction. Returns null and does nothing if that date already has a payment, so a double tap cannot pay twice.
      */
     suspend fun payBill(bill: BillEntity, due: LocalDate, amountMinor: Long, accountId: Long, paidOn: LocalDate): BillPaymentEntity? = db.withTransaction {
-        if (db.billPayments().find(bill.id, due.toEpochDay()) != null) return@withTransaction null
+        val existing = db.billPayments().find(bill.id, due.toEpochDay())
+        if (existing != null) {
+            // A payment whose expense sits in Recently deleted is stale: that date counts as unpaid, so allow paying it again.
+            val tx = existing.transactionId?.let { db.transactions().get(it) }
+            if (tx?.deletedAt == null) return@withTransaction null
+            db.billPayments().delete(existing)
+        }
         val txId = db.transactions().insert(
             TransactionEntity(
                 kind = bill.kind, amountMinor = amountMinor, accountId = accountId,

@@ -40,8 +40,15 @@ interface CategoryDao {
 
 @Dao
 interface TransactionDao {
-    @Query("SELECT * FROM transactions ORDER BY epochDay DESC, createdAt DESC, id DESC")
+    @Query("SELECT * FROM transactions WHERE deletedAt IS NULL ORDER BY epochDay DESC, createdAt DESC, id DESC")
     fun observeAll(): Flow<List<TransactionEntity>>
+
+    @Query("SELECT * FROM transactions WHERE deletedAt IS NOT NULL ORDER BY deletedAt DESC")
+    fun observeDeleted(): Flow<List<TransactionEntity>>
+
+    @Query("UPDATE transactions SET deletedAt = :at WHERE id = :id") suspend fun markDeleted(id: Long, at: Long)
+    @Query("UPDATE transactions SET deletedAt = NULL WHERE id = :id") suspend fun restoreDeleted(id: Long)
+    @Query("DELETE FROM transactions WHERE deletedAt IS NOT NULL AND deletedAt < :before") suspend fun purge(before: Long)
 
     @Query("SELECT * FROM transactions ORDER BY id") suspend fun all(): List<TransactionEntity>
     @Query("DELETE FROM transactions") suspend fun deleteAll()
@@ -69,8 +76,15 @@ interface BudgetDao {
 
 @Dao
 interface GoalDao {
-    @Query("SELECT * FROM goals ORDER BY createdAt")
+    @Query("SELECT * FROM goals WHERE deletedAt IS NULL ORDER BY createdAt")
     fun observeAll(): Flow<List<GoalEntity>>
+
+    @Query("SELECT * FROM goals WHERE deletedAt IS NOT NULL ORDER BY deletedAt DESC")
+    fun observeDeleted(): Flow<List<GoalEntity>>
+
+    @Query("UPDATE goals SET deletedAt = :at WHERE id = :id") suspend fun markDeleted(id: Long, at: Long)
+    @Query("UPDATE goals SET deletedAt = NULL WHERE id = :id") suspend fun restoreDeleted(id: Long)
+    @Query("DELETE FROM goals WHERE deletedAt IS NOT NULL AND deletedAt < :before") suspend fun purge(before: Long)
 
     @Query("SELECT * FROM goals") suspend fun all(): List<GoalEntity>
     @Query("DELETE FROM goals") suspend fun deleteAll()
@@ -82,12 +96,19 @@ interface GoalDao {
 
 @Dao
 interface BillDao {
-    @Query("SELECT * FROM bills ORDER BY name COLLATE NOCASE")
+    @Query("SELECT * FROM bills WHERE deletedAt IS NULL ORDER BY name COLLATE NOCASE")
     fun observeAll(): Flow<List<BillEntity>>
 
+    @Query("SELECT * FROM bills WHERE deletedAt IS NOT NULL ORDER BY deletedAt DESC")
+    fun observeDeleted(): Flow<List<BillEntity>>
+
+    @Query("UPDATE bills SET deletedAt = :at WHERE id = :id") suspend fun markDeleted(id: Long, at: Long)
+    @Query("UPDATE bills SET deletedAt = NULL WHERE id = :id") suspend fun restoreDeleted(id: Long)
+    @Query("DELETE FROM bills WHERE deletedAt IS NOT NULL AND deletedAt < :before") suspend fun purge(before: Long)
+
     @Query("SELECT * FROM bills WHERE id = :id") suspend fun get(id: Long): BillEntity?
-    @Query("SELECT * FROM bills WHERE active = 1 AND autoPay = 1") suspend fun activeAutoPay(): List<BillEntity>
-    @Query("SELECT * FROM bills WHERE active = 1") suspend fun active(): List<BillEntity>
+    @Query("SELECT * FROM bills WHERE active = 1 AND autoPay = 1 AND deletedAt IS NULL") suspend fun activeAutoPay(): List<BillEntity>
+    @Query("SELECT * FROM bills WHERE active = 1 AND deletedAt IS NULL") suspend fun active(): List<BillEntity>
     @Query("SELECT * FROM bills ORDER BY id") suspend fun all(): List<BillEntity>
     @Query("DELETE FROM bills") suspend fun deleteAll()
     @Insert suspend fun insertAll(b: List<BillEntity>)
@@ -98,7 +119,8 @@ interface BillDao {
 
 @Dao
 interface BillPaymentDao {
-    @Query("SELECT * FROM bill_payments")
+    // A payment whose expense was moved to Recently deleted does not count: that date is unpaid again until it is restored.
+    @Query("SELECT p.* FROM bill_payments p LEFT JOIN transactions t ON t.id = p.transactionId WHERE t.id IS NULL OR t.deletedAt IS NULL")
     fun observeAll(): Flow<List<BillPaymentEntity>>
 
     @Query("SELECT * FROM bill_payments") suspend fun all(): List<BillPaymentEntity>

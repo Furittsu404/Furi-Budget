@@ -31,7 +31,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberSwipeToDismissBoxState
+import androidx.compose.material3.SwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -146,9 +146,18 @@ private fun androidx.compose.foundation.lazy.LazyItemScope.SwipeRow(
 ) {
     val c = Furi.colors
     val deleteLabel = stringResource(R.string.delete)
-    val dismiss = rememberSwipeToDismissBoxState(
-        confirmValueChange = { v -> (v == SwipeToDismissBoxValue.EndToStart).also { if (it) onDelete(tx) } },
-    )
+    // Not the saveable variant: that one keeps "already swiped away" for a row id, so a row brought back by
+    // Undo came back stuck and the next swipe opened the editor instead. A fresh state per row entry fixes that.
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val deleteNow by androidx.compose.runtime.rememberUpdatedState(onDelete)
+    val dismiss = remember(tx.id) {
+        SwipeToDismissBoxState(
+            initialValue = SwipeToDismissBoxValue.Settled,
+            density = density,
+            confirmValueChange = { v -> (v == SwipeToDismissBoxValue.EndToStart).also { if (it) deleteNow(tx) } },
+            positionalThreshold = { total -> total * 0.5f },
+        )
+    }
     SwipeToDismissBox(
         state = dismiss,
         modifier = modifier.animateItem().semantics {

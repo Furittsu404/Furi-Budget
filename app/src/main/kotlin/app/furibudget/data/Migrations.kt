@@ -38,4 +38,36 @@ object Migrations {
             db.execSQL("DROP TABLE IF EXISTS `recurrences`")
         }
     }
+
+    /**
+     * v2 to v3: soft delete columns, role and foreign-currency columns on transactions, plus the tables for tags,
+     * splits, people, loans, funds and exchange rates. CREATE statements are copied from the exported schemas/3.json.
+     */
+    val MIGRATION_2_3 = object : Migration(2, 3) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // New columns. Nullable ones need no default; role gets its default so old rows read as normal transactions.
+            db.execSQL("ALTER TABLE `transactions` ADD COLUMN `role` TEXT NOT NULL DEFAULT 'NORMAL'")
+            db.execSQL("ALTER TABLE `transactions` ADD COLUMN `loanId` INTEGER")
+            db.execSQL("ALTER TABLE `transactions` ADD COLUMN `origAmountMinor` INTEGER")
+            db.execSQL("ALTER TABLE `transactions` ADD COLUMN `origCurrency` TEXT")
+            db.execSQL("ALTER TABLE `transactions` ADD COLUMN `rateMicro` INTEGER")
+            db.execSQL("ALTER TABLE `transactions` ADD COLUMN `deletedAt` INTEGER")
+            db.execSQL("ALTER TABLE `bills` ADD COLUMN `deletedAt` INTEGER")
+            db.execSQL("ALTER TABLE `goals` ADD COLUMN `deletedAt` INTEGER")
+            db.execSQL("CREATE TABLE IF NOT EXISTS `tags` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `colorArgb` INTEGER NOT NULL)")
+            db.execSQL("CREATE TABLE IF NOT EXISTS `transaction_tags` (`transactionId` INTEGER NOT NULL, `tagId` INTEGER NOT NULL, PRIMARY KEY(`transactionId`, `tagId`), FOREIGN KEY(`transactionId`) REFERENCES `transactions`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`tagId`) REFERENCES `tags`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_transaction_tags_tagId` ON `transaction_tags` (`tagId`)")
+            db.execSQL("CREATE TABLE IF NOT EXISTS `transaction_splits` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `transactionId` INTEGER NOT NULL, `categoryId` INTEGER, `amountMinor` INTEGER NOT NULL, `note` TEXT NOT NULL, FOREIGN KEY(`transactionId`) REFERENCES `transactions`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`categoryId`) REFERENCES `categories`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_transaction_splits_transactionId` ON `transaction_splits` (`transactionId`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_transaction_splits_categoryId` ON `transaction_splits` (`categoryId`)")
+            db.execSQL("CREATE TABLE IF NOT EXISTS `people` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `icon` TEXT NOT NULL, `colorArgb` INTEGER NOT NULL, `note` TEXT NOT NULL, `deletedAt` INTEGER)")
+            db.execSQL("CREATE TABLE IF NOT EXISTS `loans` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `personId` INTEGER NOT NULL, `direction` TEXT NOT NULL, `principalMinor` INTEGER NOT NULL, `openedEpochDay` INTEGER NOT NULL, `dueEpochDay` INTEGER, `note` TEXT NOT NULL, `deletedAt` INTEGER, FOREIGN KEY(`personId`) REFERENCES `people`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_loans_personId` ON `loans` (`personId`)")
+            db.execSQL("CREATE TABLE IF NOT EXISTS `funds` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `icon` TEXT NOT NULL, `colorArgb` INTEGER NOT NULL, `targetMinor` INTEGER, `monthlyMinor` INTEGER, `deletedAt` INTEGER)")
+            db.execSQL("CREATE TABLE IF NOT EXISTS `fund_moves` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `fundId` INTEGER NOT NULL, `amountMinor` INTEGER NOT NULL, `epochDay` INTEGER NOT NULL, `note` TEXT NOT NULL, `transactionId` INTEGER, `monthKey` TEXT, FOREIGN KEY(`fundId`) REFERENCES `funds`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )")
+            db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_fund_moves_fundId_monthKey` ON `fund_moves` (`fundId`, `monthKey`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_fund_moves_transactionId` ON `fund_moves` (`transactionId`)")
+            db.execSQL("CREATE TABLE IF NOT EXISTS `rates` (`code` TEXT NOT NULL, `perBaseMicro` INTEGER NOT NULL, `fetchedAt` INTEGER NOT NULL, `manual` INTEGER NOT NULL, PRIMARY KEY(`code`))")
+        }
+    }
 }
