@@ -239,8 +239,8 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
                 )
             }
             composable(Route.MANAGE) {
-                val ctx = androidx.compose.ui.platform.LocalContext.current
-                ManageScreen(state, vm::saveAccount, { id, app, real -> vm.checkBalance(id, app, real, ctx.getString(R.string.balance_check_note)) }, vm::saveCategory) { nav.popBackStack() } }
+                val checkNote = androidx.compose.ui.res.stringResource(R.string.balance_check_note)
+                ManageScreen(state, vm::saveAccount, { id, app, real -> vm.checkBalance(id, app, real, checkNote) }, vm::saveCategory) { nav.popBackStack() } }
             composable(
                 Route.EDIT,
                 arguments = listOf(navArgument("id") { type = NavType.LongType }, navArgument("kind") { type = NavType.StringType; defaultValue = "EXPENSE" }),
