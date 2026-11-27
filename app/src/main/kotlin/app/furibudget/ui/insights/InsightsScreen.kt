@@ -1,5 +1,6 @@
 package app.furibudget.ui.insights
 
+import app.furibudget.ui.theme.seriesColor
 import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -73,9 +74,9 @@ fun InsightsScreen(state: BudgetState) {
 
     val cats = remember(state.transactions, state.splits, range) { Insights.spendByCategory(state.transactions, range, state.splits) }
     val fallback = c.onSurfaceVariant
-    val slices = cats.map { ct ->
+    val slices = cats.mapIndexed { i, ct ->
         val cat = state.category(ct.categoryId)
-        Slice(cat?.name ?: stringResource(R.string.uncategorised), ct.amount.minor, cat?.let { Color(it.colorArgb) } ?: fallback)
+        Slice(cat?.name ?: stringResource(R.string.uncategorised), ct.amount.minor, cat?.let { seriesColor(it.colorArgb, i) } ?: fallback)
     }
     val spent = Money(cats.sumOf { it.amount.minor })
     var picked by remember(range) { mutableStateOf<Int?>(null) }

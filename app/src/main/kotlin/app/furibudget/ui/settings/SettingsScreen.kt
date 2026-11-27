@@ -117,6 +117,20 @@ fun SettingsScreen(
             if (text == null || app.furibudget.data.Backup.decode(text) == null) message = msg_backup_invalid else confirmImport = text
         }
     }
+    var csvPlan by remember { mutableStateOf<app.furibudget.data.CsvImport.Plan?>(null) }
+    val resources = androidx.compose.ui.platform.LocalResources.current
+    val msg_csv_empty = stringResource(R.string.csv_nothing_to_import)
+    val msg_csv_unreadable = stringResource(R.string.csv_unreadable)
+    val importCsvFile = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) scope.launch {
+            val text = withContext(Dispatchers.IO) {
+                runCatching { context.contentResolver.openInputStream(uri)?.use { it.readBytes().takeIf { b -> b.size <= 5_000_000 }?.let { b -> String(b) } } }.getOrNull()
+            }
+            if (text == null) { message = msg_csv_unreadable; return@launch }
+            val plan = vm.planCsv(text)
+            if (plan.isEmpty && plan.errors.isEmpty() && plan.duplicates == 0) message = msg_csv_empty else csvPlan = plan
+        }
+    }
     val keyguard = context.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
 
     Column(
@@ -206,6 +220,7 @@ fun SettingsScreen(
         Group(stringResource(R.string.your_data)) {
             LinkRow(stringResource(R.string.export_backup)) { exportJson.launch("furibudget-backup-${LocalDate.now()}.json") }
             LinkRow(stringResource(R.string.export_csv)) { exportCsv.launch("furibudget-transactions-${LocalDate.now()}.csv") }
+            LinkRow(stringResource(R.string.import_csv)) { importCsvFile.launch(arrayOf("text/csv", "text/comma-separated-values", "text/plain", "application/vnd.ms-excel", "*/*")) }
             LinkRow(stringResource(R.string.import_backup)) { importFile.launch(arrayOf("application/json", "text/plain", "*/*")) }
             LinkRow(stringResource(R.string.load_sample)) { vm.loadSample(); message = msg_sample_loaded }
             LinkRow(stringResource(R.string.recently_deleted), chevron = true, onClick = onOpenTrash)
@@ -234,6 +249,34 @@ fun SettingsScreen(
                 }) { Text(stringResource(R.string.replace)) }
             },
             dismissButton = { TextButton(onClick = { confirmImport = null }) { Text(stringResource(R.string.cancel)) } },
+        )
+    }
+    csvPlan?.let { plan ->
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { csvPlan = null },
+            title = { Text(stringResource(R.string.import_csv)) },
+            text = {
+                Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.csv_plan_summary, plan.rows.size, plan.duplicates, plan.errors.size), style = MaterialTheme.typography.bodyMedium)
+                    val made = plan.newAccounts.size + plan.newCategories.size + plan.newTags.size
+                    if (made > 0) Text(
+                        stringResource(R.string.csv_plan_new, plan.newAccounts.size, plan.newCategories.size, plan.newTags.size),
+                        style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant,
+                    )
+                    plan.errors.take(5).forEach { Text(it, style = MaterialTheme.typography.bodySmall, color = c.expense) }
+                    if (plan.errors.size > 5) Text(stringResource(R.string.and_n_more, plan.errors.size - 5), style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant)
+                }
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(enabled = plan.rows.isNotEmpty(), onClick = {
+                    csvPlan = null
+                    scope.launch {
+                        val n = vm.importCsv(plan)
+                        message = resources.getString(R.string.csv_imported, n)
+                    }
+                }) { Text(stringResource(R.string.import_action)) }
+            },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = { csvPlan = null }) { Text(stringResource(R.string.cancel)) } },
         )
     }
     if (confirmWipe) {

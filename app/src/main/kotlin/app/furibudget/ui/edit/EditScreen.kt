@@ -1,5 +1,6 @@
 package app.furibudget.ui.edit
 
+import app.furibudget.ui.theme.entityColor
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -377,7 +378,11 @@ fun EditScreen(
                 if (kind == TxKind.EXPENSE && state.funds.isNotEmpty()) {
                     ChipRow(stringResource(R.string.pay_from_fund)) {
                         state.funds.forEach { f ->
-                            FilterChip(selected = fundId == f.id, onClick = { fundId = if (fundId == f.id) null else f.id }, label = { Text(f.name) }, leadingIcon = { FuriIcon(f.icon, size = 18.dp, tint = Color(f.colorArgb)) })
+                            FilterChip(
+                                selected = fundId == f.id,
+                                // A fund lives in one account, so paying from it means paying from that account.
+                                onClick = { fundId = if (fundId == f.id) null else f.id; if (fundId != null) f.accountId?.takeIf { id -> state.accounts.any { it.id == id } }?.let { accountId = it } },
+                                label = { Text(f.name + (state.account(f.accountId)?.let { " · " + it.name } ?: "")) }, leadingIcon = { FuriIcon(f.icon, size = 18.dp, tint = entityColor(f.colorArgb)) })
                         }
                     }
                 }
@@ -434,7 +439,7 @@ private fun CategoryTiles(categories: List<CategoryEntity>, selected: Long?, onP
     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         categories.forEach { cat ->
             val on = cat.id == selected
-            val col = Color(cat.colorArgb)
+            val col = entityColor(cat.colorArgb)
             val scale by animateFloatAsState(if (on) 1.06f else 1f, Furi.motion.spring(), label = "cat-tile")
             Column(
                 Modifier
@@ -466,14 +471,14 @@ private fun AccountChip(label: String, accounts: List<AccountEntity>, selectedId
         FilterChip(
             selected = false, onClick = { open = true },
             label = { Text(acc?.name ?: label) },
-            leadingIcon = { if (acc != null) FuriIcon(acc.icon, size = 18.dp, tint = Color(acc.colorArgb)) },
+            leadingIcon = { if (acc != null) FuriIcon(acc.icon, size = 18.dp, tint = entityColor(acc.colorArgb)) },
             trailingIcon = { Icon(Icons.Rounded.ArrowDropDown, null, Modifier.size(18.dp)) },
         )
         DropdownMenu(open, { open = false }) {
             accounts.forEach { a ->
                 DropdownMenuItem(
                     text = { Text(a.name) }, onClick = { onPick(a.id); open = false },
-                    leadingIcon = { FuriIcon(a.icon, size = 20.dp, tint = Color(a.colorArgb)) },
+                    leadingIcon = { FuriIcon(a.icon, size = 20.dp, tint = entityColor(a.colorArgb)) },
                 )
             }
         }

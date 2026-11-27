@@ -428,7 +428,9 @@ private fun DetailsSection(spec: ThemeSpec, onChange: ((ThemeSpec) -> ThemeSpec)
                 FuriSlider(shown, 0.05f..1f, Modifier.fillMaxWidth(), { v -> onChange { it.copy(cardAlpha = v) } })
             }
         }
-        SwitchRow(stringResource(R.string.gradient_accent), spec.gradientAccent) { v -> onChange { it.copy(gradientAccent = v) } }
+        SwitchRow(stringResource(R.string.minimal_colors), spec.minimal) { v -> onChange { it.copy(minimal = v) } }
+        if (spec.minimal) Text(stringResource(R.string.minimal_colors_hint), style = MaterialTheme.typography.bodySmall, color = Furi.colors.onSurfaceVariant)
+        SwitchRow(stringResource(R.string.gradient_accent), spec.gradientAccent && !spec.minimal) { v -> onChange { it.copy(gradientAccent = v) } }
         SwitchRow(stringResource(R.string.parallax), spec.parallax) { v -> onChange { it.copy(parallax = v) } }
         SwitchRow(stringResource(R.string.colorblind), spec.colorblindSafe) { v -> onChange { it.copy(colorblindSafe = v) } }
         Column {

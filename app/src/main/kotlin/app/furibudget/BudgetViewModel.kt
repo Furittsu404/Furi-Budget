@@ -1,5 +1,6 @@
 package app.furibudget
 
+import app.furibudget.ui.theme.Accents
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -7,6 +8,9 @@ import app.furibudget.core.Currency
 import app.furibudget.core.Money
 import app.furibudget.core.Periods
 import app.furibudget.data.AccountEntity
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
+import app.furibudget.data.CsvImport
 import app.furibudget.data.FundEntity
 import app.furibudget.data.FundMoveEntity
 import app.furibudget.data.LoanDirection
@@ -235,6 +239,9 @@ class BudgetViewModel(private val app: Application) : AndroidViewModel(app) {
     fun moveGoal(goalId: Long, deltaMinor: Long, accountId: Long) { viewModelScope.launch { repo.moveGoal(goalId, deltaMinor, accountId, LocalDate.now().toEpochDay()) } }
     fun deleteGoal(g: GoalEntity) { viewModelScope.launch { repo.deleteGoal(g) } }
     fun saveAccount(a: AccountEntity) { viewModelScope.launch { repo.saveAccount(a) } }
+    fun reorderAccounts(ids: List<Long>) { viewModelScope.launch { repo.reorderAccounts(ids) } }
+    fun reorderCategories(ids: List<Long>) { viewModelScope.launch { repo.reorderCategories(ids) } }
+    fun deleteAccount(id: Long, moveToId: Long?) { viewModelScope.launch { repo.deleteAccount(id, moveToId) } }
     fun saveCategory(c: CategoryEntity) { viewModelScope.launch { repo.saveCategory(c) } }
     fun saveBill(b: BillEntity) {
         viewModelScope.launch {
@@ -301,6 +308,18 @@ class BudgetViewModel(private val app: Application) : AndroidViewModel(app) {
     }
 
     fun exportCsv(): String = Backup.csv(state.value)
+
+    /** Reads a CSV and says what importing it would do, without changing anything. */
+    suspend fun planCsv(text: String): CsvImport.Plan {
+        val s = state.value
+        return withContext(Dispatchers.Default) {
+            CsvImport.plan(text, s.currency, s.allAccounts, s.categories, s.tags, s.transactions)
+        }
+    }
+
+    /** Applies a plan from [planCsv]. Returns how many transactions were added. */
+    suspend fun importCsv(plan: CsvImport.Plan): Int =
+        runCatching { repo.importCsv(plan, Accents.swatches.map { it.argb }) }.getOrDefault(0)
 
     /** Replaces all data with the backup in [text]. Returns the parsed file, or null when it is not a valid backup. */
     suspend fun importJson(text: String): BackupFile? {

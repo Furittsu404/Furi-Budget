@@ -1,5 +1,6 @@
 package app.furibudget.ui.components
 
+import app.furibudget.ui.theme.entityColor
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -41,7 +42,7 @@ fun TxRow(tx: TransactionEntity, state: BudgetState, modifier: Modifier = Modifi
         val ids = state.transactionTags.filter { it.transactionId == tx.id }.map { it.tagId }
         state.tags.filter { it.id in ids }.joinToString(" ") { "#" + it.name }
     }
-    val tint = if (tx.role != TxRole.NORMAL) c.accentText else if (tx.kind == TxKind.TRANSFER) c.accentText else Color(category?.colorArgb ?: 0xFF94A3B8.toInt())
+    val tint = if (tx.role != TxRole.NORMAL) c.accentText else if (tx.kind == TxKind.TRANSFER) c.accentText else entityColor(category?.colorArgb ?: 0xFF94A3B8.toInt())
     val person = remember(state.loans, state.people, tx.loanId) { tx.loanId?.let { id -> state.loans.firstOrNull { it.id == id } }?.let { l -> state.people.firstOrNull { it.id == l.personId } } }
     val title = if (tx.role == TxRole.GOAL) {
         stringResource(if (tx.kind == TxKind.EXPENSE) R.string.goal_saved_to else R.string.goal_taken_from, tx.note)

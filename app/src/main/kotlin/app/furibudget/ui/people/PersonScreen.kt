@@ -1,5 +1,6 @@
 package app.furibudget.ui.people
 
+import app.furibudget.ui.theme.entityColor
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -180,7 +181,7 @@ private fun AccountPicker(state: BudgetState, selected: Long, onPick: (Long) -> 
         Text(stringResource(R.string.account), style = MaterialTheme.typography.labelLarge, color = Furi.colors.onSurfaceVariant)
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             state.accounts.forEach { a ->
-                FilterChip(selected = selected == a.id, onClick = { onPick(a.id) }, label = { Text(a.name) }, leadingIcon = { FuriIcon(a.icon, size = 18.dp, tint = Color(a.colorArgb)) })
+                FilterChip(selected = selected == a.id, onClick = { onPick(a.id) }, label = { Text(a.name) }, leadingIcon = { FuriIcon(a.icon, size = 18.dp, tint = entityColor(a.colorArgb)) })
             }
         }
     }

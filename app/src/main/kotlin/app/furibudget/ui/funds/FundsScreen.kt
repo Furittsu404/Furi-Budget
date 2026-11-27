@@ -1,5 +1,7 @@
 package app.furibudget.ui.funds
 
+import androidx.compose.foundation.horizontalScroll
+import app.furibudget.ui.theme.entityColor
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -128,20 +130,30 @@ fun FundsScreen(state: BudgetState, onSaveFund: (FundEntity) -> Unit, onDeleteFu
     }
 }
 
-fun freeToSpend(state: BudgetState): app.furibudget.data.FreeToSpend {
+/** What each open account holds, has set aside and has free this month. */
+fun accountMoney(state: BudgetState): List<app.furibudget.data.AccountMoney> {
     val statuses = Funds.statuses(state.funds, state.fundMoves, state.transactions.map { it.id }.toSet())
     val today = LocalDate.now()
-    return Funds.freeToSpend(state.total.minor, statuses, Funds.billsStillDue(state.bills, state.billPayments, today, state.month(today).end))
+    return Funds.perAccount(state.accounts, state.balances.mapValues { it.value.minor }, statuses, state.bills, state.billPayments, today, state.month(today).end)
 }
+
+/** The same picture for all open accounts together. */
+fun freeToSpend(state: BudgetState): app.furibudget.data.FreeToSpend = Funds.total(accountMoney(state))
 
 /** Free (accent), bills still due (warning) and reserved (income) as shares of the money you hold. */
 @Composable
 fun FreeBar(free: Long, billsDue: Long, reserved: Long, modifier: Modifier = Modifier) {
     val c = Furi.colors
-    val parts = listOf(free.coerceAtLeast(0) to c.accent, billsDue.coerceAtLeast(0) to c.warning, reserved.coerceAtLeast(0) to c.income)
+    // With minimal colours the three parts are steps of the accent and ink instead of three hues.
+    val min = Furi.spec.minimal
+    val parts = listOf(
+        free.coerceAtLeast(0) to c.accent,
+        billsDue.coerceAtLeast(0) to if (min) c.onSurface.copy(alpha = 0.55f) else c.warning,
+        reserved.coerceAtLeast(0) to if (min) c.accent.copy(alpha = 0.4f) else c.income,
+    )
     val sum = parts.sumOf { it.first }
     Row(modifier.fillMaxWidth().height(10.dp).clip(androidx.compose.foundation.shape.CircleShape).background(c.onSurface.copy(alpha = 0.1f)), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-        if (free < 0) Box(Modifier.fillMaxSize().background(c.expense)) else if (sum > 0) parts.filter { it.first > 0 }.forEach { (v, col) -> Box(Modifier.weight(v.toFloat()).fillMaxSize().background(col)) }
+        if (free < 0) Box(Modifier.fillMaxSize().background(if (min) c.onSurface else c.expense)) else if (sum > 0) parts.filter { it.first > 0 }.forEach { (v, col) -> Box(Modifier.weight(v.toFloat()).fillMaxSize().background(col)) }
     }
 }
 
@@ -149,7 +161,7 @@ fun FreeBar(free: Long, billsDue: Long, reserved: Long, modifier: Modifier = Mod
 private fun FundCard(st: FundStatus, state: BudgetState, onEdit: () -> Unit, onAdd: () -> Unit, onTake: () -> Unit) {
     val c = Furi.colors
     val cur = state.currency
-    val tint = Color(st.fund.colorArgb)
+    val tint = entityColor(st.fund.colorArgb)
     val coin = remember { Animatable(1f) }
     var lastSaved by remember { mutableStateOf(st.savedMinor) }
     val motionOn = Furi.motion.enabled
@@ -174,6 +186,7 @@ private fun FundCard(st: FundStatus, state: BudgetState, onEdit: () -> Unit, onA
                         IconButton(onClick = onEdit) { Icon(Icons.Rounded.Edit, stringResource(R.string.edit_fund), Modifier.size(20.dp)) }
                     }
                     AnimatedAmount(cur.symbol + " " + cur.format(Money(st.savedMinor)), Furi.figures.copy(fontSize = MaterialTheme.typography.titleLarge.fontSize), c.onSurface)
+                    state.account(st.fund.accountId)?.let { Text(stringResource(R.string.fund_held_in_name, it.name), style = MaterialTheme.typography.labelSmall, color = c.onSurfaceVariant) }
                     st.fund.targetMinor?.let {
                         Text(stringResource(R.string.fund_of_target, cur.format(Money(it), true), (st.fraction * 100).toInt()), style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant)
                     }
@@ -194,6 +207,7 @@ private fun FundCard(st: FundStatus, state: BudgetState, onEdit: () -> Unit, onA
 private fun FundDialog(existing: FundEntity?, state: BudgetState, onDismiss: () -> Unit, onDelete: (Long) -> Unit, onSave: (FundEntity) -> Unit) {
     val cur = state.currency
     var name by rememberSaveable { mutableStateOf(existing?.name.orEmpty()) }
+    var account by rememberSaveable { mutableStateOf(existing?.accountId ?: state.accounts.firstOrNull()?.id ?: 0L) }
     var icon by rememberSaveable { mutableStateOf(existing?.icon ?: "savings") }
     var color by rememberSaveable { mutableIntStateOf(existing?.colorArgb ?: Accents.swatches[5].argb) }
     var target by rememberSaveable { mutableStateOf(existing?.targetMinor?.let { cur.format(Money(it)).replace(",", "") }.orEmpty()) }
@@ -204,6 +218,12 @@ private fun FundDialog(existing: FundEntity?, state: BudgetState, onDismiss: () 
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(name, { name = it.take(30) }, singleLine = true, label = { Text(stringResource(R.string.fund_name)) }, modifier = Modifier.fillMaxWidth())
+                Text(stringResource(R.string.fund_held_in), style = MaterialTheme.typography.labelLarge, color = Furi.colors.onSurfaceVariant)
+                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    state.accounts.forEach { a ->
+                        androidx.compose.material3.FilterChip(selected = account == a.id, onClick = { account = a.id }, label = { Text(a.name) }, leadingIcon = { FuriIcon(a.icon, size = 18.dp, tint = entityColor(a.colorArgb)) })
+                    }
+                }
                 IconButtonRow(icon, Color(color)) { icon = it }
                 ColorRow(color) { color = it }
                 AmountField(target, { target = it }, cur, stringResource(R.string.fund_target_optional), Modifier.fillMaxWidth())
@@ -218,7 +238,7 @@ private fun FundDialog(existing: FundEntity?, state: BudgetState, onDismiss: () 
             TextButton(enabled = name.isNotBlank(), onClick = {
                 onSave(
                     (existing ?: FundEntity(name = "", colorArgb = color)).copy(
-                        name = name.trim(), icon = icon, colorArgb = color,
+                        name = name.trim(), icon = icon, colorArgb = color, accountId = account.takeIf { it != 0L },
                         targetMinor = cur.parse(target)?.minor?.takeIf { it > 0 }, monthlyMinor = cur.parse(monthly)?.minor?.takeIf { it > 0 },
                     ),
                 )

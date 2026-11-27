@@ -111,6 +111,15 @@ private object Route {
     fun person(id: Long) = "person/$id"
 }
 
+/**
+ * A snackbar that leaves after about three and a half seconds. The stock Short and Long lengths (4 s and 10 s)
+ * kept Undo hanging around, and a second delete used to wait behind the first.
+ */
+private suspend fun SnackbarHostState.showBrief(message: String, actionLabel: String? = null): SnackbarResult =
+    kotlinx.coroutines.withTimeoutOrNull(3_500) {
+        showSnackbar(message, actionLabel, duration = androidx.compose.material3.SnackbarDuration.Indefinite)
+    } ?: SnackbarResult.Dismissed
+
 @Composable
 fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: BudgetViewModel, launch: LaunchRequest? = null, onLaunchHandled: () -> Unit = {}) {
     val state by vm.state.collectAsState()
@@ -138,7 +147,7 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
             "add_income" -> nav.navigate(Route.edit(0, app.furibudget.data.TxKind.INCOME))
             "template" -> launch.id?.let { id ->
                 val t = vm.quickAddById(id)
-                if (t != null) snackbar.showSnackbar(resources.getString(R.string.added_template, t.name))
+                if (t != null) snackbar.showBrief(resources.getString(R.string.added_template, t.name))
             }
         }
         if (launch.route == "bills") {
@@ -154,7 +163,7 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
         vm.unpay(p) { (tx, pay) ->
             scope.launch {
                 snackbar.currentSnackbarData?.dismiss()
-                if (snackbar.showSnackbar(resources.getString(R.string.bill_unpaid_msg, name), undo, duration = androidx.compose.material3.SnackbarDuration.Long) == SnackbarResult.ActionPerformed) {
+                if (snackbar.showBrief(resources.getString(R.string.bill_unpaid_msg, name), undo) == SnackbarResult.ActionPerformed) {
                     vm.redoPayment(tx, pay)
                 }
             }
@@ -167,7 +176,7 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
         vm.delete(tx)
         scope.launch {
             snackbar.currentSnackbarData?.dismiss()
-            if (snackbar.showSnackbar(deletedMsg, undo, duration = androidx.compose.material3.SnackbarDuration.Long) == SnackbarResult.ActionPerformed) {
+            if (snackbar.showBrief(deletedMsg, undo) == SnackbarResult.ActionPerformed) {
                 vm.restore(tx)
             }
         }
@@ -179,7 +188,7 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
         vm.deleteBill(b)
         scope.launch {
             snackbar.currentSnackbarData?.dismiss()
-            if (snackbar.showSnackbar(billDeletedMsg, undo, duration = androidx.compose.material3.SnackbarDuration.Long) == SnackbarResult.ActionPerformed) vm.restoreBill(b.id)
+            if (snackbar.showBrief(billDeletedMsg, undo) == SnackbarResult.ActionPerformed) vm.restoreBill(b.id)
         }
     }
 
@@ -199,7 +208,7 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
             popExitTransition = { fadeOut(m.tween(100)) + slideOutHorizontally(m.tween(160)) { it / 14 } },
         ) {
             composable(Route.HOME) {
-                HomeScreen(state, onOpenAppearance = { nav.navigate(Route.APPEARANCE) }, onOpenGoals = { nav.navigate(Route.GOALS) }, onOpenPeople = { nav.navigate(Route.PEOPLE) }, onOpenFunds = { nav.navigate(Route.FUNDS) }, onOpenBills = { nav.navigate(Route.BILLS) { popUpTo(Route.HOME) { saveState = true }; launchSingleTop = true; restoreState = true } }, onOpenSettings = { nav.navigate(Route.SETTINGS) }, onOpenBudgets = { nav.navigate(Route.BUDGETS) { popUpTo(Route.HOME) { saveState = true }; launchSingleTop = true; restoreState = true } }, onOpenTx = { nav.navigate(Route.edit(it)) }, onQuickAdd = { t -> vm.quickAdd(t) { tx -> scope.launch { snackbar.currentSnackbarData?.dismiss(); if (snackbar.showSnackbar(resources.getString(R.string.added_template, t.name), undo, duration = androidx.compose.material3.SnackbarDuration.Long) == SnackbarResult.ActionPerformed) vm.delete(tx) } } })
+                HomeScreen(state, onOpenAppearance = { nav.navigate(Route.APPEARANCE) }, onOpenGoals = { nav.navigate(Route.GOALS) }, onOpenPeople = { nav.navigate(Route.PEOPLE) }, onOpenFunds = { nav.navigate(Route.FUNDS) }, onOpenBills = { nav.navigate(Route.BILLS) { popUpTo(Route.HOME) { saveState = true }; launchSingleTop = true; restoreState = true } }, onOpenSettings = { nav.navigate(Route.SETTINGS) }, onOpenBudgets = { nav.navigate(Route.BUDGETS) { popUpTo(Route.HOME) { saveState = true }; launchSingleTop = true; restoreState = true } }, onOpenTx = { nav.navigate(Route.edit(it)) }, onQuickAdd = { t -> vm.quickAdd(t) { tx -> scope.launch { snackbar.currentSnackbarData?.dismiss(); if (snackbar.showBrief(resources.getString(R.string.added_template, t.name), undo) == SnackbarResult.ActionPerformed) vm.delete(tx) } } })
             }
             composable(Route.ACTIVITY) {
                 ActivityScreen(
@@ -279,7 +288,7 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
             }
             composable(Route.MANAGE) {
                 val checkNote = androidx.compose.ui.res.stringResource(R.string.balance_check_note)
-                ManageScreen(state, vm::saveAccount, { id, app, real -> vm.checkBalance(id, app, real, checkNote) }, vm::saveCategory) { nav.popBackStack() } }
+                ManageScreen(state, vm::saveAccount, { id, app, real -> vm.checkBalance(id, app, real, checkNote) }, vm::saveCategory, vm::reorderAccounts, vm::reorderCategories, vm::deleteAccount) { nav.popBackStack() } }
             composable(
                 Route.EDIT,
                 arguments = listOf(navArgument("id") { type = NavType.LongType }, navArgument("kind") { type = NavType.StringType; defaultValue = "EXPENSE" }),
@@ -380,7 +389,7 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
                     fb.paid()
                     if (payment != null) scope.launch {
                         snackbar.currentSnackbarData?.dismiss()
-                        if (snackbar.showSnackbar(resources.getString(R.string.bill_paid_msg, occ.bill.name), undo, duration = androidx.compose.material3.SnackbarDuration.Long) == SnackbarResult.ActionPerformed) {
+                        if (snackbar.showBrief(resources.getString(R.string.bill_paid_msg, occ.bill.name), undo) == SnackbarResult.ActionPerformed) {
                             unpayWithUndo(payment, occ.bill.name)
                         }
                     }

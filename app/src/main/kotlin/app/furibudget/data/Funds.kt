@@ -14,7 +14,29 @@ data class FreeToSpend(val totalMinor: Long, val reservedMinor: Long, val billsD
     val freeMinor: Long get() = totalMinor - reservedMinor - billsDueMinor
 }
 
+/** One account's slice of the picture: what it holds, what is set aside in it and what its own bills still need. */
+data class AccountMoney(val account: AccountEntity, val balanceMinor: Long, val reservedMinor: Long, val billsDueMinor: Long) {
+    val freeMinor: Long get() = balanceMinor - reservedMinor - billsDueMinor
+}
+
 object Funds {
+    /** Per-account picture for [accounts]. A fund counts toward the account it is held in; bills toward the account they are paid from. */
+    fun perAccount(
+        accounts: List<AccountEntity>, balances: Map<Long, Long>, statuses: List<FundStatus>,
+        bills: List<BillEntity>, payments: List<BillPaymentEntity>, today: LocalDate, monthEnd: LocalDate,
+    ): List<AccountMoney> {
+        val firstId = accounts.firstOrNull()?.id
+        val reservedBy = statuses.groupBy { it.fund.accountId ?: firstId }.mapValues { (_, v) -> v.sumOf { it.savedMinor.coerceAtLeast(0) } }
+        val dueBy = Bills.occurrences(bills, payments, today.minusDays(app.furibudget.core.BillSchedule.LOOKBACK_DAYS), monthEnd, today)
+            .filter { it.isOpen && it.bill.kind == TxKind.EXPENSE }
+            .groupBy { it.bill.accountId }.mapValues { (_, v) -> v.sumOf { it.bill.amountMinor } }
+        return accounts.map { AccountMoney(it, balances[it.id] ?: 0L, reservedBy[it.id] ?: 0L, dueBy[it.id] ?: 0L) }
+    }
+
+    /** All open accounts together. Free to spend here is the sum of each account's own, so the two views always agree. */
+    fun total(perAccount: List<AccountMoney>) =
+        FreeToSpend(perAccount.sumOf { it.balanceMinor }, perAccount.sumOf { it.reservedMinor }, perAccount.sumOf { it.billsDueMinor })
+
     /** Reserved money stays inside accounts. Moves tied to a deleted transaction are ignored until it is restored. */
     fun statuses(funds: List<FundEntity>, moves: List<FundMoveEntity>, liveTxIds: Set<Long>): List<FundStatus> {
         val byFund = moves.filter { it.transactionId == null || it.transactionId in liveTxIds }.groupBy({ it.fundId }, { it.amountMinor }).mapValues { it.value.sum() }

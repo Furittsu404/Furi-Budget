@@ -207,7 +207,7 @@
     <string name="filter_income">Income</string>
     <string name="next_30_days">Next 30 days</string>
     <string name="nothing_due">Nothing due.</string>
-    <string name="no_bills_yet">No bills yet. Add rent, subscriptions, instalments or anything that falls due.</string>
+    <string name="no_bills_yet">No bills yet. Add rent, subscriptions, installments or anything that falls due.</string>
     <string name="add_bill">Add bill</string>
     <string name="edit_bill">Edit bill</string>
     <string name="new_bill">New bill</string>
@@ -236,7 +236,7 @@
     <string name="bill_unpaid_msg">%1$s back to unpaid</string>
     <string name="type_bill">Bill</string>
     <string name="type_subscription">Subscription</string>
-    <string name="type_instalment">Instalment</string>
+    <string name="type_instalment">Installment</string>
     <string name="type_loan">Loan</string>
     <string name="type_income">Income</string>
     <string name="type_recurring">Recurring</string>
@@ -451,4 +451,33 @@
     <string name="goal_taken_from">Taken from %1$s</string>
     <string name="tab_more">More</string>
     <string name="bill_deleted">Bill deleted</string>
+    <string name="fund_held_in">Held in</string>
+    <string name="fund_held_in_name">Held in %1$s</string>
+    <string name="accounts_title">Accounts</string>
+    <string name="acct_reserved">Set aside %1$s</string>
+    <string name="acct_free">Free %1$s</string>
+    <string name="acct_bills_due">Bills due %1$s</string>
+    <string name="all_accounts">All accounts</string>
+    <string name="edit">Edit</string>
+    <string name="move_up">Move up</string>
+    <string name="move_down">Move down</string>
+    <string name="delete_account">Delete account</string>
+    <string name="last_account_hint">This is your only account, so it cannot be deleted.</string>
+    <string name="delete_account_title">Delete %1$s?</string>
+    <string name="delete_account_empty">Nothing is recorded in this account. It will be deleted for good.</string>
+    <string name="delete_account_body">This account has transactions: %1$d, bills: %2$d. Moving them keeps every balance and total as it is. Deleting them removes them for good and cannot be undone.</string>
+    <string name="move_everything_to">Move everything to</string>
+    <string name="move_and_delete">Move and delete</string>
+    <string name="delete_everything">Delete everything</string>
+    <string name="import_csv">Import transactions from CSV</string>
+    <string name="import_action">Import</string>
+    <string name="csv_plan_summary">Ready to add: %1$d
+Already here, skipped: %2$d
+Rows that could not be read: %3$d</string>
+    <string name="csv_plan_new">New accounts: %1$d, categories: %2$d, tags: %3$d. They are created with the import.</string>
+    <string name="csv_imported">Imported %1$d transactions.</string>
+    <string name="csv_nothing_to_import">That file has nothing to import.</string>
+    <string name="csv_unreadable">That file could not be read (it may be over 5 MB).</string>
+    <string name="minimal_colors">Minimal colours</string>
+    <string name="minimal_colors_hint">One accent colour and plain text. Categories, accounts, bills and amounts stop using their own colours, and the background goes plain unless you pick one.</string>
 </resources>

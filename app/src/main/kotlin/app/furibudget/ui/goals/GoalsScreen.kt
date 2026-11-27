@@ -1,5 +1,6 @@
 package app.furibudget.ui.goals
 
+import app.furibudget.ui.theme.entityColor
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -94,7 +95,7 @@ fun GoalsScreen(state: BudgetState, onSave: (GoalEntity) -> Unit, onDelete: (Goa
             }
             state.goals.forEach { g ->
                 val plan = Budgeting.plan(g, today)
-                val color = Color(g.colorArgb)
+                val color = entityColor(g.colorArgb)
                 val frac = if (g.targetMinor > 0) (g.savedMinor.toFloat() / g.targetMinor).coerceIn(0f, 1f) else 0f
                 FuriCard(Modifier.fillMaxWidth().clickable { editing = g }) {
                     Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -232,7 +233,7 @@ private fun MoneyDialog(state: BudgetState, goal: GoalEntity, onDismiss: () -> U
                         FilterChip(
                             selected = account == a.id, onClick = { account = a.id },
                             label = { Text(a.name + " · " + cur.format(state.balances[a.id] ?: app.furibudget.core.Money.ZERO)) },
-                            leadingIcon = { FuriIcon(a.icon, size = 18.dp, tint = Color(a.colorArgb)) },
+                            leadingIcon = { FuriIcon(a.icon, size = 18.dp, tint = entityColor(a.colorArgb)) },
                         )
                     }
                 }

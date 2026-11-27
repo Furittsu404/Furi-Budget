@@ -163,6 +163,77 @@ class BudgetRepository(private val db: BudgetDatabase) {
     suspend fun deleteGoalForever(g: GoalEntity) = db.goals().delete(g)
 
     suspend fun saveAccount(a: AccountEntity) { if (a.id == 0L) db.accounts().insert(a) else db.accounts().update(a) }
+    /** Adds what [plan] found: any accounts, categories and tags it needs first, then the transactions with their splits and tags. */
+    suspend fun importCsv(plan: CsvImport.Plan, palette: List<Int>): Int = db.withTransaction {
+        fun color(i: Int) = palette[i % palette.size]
+        var accounts = db.accounts().all()
+        plan.newAccounts.forEachIndexed { i, name ->
+            db.accounts().insert(AccountEntity(name = name, colorArgb = color(accounts.size + i * 3), icon = "bank", sortOrder = accounts.size + i))
+        }
+        accounts = db.accounts().all()
+        var categories = db.categories().all()
+        plan.newCategories.forEachIndexed { i, (name, kind) ->
+            db.categories().insert(CategoryEntity(name = name, colorArgb = color(categories.size + i * 5), icon = "category", kind = kind, sortOrder = categories.size + i))
+        }
+        categories = db.categories().all()
+        var tags = db.tags().all()
+        plan.newTags.forEachIndexed { i, name -> db.tags().insert(TagEntity(name = name, colorArgb = color(tags.size + i * 7))) }
+        tags = db.tags().all()
+        val accByName = accounts.associateBy { it.name.trim().lowercase() }
+        val catByName = categories.associateBy { it.name.trim().lowercase() to it.kind }
+        val tagByName = tags.associateBy { it.name.trim().lowercase() }
+        var count = 0
+        for (r in plan.rows) {
+            val acc = accByName[r.account.trim().lowercase()] ?: accounts.firstOrNull() ?: continue
+            val to = r.toAccount?.let { accByName[it.trim().lowercase()] }
+            if (r.kind == TxKind.TRANSFER && (to == null || to.id == acc.id)) continue
+            val id = db.transactions().insert(
+                TransactionEntity(
+                    kind = r.kind, amountMinor = r.amountMinor, accountId = acc.id, toAccountId = to?.id,
+                    categoryId = if (r.splits.isEmpty()) r.category?.let { catByName[it.trim().lowercase() to r.kind]?.id } else null,
+                    note = r.note, epochDay = r.epochDay, role = r.role,
+                    origAmountMinor = r.origAmountMinor, origCurrency = r.origCurrency, rateMicro = r.rateMicro,
+                ),
+            )
+            if (r.splits.isNotEmpty()) db.splits().insertAll(r.splits.map { (n, m) -> TransactionSplitEntity(transactionId = id, categoryId = catByName[n.trim().lowercase() to r.kind]?.id, amountMinor = m) })
+            val links = r.tags.mapNotNull { tagByName[it.trim().lowercase()]?.id }.distinct()
+            if (links.isNotEmpty()) db.transactionTags().insertAll(links.map { TransactionTagEntity(id, it) })
+            count++
+        }
+        count
+    }
+
+    /** Saves a new order for accounts or categories: the ids in the order they should appear. */
+    suspend fun reorderAccounts(ids: List<Long>) = db.withTransaction { ids.forEachIndexed { i, id -> db.accounts().setOrder(id, i) } }
+    suspend fun reorderCategories(ids: List<Long>) = db.withTransaction { ids.forEachIndexed { i, id -> db.categories().setOrder(id, i) } }
+
+    /**
+     * Deletes an account. With [moveToId] its transactions, bills, templates and funds go to that account and its
+     * opening balance is added there, so the total does not change. Without it, its transactions and bills go with it.
+     * Never deletes the last account.
+     */
+    suspend fun deleteAccount(id: Long, moveToId: Long?): Boolean = db.withTransaction {
+        val all = db.accounts().all()
+        val acc = all.firstOrNull { it.id == id } ?: return@withTransaction false
+        val others = all.filter { it.id != id }.sortedWith(compareBy({ it.archived }, { it.sortOrder }, { it.id }))
+        if (others.isEmpty()) return@withTransaction false
+        val target = moveToId?.let { t -> others.firstOrNull { it.id == t } ?: return@withTransaction false }
+        if (target != null) {
+            db.accounts().update(target.copy(startBalance = target.startBalance + acc.startBalance))
+            db.transactions().repointAccount(id, target.id)
+            db.transactions().repointToAccount(id, target.id)
+            db.transactions().deleteSelfTransfers()
+            db.bills().repointAccount(id, target.id)
+            db.bills().repointToAccount(id, target.id)
+            db.templates().repointAccount(id, target.id)
+        } else {
+            db.transactions().deleteForAccount(id)
+        }
+        db.funds().repointAccount(id, (target ?: others.first()).id)
+        db.accounts().delete(acc)
+        true
+    }
+
     suspend fun saveCategory(c: CategoryEntity) { if (c.id == 0L) db.categories().insert(c) else db.categories().update(c) }
 
     suspend fun saveTemplate(t: TemplateEntity) { db.templates().insert(t) }

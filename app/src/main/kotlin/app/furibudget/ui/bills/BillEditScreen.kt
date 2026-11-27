@@ -1,5 +1,6 @@
 package app.furibudget.ui.bills
 
+import app.furibudget.ui.theme.entityColor
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -141,13 +142,13 @@ fun BillEditScreen(billId: Long, state: BudgetState, onSave: (BillEntity) -> Uni
             Text(stringResource(if (income) R.string.account else R.string.pay_from), style = MaterialTheme.typography.labelLarge, color = c.onSurfaceVariant)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 state.accounts.forEach { a ->
-                    FilterChip(selected = accountId == a.id, onClick = { accountId = a.id }, label = { Text(a.name) }, leadingIcon = { FuriIcon(a.icon, size = 18.dp, tint = Color(a.colorArgb)) })
+                    FilterChip(selected = accountId == a.id, onClick = { accountId = a.id }, label = { Text(a.name) }, leadingIcon = { FuriIcon(a.icon, size = 18.dp, tint = entityColor(a.colorArgb)) })
                 }
             }
             Text(stringResource(R.string.category), style = MaterialTheme.typography.labelLarge, color = c.onSurfaceVariant)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 state.categories.filter { it.kind == (if (income) TxKind.INCOME else TxKind.EXPENSE) && !it.archived }.forEach { cat ->
-                    FilterChip(selected = categoryId == cat.id, onClick = { categoryId = if (categoryId == cat.id) null else cat.id }, label = { Text(cat.name) }, leadingIcon = { FuriIcon(cat.icon, size = 18.dp, tint = Color(cat.colorArgb)) })
+                    FilterChip(selected = categoryId == cat.id, onClick = { categoryId = if (categoryId == cat.id) null else cat.id }, label = { Text(cat.name) }, leadingIcon = { FuriIcon(cat.icon, size = 18.dp, tint = entityColor(cat.colorArgb)) })
                 }
             }
             FilterChip(selected = false, onClick = { pickingDue = true }, label = { Text(stringResource(R.string.first_due) + ": " + LocalDate.ofEpochDay(dueDay).format(dateFmt)) }, leadingIcon = { Icon(Icons.Rounded.Event, null, Modifier.size(18.dp)) })

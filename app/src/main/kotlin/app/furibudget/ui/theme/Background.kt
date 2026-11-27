@@ -43,7 +43,7 @@ import kotlin.math.sin
 @Composable
 fun FuriBackground(modifier: Modifier = Modifier) {
     val c = Furi.colors
-    val kind = Furi.spec.background ?: Furi.pack.defaultBackground
+    val kind = Furi.spec.background ?: if (Furi.spec.minimal) BackgroundKind.SOLID else Furi.pack.defaultBackground
     val motion = Furi.motion
     val scale by rememberUpdatedState(motion.scale)
     val clock = remember { mutableFloatStateOf(0f) }

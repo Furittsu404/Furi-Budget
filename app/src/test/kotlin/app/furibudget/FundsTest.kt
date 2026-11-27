@@ -1,5 +1,6 @@
 package app.furibudget
 
+import app.furibudget.data.AccountEntity
 import app.furibudget.data.FundEntity
 import app.furibudget.data.FundMoveEntity
 import app.furibudget.data.Funds
@@ -50,5 +51,27 @@ class FundsTest {
 
     @Test fun reachedWhenTargetMet() {
         assertTrue(Funds.statuses(listOf(trip), listOf(move(1, 10_000)), emptySet())[0].reached)
+    }
+
+    @Test fun perAccountSplitsReservedAndBillsByAccount() {
+        val cash = AccountEntity(1, "Cash", 0, "cash")
+        val bank = AccountEntity(2, "Bank", 0, "bank")
+        val inBank = trip.copy(accountId = 2)
+        val inCash = gadget.copy(accountId = 1)
+        val st = Funds.statuses(listOf(inBank, inCash), listOf(move(1, 4000), move(2, 300)), emptySet())
+        val rent = app.furibudget.data.BillEntity(
+            id = 1, name = "Rent", accountId = 2, amountMinor = 1500, repeat = app.furibudget.core.Repeat.MONTHLY, anchorDay = 28,
+            firstDueEpochDay = LocalDate.of(2026, 11, 28).toEpochDay(), colorArgb = 0,
+        )
+        val rows = Funds.perAccount(listOf(cash, bank), mapOf(1L to 1_000L, 2L to 20_000L), st, listOf(rent), emptyList(), LocalDate.of(2026, 11, 27), LocalDate.of(2026, 11, 30))
+        assertEquals(300L, rows[0].reservedMinor)
+        assertEquals(700L, rows[0].freeMinor)
+        assertEquals(4000L, rows[1].reservedMinor)
+        assertEquals(1500L, rows[1].billsDueMinor)
+        assertEquals(14_500L, rows[1].freeMinor)
+        val all = Funds.total(rows)
+        assertEquals(21_000L, all.totalMinor)
+        assertEquals(4300L, all.reservedMinor)
+        assertEquals(rows.sumOf { it.freeMinor }, all.freeMinor)
     }
 }

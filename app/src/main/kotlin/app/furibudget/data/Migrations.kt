@@ -70,4 +70,15 @@ object Migrations {
             db.execSQL("CREATE TABLE IF NOT EXISTS `rates` (`code` TEXT NOT NULL, `perBaseMicro` INTEGER NOT NULL, `fetchedAt` INTEGER NOT NULL, `manual` INTEGER NOT NULL, PRIMARY KEY(`code`))")
         }
     }
+
+    /**
+     * v3 to v4: a fund belongs to one account, so Home can show what each account holds, has set aside and has free.
+     * Funds made before this are put in the first account, which is where the user's money was counted anyway.
+     */
+    val MIGRATION_3_4 = object : Migration(3, 4) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `funds` ADD COLUMN `accountId` INTEGER")
+            db.execSQL("UPDATE `funds` SET `accountId` = (SELECT `id` FROM `accounts` ORDER BY `sortOrder`, `id` LIMIT 1)")
+        }
+    }
 }

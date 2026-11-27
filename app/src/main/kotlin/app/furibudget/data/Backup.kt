@@ -100,7 +100,7 @@ object Backup {
             val s = safe(raw)
             return if (s.any { it == ',' || it == '"' || it == '\n' || it == '\r' }) "\"" + s.replace("\"", "\"\"") + "\"" else s
         }
-        val sb = StringBuilder("date,type,amount,account,to_account,category,note,tags,split,original_currency,original_amount\n")
+        val sb = StringBuilder("date,type,amount,account,to_account,category,note,tags,split,original_currency,original_amount,role\n")
         val tagNames = state.tags.associate { it.id to it.name }
         val tagsOf = state.transactionTags.groupBy({ it.transactionId }, { tagNames[it.tagId].orEmpty() })
         val splitsOf = state.splits.groupBy { it.transactionId }
@@ -115,7 +115,8 @@ object Backup {
                 .append(q(tagsOf[t.id].orEmpty().joinToString(";"))).append(',')
                 .append(q(splitsOf[t.id].orEmpty().joinToString(";") { sp -> (state.category(sp.categoryId)?.name ?: "?") + "=" + state.currency.format(app.furibudget.core.Money(sp.amountMinor)).replace(",", "") })).append(',')
                 .append(q(t.origCurrency.orEmpty())).append(',')
-                .append(if (t.origAmountMinor != null) (t.origAmountMinor / 100.0).toString() else "").append('\n')
+                .append(t.origAmountMinor?.let { m -> app.furibudget.core.Currency.all.firstOrNull { it.code == t.origCurrency }?.format(app.furibudget.core.Money(m))?.replace(",", "") ?: m.toString() }.orEmpty()).append(',')
+                .append(t.role.name.lowercase()).append('\n')
         }
         return sb.toString()
     }

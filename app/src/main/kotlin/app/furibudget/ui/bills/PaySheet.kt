@@ -1,5 +1,6 @@
 package app.furibudget.ui.bills
 
+import app.furibudget.ui.theme.entityColor
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -72,7 +73,7 @@ fun PaySheet(state: BudgetState, occ: BillOccurrence, onConfirm: (amountMinor: L
                 state.accounts.forEach { a ->
                     FilterChip(
                         selected = accountId == a.id, onClick = { accountId = a.id }, label = { Text(a.name) },
-                        leadingIcon = { FuriIcon(a.icon, size = 18.dp, tint = Color(a.colorArgb)) },
+                        leadingIcon = { FuriIcon(a.icon, size = 18.dp, tint = entityColor(a.colorArgb)) },
                     )
                 }
             }

@@ -1,5 +1,6 @@
 package app.furibudget.ui.edit
 
+import app.furibudget.ui.theme.entityColor
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -115,7 +116,7 @@ fun SplitEditor(
                                     selected = row.categoryId == cat.id,
                                     onClick = { onRows(rows.toMutableList().also { it[i] = row.copy(categoryId = cat.id) }) },
                                     label = { Text(cat.name) },
-                                    leadingIcon = { FuriIcon(cat.icon, size = 16.dp, tint = Color(cat.colorArgb)) },
+                                    leadingIcon = { FuriIcon(cat.icon, size = 16.dp, tint = entityColor(cat.colorArgb)) },
                                 )
                             }
                         }

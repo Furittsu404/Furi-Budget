@@ -21,6 +21,8 @@ interface AccountDao {
     @Insert suspend fun insertAll(accounts: List<AccountEntity>)
     @Insert suspend fun insert(account: AccountEntity): Long
     @Update suspend fun update(account: AccountEntity)
+    @androidx.room.Delete suspend fun delete(account: AccountEntity)
+    @Query("UPDATE accounts SET sortOrder = :order WHERE id = :id") suspend fun setOrder(id: Long, order: Int)
 }
 
 @Dao
@@ -34,6 +36,7 @@ interface CategoryDao {
 
     @Insert suspend fun insert(category: CategoryEntity): Long
     @Query("SELECT * FROM categories ORDER BY id") suspend fun all(): List<CategoryEntity>
+    @Query("UPDATE categories SET sortOrder = :order WHERE id = :id") suspend fun setOrder(id: Long, order: Int)
     @Query("DELETE FROM categories") suspend fun deleteAll()
     @Insert suspend fun insertAll(categories: List<CategoryEntity>)
     @Update suspend fun update(category: CategoryEntity)
@@ -52,6 +55,10 @@ interface TransactionDao {
     @Query("DELETE FROM transactions WHERE deletedAt IS NOT NULL AND deletedAt < :before") suspend fun purge(before: Long)
 
     @Query("SELECT * FROM transactions ORDER BY id") suspend fun all(): List<TransactionEntity>
+    @Query("UPDATE transactions SET accountId = :to WHERE accountId = :from") suspend fun repointAccount(from: Long, to: Long)
+    @Query("UPDATE transactions SET toAccountId = :to WHERE toAccountId = :from") suspend fun repointToAccount(from: Long, to: Long)
+    @Query("DELETE FROM transactions WHERE kind = 'TRANSFER' AND accountId = toAccountId") suspend fun deleteSelfTransfers()
+    @Query("DELETE FROM transactions WHERE accountId = :id OR (kind = 'TRANSFER' AND toAccountId = :id)") suspend fun deleteForAccount(id: Long)
     @Query("DELETE FROM transactions") suspend fun deleteAll()
     @Insert suspend fun insertAll(txs: List<TransactionEntity>)
 
@@ -114,6 +121,8 @@ interface BillDao {
     @Query("SELECT * FROM bills WHERE active = 1 AND autoPay = 1 AND deletedAt IS NULL") suspend fun activeAutoPay(): List<BillEntity>
     @Query("SELECT * FROM bills WHERE active = 1 AND deletedAt IS NULL") suspend fun active(): List<BillEntity>
     @Query("SELECT * FROM bills ORDER BY id") suspend fun all(): List<BillEntity>
+    @Query("UPDATE bills SET accountId = :to WHERE accountId = :from") suspend fun repointAccount(from: Long, to: Long)
+    @Query("UPDATE bills SET toAccountId = :to WHERE toAccountId = :from") suspend fun repointToAccount(from: Long, to: Long)
     @Query("DELETE FROM bills") suspend fun deleteAll()
     @Insert suspend fun insertAll(b: List<BillEntity>)
     @Insert suspend fun insert(b: BillEntity): Long
@@ -151,6 +160,7 @@ interface TemplateDao {
     fun observeAll(): Flow<List<TemplateEntity>>
 
     @Query("SELECT * FROM templates ORDER BY id") suspend fun all(): List<TemplateEntity>
+    @Query("UPDATE templates SET accountId = :to WHERE accountId = :from") suspend fun repointAccount(from: Long, to: Long)
     @Query("DELETE FROM templates") suspend fun deleteAll()
     @Insert suspend fun insertAll(t: List<TemplateEntity>)
     @Insert suspend fun insert(t: TemplateEntity): Long
@@ -226,6 +236,7 @@ interface FundDao {
     @Query("UPDATE funds SET deletedAt = NULL WHERE id = :id") suspend fun restoreDeleted(id: Long)
     @Query("DELETE FROM funds WHERE id = :id") suspend fun deleteForever(id: Long)
     @Query("DELETE FROM funds WHERE deletedAt IS NOT NULL AND deletedAt < :before") suspend fun purge(before: Long)
+    @Query("UPDATE funds SET accountId = :to WHERE accountId = :from OR accountId IS NULL") suspend fun repointAccount(from: Long, to: Long)
 }
 
 @Dao

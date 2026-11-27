@@ -44,4 +44,6 @@ data class ThemeSpec(
     val cardAlpha: Float? = null,
     /** Shift the background a few dp as the phone tilts. */
     val parallax: Boolean = false,
+    /** One accent colour and neutral ink: categories, accounts and amounts stop carrying their own colours. */
+    val minimal: Boolean = false,
 )

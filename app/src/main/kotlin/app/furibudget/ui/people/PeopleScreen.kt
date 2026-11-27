@@ -1,5 +1,6 @@
 package app.furibudget.ui.people
 
+import app.furibudget.ui.theme.entityColor
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
@@ -114,7 +115,7 @@ fun BalanceBar(owedToYou: Long, youOwe: Long, modifier: Modifier = Modifier) {
 @Composable
 private fun PersonCard(b: PersonBalance, state: BudgetState, onOpen: (Long) -> Unit) {
     val c = Furi.colors
-    val tint = Color(b.person.colorArgb)
+    val tint = entityColor(b.person.colorArgb)
     val net = b.netMinor
     FuriCard(Modifier.fillMaxWidth().clickable { onOpen(b.person.id) }) {
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -134,7 +135,7 @@ private fun PersonCard(b: PersonBalance, state: BudgetState, onOpen: (Long) -> U
 
 @Composable
 fun Avatar(p: PersonEntity, size: androidx.compose.ui.unit.Dp) {
-    val tint = Color(p.colorArgb)
+    val tint = entityColor(p.colorArgb)
     Box(Modifier.size(size).clip(CircleShape).background(tint.copy(alpha = 0.22f)), contentAlignment = Alignment.Center) {
         FuriIcon(p.icon, tint = tint, size = size * 0.55f)
     }

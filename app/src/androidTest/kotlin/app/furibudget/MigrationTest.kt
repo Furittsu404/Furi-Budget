@@ -59,4 +59,19 @@ class MigrationTest {
             db.query("SELECT name FROM sqlite_master WHERE name = '$t'").use { assertEquals(t, 1, it.count) }
         }
     }
+
+    @Test
+    fun v3ToV4PutsExistingFundsInTheFirstAccount() {
+        helper.createDatabase("mig4", 3).apply {
+            execSQL("INSERT INTO accounts(id,name,colorArgb,icon,startBalance,sortOrder,archived) VALUES(1,'Cash',-1,'cash',500,1,0)")
+            execSQL("INSERT INTO accounts(id,name,colorArgb,icon,startBalance,sortOrder,archived) VALUES(2,'Bank',-1,'bank',900,0,0)")
+            execSQL("INSERT INTO funds(id,name,icon,colorArgb,targetMinor,monthlyMinor,deletedAt) VALUES(1,'Trip','savings',-1,100000,NULL,NULL)")
+            execSQL("INSERT INTO fund_moves(id,fundId,amountMinor,epochDay,note,transactionId,monthKey) VALUES(1,1,5000,20000,'',NULL,NULL)")
+            close()
+        }
+        val db = helper.runMigrationsAndValidate("mig4", 4, true, Migrations.MIGRATION_3_4)
+        // sortOrder 0 is the Bank, so that is "first".
+        db.query("SELECT accountId FROM funds WHERE id = 1").use { it.moveToFirst(); assertEquals(2, it.getInt(0)) }
+        db.query("SELECT amountMinor FROM fund_moves").use { it.moveToFirst(); assertEquals(5000L, it.getLong(0)) }
+    }
 }

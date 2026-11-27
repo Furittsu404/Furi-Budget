@@ -1,5 +1,6 @@
 package app.furibudget.ui.bills
 
+import app.furibudget.ui.theme.entityColor
 import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
@@ -295,7 +296,7 @@ fun BillRow(
     val c = Furi.colors
     val b = occ.bill
     var menu by remember { mutableStateOf(false) }
-    val tint = Color(b.colorArgb)
+    val tint = entityColor(b.colorArgb)
     val income = b.kind == TxKind.INCOME
     SwipeToDelete(b.id, onDelete = { onDelete(b) }, shape = MaterialTheme.shapes.large) {
     FuriCard(Modifier.fillMaxWidth()) {
@@ -357,8 +358,8 @@ private fun AllBills(state: BudgetState, today: LocalDate, onEdit: (Long) -> Uni
         SwipeToDelete(b.id, onDelete = { onDelete(b) }, shape = MaterialTheme.shapes.large) {
         FuriCard(Modifier.fillMaxWidth().clickable { onEdit(b.id) }) {
             Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Box(Modifier.size(44.dp).clip(CircleShape).background(Color(b.colorArgb).copy(alpha = 0.22f)), contentAlignment = Alignment.Center) {
-                    FuriIcon(b.iconKey(), tint = Color(b.colorArgb))
+                Box(Modifier.size(44.dp).clip(CircleShape).background(entityColor(b.colorArgb).copy(alpha = 0.22f)), contentAlignment = Alignment.Center) {
+                    FuriIcon(b.iconKey(), tint = entityColor(b.colorArgb))
                 }
                 Column(Modifier.weight(1f)) {
                     Text(b.name, style = MaterialTheme.typography.bodyLarge, color = if (b.active) c.onSurface else c.onSurfaceVariant)

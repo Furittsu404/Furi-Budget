@@ -1,5 +1,6 @@
 package app.furibudget.ui.home
 
+import app.furibudget.ui.theme.entityColor
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -96,16 +97,21 @@ fun HomeScreen(state: BudgetState, onOpenAppearance: () -> Unit, onOpenGoals: ()
                 Text(stringResource(R.string.this_month), style = MaterialTheme.typography.labelMedium, color = c.onSurfaceVariant)
                 val fts = remember(state.total, state.funds, state.fundMoves, state.transactions, state.bills, state.billPayments) { app.furibudget.ui.funds.freeToSpend(state) }
                 if (state.loaded && (fts.reservedMinor > 0 || fts.billsDueMinor > 0)) {
-                    Column(Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).clickable(onClick = onOpenFunds).padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).clickable(onClick = onOpenFunds).padding(horizontal = 6.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(stringResource(R.string.free_to_spend), Modifier.weight(1f), style = MaterialTheme.typography.labelLarge, color = c.onSurfaceVariant)
                             Text(state.currency.format(Money(fts.freeMinor), true), style = Furi.figures.copy(fontSize = MaterialTheme.typography.titleMedium.fontSize), color = if (fts.freeMinor < 0) c.expense else c.accentText)
                         }
                         app.furibudget.ui.funds.FreeBar(fts.freeMinor, fts.billsDueMinor, fts.reservedMinor)
+                        Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                            if (fts.reservedMinor > 0) Text(stringResource(R.string.acct_reserved, state.currency.format(Money(fts.reservedMinor), true)), style = MaterialTheme.typography.labelMedium, color = c.income)
+                            if (fts.billsDueMinor > 0) Text(stringResource(R.string.acct_bills_due, state.currency.format(Money(fts.billsDueMinor), true)), style = MaterialTheme.typography.labelMedium, color = c.warning)
+                        }
                     }
                 }
             }
         }
+        AccountsCard(state)
         val overall = state.budgets.firstOrNull { it.categoryId == null }
         if (overall != null) {
             val st = Budgeting.status(overall, state.transactions, Budgeting.rangeFor(overall, LocalDate.now(), state.startDay, state.firstDay), state.startDay, state.splits)
@@ -186,9 +192,9 @@ fun HomeScreen(state: BudgetState, onOpenAppearance: () -> Unit, onOpenGoals: ()
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(stringResource(R.string.top_spending), style = MaterialTheme.typography.titleMedium, color = c.onSurface)
                 val biggest = top.first().amount.minor.coerceAtLeast(1)
-                top.forEach { ct ->
+                top.forEachIndexed { i, ct ->
                     val cat = state.category(ct.categoryId)
-                    TopBar(cat?.name ?: stringResource(R.string.uncategorised), Color(cat?.colorArgb ?: 0xFF94A3B8.toInt()), ct.amount.minor.toFloat() / biggest, state.currency.format(ct.amount, true))
+                    TopBar(cat?.name ?: stringResource(R.string.uncategorised), app.furibudget.ui.theme.seriesColor(cat?.colorArgb ?: 0xFF94A3B8.toInt(), i), ct.amount.minor.toFloat() / biggest, state.currency.format(ct.amount, true))
                 }
             }
         }

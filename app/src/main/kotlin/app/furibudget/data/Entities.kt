@@ -293,6 +293,8 @@ data class FundEntity(
     /** Reserved automatically each month; null for manual funds. */
     val monthlyMinor: Long? = null,
     val deletedAt: Long? = null,
+    /** The account this money is set aside in. Its balance stays; only that account's free-to-spend shrinks. */
+    val accountId: Long? = null,
 )
 
 /** Money put into (positive) or taken out of (negative) a fund. monthKey ("2026-11") makes the monthly reserve idempotent. */

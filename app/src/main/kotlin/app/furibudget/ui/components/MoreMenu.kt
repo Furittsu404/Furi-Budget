@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -37,6 +38,8 @@ fun MoreMenu(entries: List<MoreEntry>, current: String?, modifier: Modifier = Mo
                 val on = e.route == current
                 Row(
                     Modifier
+                        // The whole row is the tap target, not just the icon and the words: short labels used to leave dead space.
+                        .fillMaxWidth()
                         .heightIn(min = 52.dp)
                         .clip(MaterialTheme.shapes.medium)
                         .background(if (on) c.accentContainer else androidx.compose.ui.graphics.Color.Transparent)

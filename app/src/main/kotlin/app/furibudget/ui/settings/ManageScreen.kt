@@ -1,5 +1,6 @@
 package app.furibudget.ui.settings
 
+import app.furibudget.ui.theme.entityColor
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -31,6 +32,8 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,9 +60,16 @@ import app.furibudget.ui.theme.FuriCard
 
 
 @Composable
-fun ManageScreen(state: BudgetState, onSaveAccount: (AccountEntity) -> Unit, onCheckBalance: (accountId: Long, appMinor: Long, realMinor: Long) -> Unit, onSaveCategory: (CategoryEntity) -> Unit, onBack: () -> Unit) {
+fun ManageScreen(
+    state: BudgetState, onSaveAccount: (AccountEntity) -> Unit, onCheckBalance: (accountId: Long, appMinor: Long, realMinor: Long) -> Unit, onSaveCategory: (CategoryEntity) -> Unit,
+    onReorderAccounts: (List<Long>) -> Unit, onReorderCategories: (List<Long>) -> Unit, onDeleteAccount: (id: Long, moveToId: Long?) -> Unit, onBack: () -> Unit,
+) {
     val c = Furi.colors
     var account by remember { mutableStateOf<AccountEntity?>(null) }
+    var deleting by remember { mutableStateOf<AccountEntity?>(null) }
+    // Which lists are in reorder mode: "accounts", "EXPENSE" or "INCOME". Arrows only show while one is on.
+    var editing by remember { mutableStateOf(setOf<String>()) }
+    fun toggle(key: String) { editing = if (key in editing) editing - key else editing + key }
     var newAccount by remember { mutableStateOf(false) }
     var category by remember { mutableStateOf<CategoryEntity?>(null) }
     var newCategory by remember { mutableStateOf<TxKind?>(null) }
@@ -72,15 +82,16 @@ fun ManageScreen(state: BudgetState, onSaveAccount: (AccountEntity) -> Unit, onC
             IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back)) }
             Text(stringResource(R.string.accounts_categories), style = MaterialTheme.typography.titleLarge, color = c.onSurface)
         }
-        Text(stringResource(R.string.accounts), style = MaterialTheme.typography.titleMedium, color = c.onSurface)
+        SectionHeader(stringResource(R.string.accounts), "accounts" in editing) { toggle("accounts") }
         FuriCard(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-                state.allAccounts.forEach { a ->
+                state.allAccounts.forEachIndexed { index, a ->
                     Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable { account = a }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                        Dot(Color(a.colorArgb), a.icon)
+                        Dot(entityColor(a.colorArgb), a.icon)
                         Text(a.name, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge, color = if (a.archived) c.onSurfaceVariant else c.onSurface)
                         if (a.archived) Text(stringResource(R.string.archived), style = MaterialTheme.typography.labelMedium, color = c.onSurfaceVariant)
                         Text(state.currency.format(state.balances[a.id] ?: Money.ZERO, true), style = Furi.figures.copy(fontSize = MaterialTheme.typography.bodyMedium.fontSize), color = c.onSurface)
+                        if ("accounts" in editing) MoveButtons(index, state.allAccounts.size) { to -> onReorderAccounts(state.allAccounts.map { it.id }.moved(index, to)) }
                     }
                 }
             }
@@ -88,14 +99,16 @@ fun ManageScreen(state: BudgetState, onSaveAccount: (AccountEntity) -> Unit, onC
         FilledTonalButton(onClick = { newAccount = true }) { Text(stringResource(R.string.add_account)) }
 
         listOf(TxKind.EXPENSE to R.string.expense_categories, TxKind.INCOME to R.string.income_categories).forEach { (kind, title) ->
-            Text(stringResource(title), style = MaterialTheme.typography.titleMedium, color = c.onSurface)
+            SectionHeader(stringResource(title), kind.name in editing) { toggle(kind.name) }
+            val inKind = state.categories.filter { it.kind == kind }
             FuriCard(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-                    state.categories.filter { it.kind == kind }.forEach { cat ->
+                    inKind.forEachIndexed { index, cat ->
                         Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).clickable { category = cat }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                            Dot(Color(cat.colorArgb), cat.icon)
+                            Dot(entityColor(cat.colorArgb), cat.icon)
                             Text(cat.name, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge, color = if (cat.archived) c.onSurfaceVariant else c.onSurface)
                             if (cat.archived) Text(stringResource(R.string.archived), style = MaterialTheme.typography.labelMedium, color = c.onSurfaceVariant)
+                            if (kind.name in editing) MoveButtons(index, inKind.size) { to -> onReorderCategories(inKind.map { it.id }.moved(index, to)) }
                         }
                     }
                 }
@@ -105,8 +118,12 @@ fun ManageScreen(state: BudgetState, onSaveAccount: (AccountEntity) -> Unit, onC
     }
 
     if (newAccount || account != null) {
-        AccountDialog(state, account, onDismiss = { newAccount = false; account = null }, onSave = { onSaveAccount(it); newAccount = false; account = null }, onCheck = onCheckBalance)
+        AccountDialog(
+            state, account, onDismiss = { newAccount = false; account = null }, onSave = { onSaveAccount(it); newAccount = false; account = null }, onCheck = onCheckBalance,
+            onDelete = { a -> deleting = a; newAccount = false; account = null },
+        )
     }
+    deleting?.let { a -> DeleteAccountDialog(state, a, onDismiss = { deleting = null }, onConfirm = { moveTo -> onDeleteAccount(a.id, moveTo); deleting = null }) }
     if (newCategory != null || category != null) {
         CategoryDialog(category, newCategory ?: TxKind.EXPENSE, state.categories.size, onDismiss = { newCategory = null; category = null }, onSave = { onSaveCategory(it); newCategory = null; category = null })
     }
@@ -133,7 +150,7 @@ fun ColorRow(selected: Int, onPick: (Int) -> Unit) {
 }
 
 @Composable
-private fun AccountDialog(state: BudgetState, existing: AccountEntity?, onDismiss: () -> Unit, onSave: (AccountEntity) -> Unit, onCheck: (Long, Long, Long) -> Unit) {
+private fun AccountDialog(state: BudgetState, existing: AccountEntity?, onDismiss: () -> Unit, onSave: (AccountEntity) -> Unit, onCheck: (Long, Long, Long) -> Unit, onDelete: (AccountEntity) -> Unit) {
     var checking by remember { mutableStateOf(false) }
     val cur = state.currency
     var name by remember { mutableStateOf(existing?.name.orEmpty()) }
@@ -158,6 +175,12 @@ private fun AccountDialog(state: BudgetState, existing: AccountEntity?, onDismis
                 if (canHide) Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(stringResource(R.string.hide_account), Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
                     Switch(hidden, { hidden = it })
+                }
+                if (existing != null) {
+                    // The last open account cannot go: there would be nowhere to put a transaction.
+                    val canDelete = state.accounts.any { it.id != existing.id }
+                    if (canDelete) TextButton(onClick = { onDelete(existing) }) { Text(stringResource(R.string.delete_account), color = Furi.colors.expense) }
+                    else Text(stringResource(R.string.last_account_hint), style = MaterialTheme.typography.bodySmall, color = Furi.colors.onSurfaceVariant)
                 }
             }
         },
@@ -238,4 +261,64 @@ fun IconButtonRow(icon: String, tint: Color, onPick: (String) -> Unit) {
         Text(stringResource(R.string.change_icon), style = MaterialTheme.typography.bodyLarge, color = Furi.colors.accentText)
     }
     if (picking) IconPickerSheet(icon, tint, onPick = { onPick(it); picking = false }, onDismiss = { picking = false })
+}
+
+private fun <T> List<T>.moved(from: Int, to: Int): List<T> = toMutableList().also { val x = it.removeAt(from); it.add(to, x) }
+
+/** A section title with an Edit button that turns reorder arrows on for the list below it. */
+@Composable
+private fun SectionHeader(title: String, editing: Boolean, onToggle: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(title, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, color = Furi.colors.onSurface)
+        TextButton(onClick = onToggle) { Text(stringResource(if (editing) R.string.done else R.string.edit)) }
+    }
+}
+
+/** Up and down arrows for one row. [onMove] gets the index the row should move to. */
+@Composable
+private fun MoveButtons(index: Int, size: Int, onMove: (Int) -> Unit) {
+    Row {
+        IconButton(onClick = { onMove(index - 1) }, enabled = index > 0) { Icon(Icons.Rounded.KeyboardArrowUp, stringResource(R.string.move_up)) }
+        IconButton(onClick = { onMove(index + 1) }, enabled = index < size - 1) { Icon(Icons.Rounded.KeyboardArrowDown, stringResource(R.string.move_down)) }
+    }
+}
+
+/**
+ * Asks what happens to an account's transactions before deleting it. Moving keeps every number in the app the same;
+ * deleting everything removes the account's transactions and bills for good.
+ */
+@Composable
+private fun DeleteAccountDialog(state: BudgetState, account: AccountEntity, onDismiss: () -> Unit, onConfirm: (moveToId: Long?) -> Unit) {
+    val others = state.allAccounts.filter { it.id != account.id }
+    var target by remember { mutableStateOf(others.firstOrNull { !it.archived }?.id ?: others.firstOrNull()?.id) }
+    val txCount = state.transactions.count { it.accountId == account.id || it.toAccountId == account.id }
+    val billCount = state.bills.count { it.accountId == account.id }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.delete_account_title, account.name)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (txCount == 0 && billCount == 0) {
+                    Text(stringResource(R.string.delete_account_empty), style = MaterialTheme.typography.bodyMedium)
+                } else {
+                    Text(stringResource(R.string.delete_account_body, txCount, billCount), style = MaterialTheme.typography.bodyMedium)
+                    Text(stringResource(R.string.move_everything_to), style = MaterialTheme.typography.labelLarge, color = Furi.colors.onSurfaceVariant)
+                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        others.forEach { a -> FilterChip(selected = target == a.id, onClick = { target = a.id }, label = { Text(a.name) }, leadingIcon = { FuriIcon(a.icon, size = 18.dp, tint = entityColor(a.colorArgb)) }) }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(if (txCount == 0 && billCount == 0) null else target) }) {
+                Text(stringResource(if (txCount == 0 && billCount == 0) R.string.delete else R.string.move_and_delete))
+            }
+        },
+        dismissButton = {
+            Row {
+                if (txCount > 0 || billCount > 0) TextButton(onClick = { onConfirm(null) }) { Text(stringResource(R.string.delete_everything), color = Furi.colors.expense) }
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+            }
+        },
+    )
 }
