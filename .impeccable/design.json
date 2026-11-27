@@ -1,37 +1,245 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-26T00:00:00Z",
+  "generatedAt": "2026-11-27T06:34:25Z",
   "title": "Design System: Furi Budget",
   "extensions": {
     "colorMeta": {
-      "accent-iris": { "role": "primary", "displayName": "Iris", "canonical": "#8B7CFF", "tonalRamp": ["#1E1A4D", "#322C80", "#4A41B0", "#6A5DE0", "#8B7CFF", "#A99EFF", "#C8C0FF", "#E8E4FF"] },
-      "tidepool-ink": { "role": "neutral", "displayName": "Tidepool Ink", "canonical": "#07121C", "tonalRamp": ["#07121C", "#0F2030", "#1A3246", "#2B475F", "#44627C", "#6D8AA3", "#A3B9CB", "#DCE8F0"] },
-      "afterhours-black": { "role": "neutral", "displayName": "Afterhours Black", "canonical": "#05050A", "tonalRamp": ["#05050A", "#0E0E18", "#23233A", "#3D3D5E", "#5F5F85", "#8A8AB0", "#BDBDD8", "#F2F2FA"] },
-      "ledger-sheet": { "role": "neutral", "displayName": "Ledger Sheet", "canonical": "#F3F5F8", "tonalRamp": ["#141922", "#2E3644", "#5A6575", "#8591A3", "#B3BCC8", "#E1E6ED", "#F3F5F8", "#FFFFFF"] },
-      "void-black": { "role": "neutral", "displayName": "Void Black", "canonical": "#000000", "tonalRamp": ["#000000", "#0A0A0C", "#222226", "#3A3A40", "#5C5C66", "#8E8E98", "#C4C4CC", "#F5F5F7"] },
-      "gumdrop-night": { "role": "neutral", "displayName": "Gumdrop Night", "canonical": "#1A1330", "tonalRamp": ["#1A1330", "#2C2150", "#463876", "#6A5A9E", "#9486C4", "#D2C9EA", "#EBE4F8", "#F5EEFF"] },
-      "income-green": { "role": "semantic", "displayName": "Income Green", "canonical": "#22C55E", "tonalRamp": ["#052E16", "#0B5A2A", "#118A3E", "#22C55E", "#4ADE80", "#86EFAC", "#BBF7D0", "#E8FCEF"] },
-      "expense-rose": { "role": "semantic", "displayName": "Expense Rose", "canonical": "#F43F5E", "tonalRamp": ["#4C0519", "#881337", "#BE123C", "#F43F5E", "#FB7185", "#FDA4AF", "#FECDD3", "#FFF1F2"] },
-      "warning-amber": { "role": "semantic", "displayName": "Warning Amber", "canonical": "#F59E0B", "tonalRamp": ["#451A03", "#78350F", "#B45309", "#F59E0B", "#FBBF24", "#FCD34D", "#FDE68A", "#FEF3C7"] }
+      "accent-iris": {
+        "role": "primary",
+        "displayName": "Iris",
+        "canonical": "#8B7CFF",
+        "tonalRamp": [
+          "#1E1A4D",
+          "#322C80",
+          "#4A41B0",
+          "#6A5DE0",
+          "#8B7CFF",
+          "#A99EFF",
+          "#C8C0FF",
+          "#E8E4FF"
+        ]
+      },
+      "tidepool-ink": {
+        "role": "neutral",
+        "displayName": "Tidepool Ink",
+        "canonical": "#07121C",
+        "tonalRamp": [
+          "#07121C",
+          "#0F2030",
+          "#1A3246",
+          "#2B475F",
+          "#44627C",
+          "#6D8AA3",
+          "#A3B9CB",
+          "#DCE8F0"
+        ]
+      },
+      "afterhours-black": {
+        "role": "neutral",
+        "displayName": "Afterhours Black",
+        "canonical": "#05050A",
+        "tonalRamp": [
+          "#05050A",
+          "#0E0E18",
+          "#23233A",
+          "#3D3D5E",
+          "#5F5F85",
+          "#8A8AB0",
+          "#BDBDD8",
+          "#F2F2FA"
+        ]
+      },
+      "ledger-sheet": {
+        "role": "neutral",
+        "displayName": "Ledger Sheet",
+        "canonical": "#F3F5F8",
+        "tonalRamp": [
+          "#141922",
+          "#2E3644",
+          "#5A6575",
+          "#8591A3",
+          "#B3BCC8",
+          "#E1E6ED",
+          "#F3F5F8",
+          "#FFFFFF"
+        ]
+      },
+      "void-black": {
+        "role": "neutral",
+        "displayName": "Void Black",
+        "canonical": "#000000",
+        "tonalRamp": [
+          "#000000",
+          "#0A0A0C",
+          "#222226",
+          "#3A3A40",
+          "#5C5C66",
+          "#8E8E98",
+          "#C4C4CC",
+          "#F5F5F7"
+        ]
+      },
+      "gumdrop-night": {
+        "role": "neutral",
+        "displayName": "Gumdrop Night",
+        "canonical": "#1A1330",
+        "tonalRamp": [
+          "#1A1330",
+          "#2C2150",
+          "#463876",
+          "#6A5A9E",
+          "#9486C4",
+          "#D2C9EA",
+          "#EBE4F8",
+          "#F5EEFF"
+        ]
+      },
+      "income-green": {
+        "role": "semantic",
+        "displayName": "Income Green",
+        "canonical": "#22C55E",
+        "tonalRamp": [
+          "#052E16",
+          "#0B5A2A",
+          "#118A3E",
+          "#22C55E",
+          "#4ADE80",
+          "#86EFAC",
+          "#BBF7D0",
+          "#E8FCEF"
+        ]
+      },
+      "expense-rose": {
+        "role": "semantic",
+        "displayName": "Expense Rose",
+        "canonical": "#F43F5E",
+        "tonalRamp": [
+          "#4C0519",
+          "#881337",
+          "#BE123C",
+          "#F43F5E",
+          "#FB7185",
+          "#FDA4AF",
+          "#FECDD3",
+          "#FFF1F2"
+        ]
+      },
+      "warning-amber": {
+        "role": "semantic",
+        "displayName": "Warning Amber",
+        "canonical": "#F59E0B",
+        "tonalRamp": [
+          "#451A03",
+          "#78350F",
+          "#B45309",
+          "#F59E0B",
+          "#FBBF24",
+          "#FCD34D",
+          "#FDE68A",
+          "#FEF3C7"
+        ]
+      }
     },
     "typographyMeta": {
-      "headline-figures": { "displayName": "Figures", "purpose": "Every money amount; tabular numerals." },
-      "title": { "displayName": "Title", "purpose": "Card headings and list titles." },
-      "label": { "displayName": "Label", "purpose": "Nav labels, chips, buttons." }
+      "headline-figures": {
+        "displayName": "Figures",
+        "purpose": "Every money amount; tabular numerals."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Card headings and list titles."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Nav labels, chips, buttons."
+      },
+      "display": {
+        "displayName": "Display",
+        "purpose": "Pack face: Manrope, Sora, Bricolage Grotesque, Hanken Grotesk or Fredoka."
+      }
     },
     "shadows": [
-      { "name": "flat-light-lift", "value": "8dp elevation, ambient #14000000, spot #26000000", "purpose": "Only shadow in the system: flat cards in light themes." },
-      { "name": "glass-edge", "value": "1dp border, vertical gradient from card border to 25% of it", "purpose": "Lit top edge on Tidepool cards." }
+      {
+        "name": "flat-light-lift",
+        "value": "8dp elevation, ambient #14000000, spot #26000000",
+        "purpose": "Only shadow in the system: flat cards in light themes."
+      },
+      {
+        "name": "glass-edge",
+        "value": "1dp border, vertical gradient from card border to 25% of it",
+        "purpose": "Lit top edge on Tidepool cards."
+      }
     ],
     "motion": [
-      { "name": "spring-tidepool", "value": "damping 0.8, stiffness 220", "purpose": "Soft glide." },
-      { "name": "spring-afterhours", "value": "damping 0.9, stiffness 500", "purpose": "Snappy." },
-      { "name": "spring-ledger", "value": "damping 1.0, stiffness 420", "purpose": "No overshoot." },
-      { "name": "spring-void", "value": "damping 0.95, stiffness 450", "purpose": "Near-critical." },
-      { "name": "spring-gumdrop", "value": "damping 0.45, stiffness 260", "purpose": "Bouncy." },
-      { "name": "tween-default", "value": "320ms x (1.2 - 0.2 x intensity); colour 360ms", "purpose": "Value and colour changes." }
+      {
+        "name": "spring-tidepool",
+        "value": "damping 0.8, stiffness 220",
+        "purpose": "Soft glide."
+      },
+      {
+        "name": "spring-afterhours",
+        "value": "damping 0.9, stiffness 500",
+        "purpose": "Snappy."
+      },
+      {
+        "name": "spring-ledger",
+        "value": "damping 1.0, stiffness 420",
+        "purpose": "No overshoot."
+      },
+      {
+        "name": "spring-void",
+        "value": "damping 0.95, stiffness 450",
+        "purpose": "Near-critical."
+      },
+      {
+        "name": "spring-gumdrop",
+        "value": "damping 0.45, stiffness 260",
+        "purpose": "Bouncy."
+      },
+      {
+        "name": "tween-default",
+        "value": "320ms x (1.2 - 0.2 x intensity); colour 360ms",
+        "purpose": "Value and colour changes."
+      },
+      {
+        "name": "calendar-cell-select",
+        "value": "spring scale to 1.06 via Furi.motion.spring",
+        "purpose": "Selected calendar day."
+      },
+      {
+        "name": "month-slide",
+        "value": "slide quarter width + fade (200ms in, 120ms out), spring",
+        "purpose": "Month pager."
+      },
+      {
+        "name": "confetti",
+        "value": "48 pieces, 1600ms linear",
+        "purpose": "Goal completion burst."
+      }
     ],
-    "breakpoints": []
+    "breakpoints": [],
+    "statusColors": [
+      {
+        "name": "overdue",
+        "value": "Furi.colors.expense"
+      },
+      {
+        "name": "due-today / due-soon",
+        "value": "Furi.colors.warning"
+      },
+      {
+        "name": "upcoming",
+        "value": "Furi.colors.accentText"
+      },
+      {
+        "name": "paid",
+        "value": "Furi.colors.income"
+      },
+      {
+        "name": "skipped",
+        "value": "Furi.colors.onSurfaceVariant"
+      }
+    ]
   },
   "components": [
     {
@@ -65,26 +273,90 @@
       "description": "Bare list row: glyph disc, title and subtitle, tabular amount.",
       "html": "<div class=\"ds-tx\"><span class=\"ds-tx-glyph\"></span><span class=\"ds-tx-text\"><b>Groceries</b><small>Cash</small></span><span class=\"ds-tx-amt\">− $42.10</span></div>",
       "css": ".ds-tx { display: flex; align-items: center; gap: 14px; min-height: 64px; padding: 8px 4px; box-sizing: border-box; color: #EAF2F7; font-family: Manrope, sans-serif; } .ds-tx-glyph { width: 44px; height: 44px; border-radius: 50%; background: rgba(34,197,94,0.2); } .ds-tx-text { flex: 1; display: flex; flex-direction: column; } .ds-tx-text b { font-weight: 400; font-size: 16px; } .ds-tx-text small { font-size: 12px; color: #9FB3C2; } .ds-tx-amt { font-size: 16px; font-weight: 500; font-feature-settings: 'tnum'; color: #F43F5E; }"
+    },
+    {
+      "name": "Calendar Day Cell",
+      "kind": "custom",
+      "refersTo": "calendar-cell",
+      "description": "Bills calendar day: number plus up to three status dots; today outlined, selected filled.",
+      "html": "<div class=\"ds-cal\"><span class=\"ds-cell\">12<i class=\"ds-dot ds-over\"></i></span><span class=\"ds-cell ds-today\">13<i class=\"ds-dot ds-soon\"></i><i class=\"ds-dot ds-up\"></i></span><span class=\"ds-cell ds-sel\">14<i class=\"ds-dot ds-paid\"></i></span></div>",
+      "css": ".ds-cal{display:flex;gap:4px;font-family:Manrope,sans-serif;color:#EAF2F7}.ds-cell{width:44px;height:54px;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:14px;font-feature-settings:'tnum'}.ds-cell .ds-dot{display:inline-block;width:5px;height:5px;border-radius:50%;margin-top:3px}.ds-over{background:#F43F5E}.ds-soon{background:#F59E0B}.ds-up{background:#A99EFF}.ds-paid{background:#22C55E}.ds-today{border:1.5px solid #A99EFF}.ds-sel{background:#3A3470;color:#E4E0FF;transform:scale(1.06)}.ds-cell:focus-visible{outline:2px solid #8B7CFF}"
+    },
+    {
+      "name": "Bill Row",
+      "kind": "card",
+      "refersTo": "bill-row-glyph",
+      "description": "Card row: tinted glyph disc, name, status-coloured due label, amount, Paid button.",
+      "html": "<div class=\"ds-bill\"><span class=\"ds-bg\"></span><span class=\"ds-bt\"><b>Internet</b><em>Due in 3 days</em><small>$49.00</small></span><button class=\"ds-pay\">Paid</button></div>",
+      "css": ".ds-bill{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:28px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.22);font-family:Manrope,sans-serif;color:#EAF2F7}.ds-bg{width:44px;height:44px;border-radius:50%;background:rgba(75,77,237,0.22)}.ds-bt{flex:1;display:flex;flex-direction:column;gap:2px}.ds-bt b{font-weight:400;font-size:16px}.ds-bt em{font-style:normal;font-size:12px;font-weight:500;color:#F59E0B}.ds-bt small{font-size:12px;color:#9FB3C2;font-feature-settings:'tnum'}.ds-pay{border:0;border-radius:9999px;padding:8px 16px;background:#3A3470;color:#E4E0FF;font:500 14px Manrope,sans-serif;cursor:pointer}.ds-pay:hover{background:#463F86}.ds-pay:focus-visible{outline:2px solid #8B7CFF}"
+    },
+    {
+      "name": "Home Widget",
+      "kind": "custom",
+      "refersTo": "widget-shell",
+      "description": "Glance widget: balance, accent plus button, up to four bills with status dots; colour only.",
+      "html": "<div class=\"ds-w\"><div class=\"ds-wt\"><span><small>Total balance</small><b>$1,240.00</b></span><i>+</i></div><div class=\"ds-wr\"><u class=\"ds-wd\"></u><span>Rent</span><em>Due in 2 days</em><span>$600.00</span></div></div>",
+      "css": ".ds-w{width:300px;padding:14px;border-radius:24px;background:rgba(7,18,28,0.94);color:#EAF2F7;font-family:sans-serif;box-sizing:border-box}.ds-wt{display:flex;align-items:center;justify-content:space-between}.ds-wt span{display:flex;flex-direction:column}.ds-wt small{font-size:12px;color:#9FB3C2}.ds-wt b{font-size:24px}.ds-wt i{width:44px;height:44px;border-radius:50%;background:#8B7CFF;color:#0E0B2E;font-style:normal;font-size:24px;font-weight:700;display:flex;align-items:center;justify-content:center}.ds-wr{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:13px}.ds-wr span:first-of-type{flex:1}.ds-wr em{font-style:normal;font-size:11px;color:#F59E0B}.ds-wr span:last-child{font-size:12px}.ds-wd{width:8px;height:8px;border-radius:50%;background:#F59E0B}"
     }
   ],
   "narrative": {
     "northStar": "The Wardrobe",
-    "overview": "The look is the user's. One set of roles read through Furi.colors, three axes the user turns independently: pack, accent, background. Roles are derived, not picked, so any combination stays readable. Material 3 supplies structure; brand lives in theme roles. Motion is a feature, scaled by one slider and dropped under Remove animations.",
+    "overview": "The look is the user's. One set of roles read through Furi.colors, three axes the user turns independently: pack, accent, background. Roles are derived, not picked, so any combination stays readable. Material 3 supplies structure; brand lives in theme roles. Motion is a feature, scaled by one slider and dropped under Remove animations. Bills ride one status vocabulary across calendar, rows, Home, widget and notifications; the widget follows the theme as colour only.",
     "keyCharacteristics": [
       "Five packs: Tidepool, Afterhours, Ledger (light only), Void (dark only), Gumdrop.",
       "Sixteen accent swatches plus Dynamic, Custom and Photo-picked; default Iris.",
       "Six backgrounds: mesh, aurora, particles, gradient, solid, photo.",
       "Tabular figures for every money amount.",
-      "Semantic income, expense, warning with a colorblind-safe set."
+      "Semantic income, expense, warning with a colorblind-safe set.",
+      "One bill status vocabulary (overdue, due soon, upcoming, paid) shared by calendar, rows, Home, widget and notifications.",
+      "Glance home-screen widget that wears the pack and accent as colour only."
     ],
     "rules": [
-      { "name": "The Derived Accent Rule", "body": "No screen uses a raw swatch. Accent roles come from AccentDerivation.derive against the worst surface; accent text holds 4.5:1.", "section": "colors" },
-      { "name": "The Worst Surface Rule", "body": "Contrast is measured against the page composited with the most hostile blob. Body text 7:1, muted 4.6:1.", "section": "colors" },
-      { "name": "The Photo Flip Rule", "body": "Over a photo, text tone follows photo luminance after dim, not the system theme.", "section": "colors" },
-      { "name": "The One Edge Rule", "body": "Pack neutrals carry their own border; accent edges appear only in the outline card style.", "section": "colors" },
-      { "name": "The Tabular Rule", "body": "Every money figure uses Furi.figures (tnum).", "section": "typography" },
-      { "name": "The Roll Rule", "body": "Changing money rolls digit by digit; non-digits stay still.", "section": "typography" },
-      { "name": "The Pack Owns Depth Rule", "body": "Depth comes from the pack's card style; screens add no shadows or borders.", "section": "elevation" }
+      {
+        "name": "The Derived Accent Rule",
+        "body": "No screen uses a raw swatch. Accent roles come from AccentDerivation.derive against the worst surface; accent text holds 4.5:1.",
+        "section": "colors"
+      },
+      {
+        "name": "The Worst Surface Rule",
+        "body": "Contrast is measured against the page composited with the most hostile blob. Body text 7:1, muted 4.6:1.",
+        "section": "colors"
+      },
+      {
+        "name": "The Photo Flip Rule",
+        "body": "Over a photo, text tone follows photo luminance after dim, not the system theme.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Edge Rule",
+        "body": "Pack neutrals carry their own border; accent edges appear only in the outline card style.",
+        "section": "colors"
+      },
+      {
+        "name": "The Status Colour Rule",
+        "body": "Bill state is coloured only through statusColor; a new surface never picks its own hue for overdue, soon, upcoming or paid.",
+        "section": "colors"
+      },
+      {
+        "name": "The Widget Colour Rule",
+        "body": "The widget calls resolveColors with the saved pack, accent and night flag and takes colour only: page at 94% alpha, onSurface, onSurfaceVariant, accent/onAccent, status tints. Never the animated background, glass, photo or pack springs, never a hard-coded hex.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tabular Rule",
+        "body": "Every money figure uses Furi.figures (tnum).",
+        "section": "typography"
+      },
+      {
+        "name": "The Roll Rule",
+        "body": "Changing money rolls digit by digit; non-digits stay still.",
+        "section": "typography"
+      },
+      {
+        "name": "The Pack Owns Depth Rule",
+        "body": "Depth comes from the pack's card style; screens add no shadows or borders.",
+        "section": "elevation"
+      }
     ],
     "dos": [
       "Do read colour from Furi.colors and shape from MaterialTheme.shapes; never hard-code a hex in a screen.",
@@ -92,14 +364,20 @@
       "Do run every animation through Furi.motion so the slider and Remove animations apply.",
       "Do show money with Furi.figures and AnimatedAmount.",
       "Do keep 48dp minimum touch targets and a 20dp screen gutter.",
-      "Do derive any new accent-based colour with AccentDerivation against the worst surface."
+      "Do derive any new accent-based colour with AccentDerivation against the worst surface.",
+      "Do colour bill state through statusColor and always pair the colour with the due label text.",
+      "Do build widget colours from resolveColors (pack, accent, night) and nothing else.",
+      "Do show up to three status dots per calendar cell, 5dp, in statusColor."
     ],
     "donts": [
       "Don't ship a single house style with a dark/light toggle; a new surface must look right in all five packs.",
       "Don't offer Ledger in dark or Afterhours and Void in light.",
       "Don't use raw swatch colours for text or thin strokes.",
       "Don't put shadows, borders or fills on a screen that the pack's card style should supply.",
-      "Don't animate outside Furi.motion or ignore the intensity setting."
+      "Don't animate outside Furi.motion or ignore the intensity setting.",
+      "Don't invent a second status palette on a new screen, widget or notification.",
+      "Don't put the live background, glass fills or photo into the widget; colour only.",
+      "Don't rely on a status dot alone to say a bill is late or paid."
     ]
   }
 }
