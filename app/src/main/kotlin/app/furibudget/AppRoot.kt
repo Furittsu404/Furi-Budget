@@ -68,6 +68,7 @@ import app.furibudget.ui.budgets.BudgetsScreen
 import app.furibudget.ui.goals.GoalsScreen
 import app.furibudget.ui.home.HomeScreen
 import app.furibudget.ui.onboarding.OnboardingScreen
+import app.furibudget.ui.funds.FundsScreen
 import app.furibudget.ui.people.PeopleScreen
 import app.furibudget.ui.people.PersonScreen
 import app.furibudget.ui.settings.ManageScreen
@@ -87,6 +88,7 @@ private object Route {
     const val GOALS = "goals"
     const val TRASH = "trash"
     const val PEOPLE = "people"
+    const val FUNDS = "funds"
     const val PERSON = "person/{id}"
     const val BILLS = "bills"
     const val BILL_EDIT = "bill/{id}"
@@ -169,7 +171,7 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
             popExitTransition = { fadeOut(m.tween(160)) + slideOutHorizontally(m.spring()) { it / 10 } },
         ) {
             composable(Route.HOME) {
-                HomeScreen(state, onOpenAppearance = { nav.navigate(Route.APPEARANCE) }, onOpenGoals = { nav.navigate(Route.GOALS) }, onOpenPeople = { nav.navigate(Route.PEOPLE) }, onOpenBills = { nav.navigate(Route.BILLS) { popUpTo(Route.HOME) { saveState = true }; launchSingleTop = true; restoreState = true } }, onOpenSettings = { nav.navigate(Route.SETTINGS) }, onOpenBudgets = { nav.navigate(Route.BUDGETS) { popUpTo(Route.HOME) { saveState = true }; launchSingleTop = true; restoreState = true } }, onOpenTx = { nav.navigate(Route.edit(it)) }, onQuickAdd = { t -> vm.quickAdd(t) { tx -> scope.launch { snackbar.currentSnackbarData?.dismiss(); if (snackbar.showSnackbar(resources.getString(R.string.added_template, t.name), undo, duration = androidx.compose.material3.SnackbarDuration.Long) == SnackbarResult.ActionPerformed) vm.delete(tx) } } })
+                HomeScreen(state, onOpenAppearance = { nav.navigate(Route.APPEARANCE) }, onOpenGoals = { nav.navigate(Route.GOALS) }, onOpenPeople = { nav.navigate(Route.PEOPLE) }, onOpenFunds = { nav.navigate(Route.FUNDS) }, onOpenBills = { nav.navigate(Route.BILLS) { popUpTo(Route.HOME) { saveState = true }; launchSingleTop = true; restoreState = true } }, onOpenSettings = { nav.navigate(Route.SETTINGS) }, onOpenBudgets = { nav.navigate(Route.BUDGETS) { popUpTo(Route.HOME) { saveState = true }; launchSingleTop = true; restoreState = true } }, onOpenTx = { nav.navigate(Route.edit(it)) }, onQuickAdd = { t -> vm.quickAdd(t) { tx -> scope.launch { snackbar.currentSnackbarData?.dismiss(); if (snackbar.showSnackbar(resources.getString(R.string.added_template, t.name), undo, duration = androidx.compose.material3.SnackbarDuration.Long) == SnackbarResult.ActionPerformed) vm.delete(tx) } } })
             }
             composable(Route.ACTIVITY) {
                 ActivityScreen(
@@ -209,7 +211,7 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
             composable(Route.SETTINGS) {
                 SettingsScreen(
                     state, vm, spec, onTheme,
-                    onOpenManage = { nav.navigate(Route.MANAGE) }, onOpenGoals = { nav.navigate(Route.GOALS) }, onOpenPeople = { nav.navigate(Route.PEOPLE) }, onOpenTrash = { nav.navigate(Route.TRASH) },
+                    onOpenManage = { nav.navigate(Route.MANAGE) }, onOpenGoals = { nav.navigate(Route.GOALS) }, onOpenPeople = { nav.navigate(Route.PEOPLE) }, onOpenFunds = { nav.navigate(Route.FUNDS) }, onOpenTrash = { nav.navigate(Route.TRASH) },
                     onBack = { nav.popBackStack() },
                 )
             }
@@ -217,12 +219,14 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
                 val trash by vm.trash.collectAsState()
                 TrashScreen(
                     state, trash,
+                    onRestoreFund = { vm.restoreFund(it.id) }, onForeverFund = { vm.deleteFundForever(it.id) },
                     onRestorePerson = { vm.restorePerson(it.id) }, onForeverPerson = { vm.deletePersonForever(it.id) },
                     onRestoreTx = vm::restore, onRestoreBill = { vm.restoreBill(it.id) }, onRestoreGoal = { vm.restoreGoal(it.id) },
                     onForeverTx = { vm.deleteForever(it) }, onForeverBill = { vm.deleteForever(it) }, onForeverGoal = { vm.deleteForever(it) },
                     onBack = { nav.popBackStack() },
                 )
             }
+            composable(Route.FUNDS) { FundsScreen(state, vm::saveFund, vm::deleteFund, vm::moveFund) { nav.popBackStack() } }
             composable(Route.PEOPLE) {
                 PeopleScreen(state, onOpenPerson = { nav.navigate(Route.person(it)) }, onSavePerson = { p, done -> vm.savePerson(p, done) }, onBack = { nav.popBackStack() })
             }
@@ -234,7 +238,9 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
                     onBack = { nav.popBackStack() },
                 )
             }
-            composable(Route.MANAGE) { ManageScreen(state, vm::saveAccount, vm::saveCategory) { nav.popBackStack() } }
+            composable(Route.MANAGE) {
+                val ctx = androidx.compose.ui.platform.LocalContext.current
+                ManageScreen(state, vm::saveAccount, { id, app, real -> vm.checkBalance(id, app, real, ctx.getString(R.string.balance_check_note)) }, vm::saveCategory) { nav.popBackStack() } }
             composable(
                 Route.EDIT,
                 arguments = listOf(navArgument("id") { type = NavType.LongType }, navArgument("kind") { type = NavType.StringType; defaultValue = "EXPENSE" }),

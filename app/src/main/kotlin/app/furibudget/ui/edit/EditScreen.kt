@@ -102,7 +102,7 @@ private val KeypadSaver = listSaver<KeypadEntry, Any>(
 fun EditScreen(
     txId: Long,
     state: BudgetState,
-    onSave: (TransactionEntity, List<TransactionSplitEntity>, Set<Long>) -> Unit,
+    onSave: (TransactionEntity, List<TransactionSplitEntity>, Set<Long>, Long?) -> Unit,
     onAddTag: (String, (Long) -> Unit) -> Unit,
     onSaveBill: (BillEntity) -> Unit,
     onDelete: (TransactionEntity) -> Unit,
@@ -127,6 +127,7 @@ fun EditScreen(
     val date = LocalDate.ofEpochDay(dateDay)
     var picking by rememberSaveable { mutableStateOf(false) }
     var details by rememberSaveable { mutableStateOf(false) }
+    var fundId by rememberSaveable(*key) { mutableStateOf(existing?.let { e -> state.fundMoves.firstOrNull { it.transactionId == e.id }?.fundId }) }
     var repeat by rememberSaveable { mutableStateOf(Repeat.NONE) }
     // Tags and split rows. Rows are kept as plain lists of numbers and text so they survive rotation.
     var tagIds by rememberSaveable(*key) { mutableStateOf(existing?.let { e -> state.transactionTags.filter { it.transactionId == e.id }.map { it.tagId } } ?: emptyList()) }
@@ -215,7 +216,7 @@ fun EditScreen(
                     leadingIcon = { Icon(Icons.Rounded.Event, null, Modifier.size(18.dp)) },
                 )
                 if (kind != TxKind.TRANSFER || existing == null) {
-                    val extras = (if (splitting) 1 else 0) + tagIds.size + (if (repeat != Repeat.NONE) 1 else 0)
+                    val extras = (if (splitting) 1 else 0) + (if (fundId != null && kind == TxKind.EXPENSE) 1 else 0) + tagIds.size + (if (repeat != Repeat.NONE) 1 else 0)
                     FilterChip(
                         selected = extras > 0,
                         onClick = { details = true },
@@ -275,6 +276,7 @@ fun EditScreen(
                         ),
                         if (splitting) splitRows.mapIndexed { i, r -> TransactionSplitEntity(transactionId = existing?.id ?: 0, categoryId = r.categoryId, amountMinor = sliceMinor[i]) } else emptyList(),
                         if (kind == TxKind.TRANSFER) emptySet() else tagIds.toSet(),
+                        if (kind == TxKind.EXPENSE) fundId else null,
                     )
                     if (repeat != Repeat.NONE && existing == null) {
                         // The transaction above is the first one; the bill takes over from the next due date, paying itself.
@@ -315,6 +317,13 @@ fun EditScreen(
                         onToggle = { id -> tagIds = if (id in tagIds) tagIds - id else tagIds + id },
                         onAdd = { n -> onAddTag(n) { id -> tagIds = tagIds + id } },
                     )
+                }
+                if (kind == TxKind.EXPENSE && state.funds.isNotEmpty()) {
+                    ChipRow(stringResource(R.string.pay_from_fund)) {
+                        state.funds.forEach { f ->
+                            FilterChip(selected = fundId == f.id, onClick = { fundId = if (fundId == f.id) null else f.id }, label = { Text(f.name) }, leadingIcon = { FuriIcon(f.icon, size = 18.dp, tint = Color(f.colorArgb)) })
+                        }
+                    }
                 }
                 if (existing == null) {
                     ChipRow(stringResource(R.string.repeat)) {

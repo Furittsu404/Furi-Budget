@@ -57,7 +57,7 @@ import java.time.LocalDate
 
 /** Interim Home (M2). M3 replaces it with the budget ring, category strip and goals. */
 @Composable
-fun HomeScreen(state: BudgetState, onOpenAppearance: () -> Unit, onOpenGoals: () -> Unit, onOpenPeople: () -> Unit, onOpenBills: () -> Unit, onQuickAdd: (app.furibudget.data.TemplateEntity) -> Unit, onOpenSettings: () -> Unit, onOpenBudgets: () -> Unit, onOpenTx: (Long) -> Unit) {
+fun HomeScreen(state: BudgetState, onOpenAppearance: () -> Unit, onOpenGoals: () -> Unit, onOpenPeople: () -> Unit, onOpenFunds: () -> Unit, onOpenBills: () -> Unit, onQuickAdd: (app.furibudget.data.TemplateEntity) -> Unit, onOpenSettings: () -> Unit, onOpenBudgets: () -> Unit, onOpenTx: (Long) -> Unit) {
     val c = Furi.colors
     val month = state.month()
     val totals = Ledger.totals(state.transactions, month)
@@ -94,6 +94,16 @@ fun HomeScreen(state: BudgetState, onOpenAppearance: () -> Unit, onOpenGoals: ()
                     Text("− " + state.currency.format(totals.expense, true), style = Furi.figures.copy(fontSize = MaterialTheme.typography.titleSmall.fontSize), color = c.expense)
                 }
                 Text(stringResource(R.string.this_month), style = MaterialTheme.typography.labelMedium, color = c.onSurfaceVariant)
+                val fts = remember(state.total, state.funds, state.fundMoves, state.transactions, state.bills, state.billPayments) { app.furibudget.ui.funds.freeToSpend(state) }
+                if (state.loaded && (fts.reservedMinor > 0 || fts.billsDueMinor > 0)) {
+                    Column(Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).clickable(onClick = onOpenFunds).padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(stringResource(R.string.free_to_spend), Modifier.weight(1f), style = MaterialTheme.typography.labelLarge, color = c.onSurfaceVariant)
+                            Text(state.currency.format(Money(fts.freeMinor), true), style = Furi.figures.copy(fontSize = MaterialTheme.typography.titleMedium.fontSize), color = if (fts.freeMinor < 0) c.expense else c.accentText)
+                        }
+                        app.furibudget.ui.funds.FreeBar(fts.freeMinor, fts.billsDueMinor, fts.reservedMinor)
+                    }
+                }
             }
         }
         val overall = state.budgets.firstOrNull { it.categoryId == null }

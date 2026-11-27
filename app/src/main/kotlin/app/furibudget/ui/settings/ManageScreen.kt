@@ -57,7 +57,7 @@ import app.furibudget.ui.theme.FuriCard
 
 
 @Composable
-fun ManageScreen(state: BudgetState, onSaveAccount: (AccountEntity) -> Unit, onSaveCategory: (CategoryEntity) -> Unit, onBack: () -> Unit) {
+fun ManageScreen(state: BudgetState, onSaveAccount: (AccountEntity) -> Unit, onCheckBalance: (accountId: Long, appMinor: Long, realMinor: Long) -> Unit, onSaveCategory: (CategoryEntity) -> Unit, onBack: () -> Unit) {
     val c = Furi.colors
     var account by remember { mutableStateOf<AccountEntity?>(null) }
     var newAccount by remember { mutableStateOf(false) }
@@ -105,7 +105,7 @@ fun ManageScreen(state: BudgetState, onSaveAccount: (AccountEntity) -> Unit, onS
     }
 
     if (newAccount || account != null) {
-        AccountDialog(state, account, onDismiss = { newAccount = false; account = null }, onSave = { onSaveAccount(it); newAccount = false; account = null })
+        AccountDialog(state, account, onDismiss = { newAccount = false; account = null }, onSave = { onSaveAccount(it); newAccount = false; account = null }, onCheck = onCheckBalance)
     }
     if (newCategory != null || category != null) {
         CategoryDialog(category, newCategory ?: TxKind.EXPENSE, state.categories.size, onDismiss = { newCategory = null; category = null }, onSave = { onSaveCategory(it); newCategory = null; category = null })
@@ -133,7 +133,8 @@ fun ColorRow(selected: Int, onPick: (Int) -> Unit) {
 }
 
 @Composable
-private fun AccountDialog(state: BudgetState, existing: AccountEntity?, onDismiss: () -> Unit, onSave: (AccountEntity) -> Unit) {
+private fun AccountDialog(state: BudgetState, existing: AccountEntity?, onDismiss: () -> Unit, onSave: (AccountEntity) -> Unit, onCheck: (Long, Long, Long) -> Unit) {
+    var checking by remember { mutableStateOf(false) }
     val cur = state.currency
     var name by remember { mutableStateOf(existing?.name.orEmpty()) }
     val nowBalance = existing?.let { state.balances[it.id] ?: Money.ZERO } ?: Money.ZERO
@@ -150,7 +151,8 @@ private fun AccountDialog(state: BudgetState, existing: AccountEntity?, onDismis
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(name, { name = it.take(30) }, label = { Text(stringResource(R.string.goal_name)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                AmountField(balance, { balance = it }, cur, stringResource(R.string.balance_now), Modifier.fillMaxWidth())
+                if (existing == null) AmountField(balance, { balance = it }, cur, stringResource(R.string.balance_now), Modifier.fillMaxWidth())
+                else TextButton(onClick = { checking = true }) { Text(stringResource(R.string.check_balance)) }
                 IconButtonRow(icon, Color(color)) { icon = it }
                 ColorRow(color) { color = it }
                 if (canHide) Row(verticalAlignment = Alignment.CenterVertically) {
@@ -160,14 +162,37 @@ private fun AccountDialog(state: BudgetState, existing: AccountEntity?, onDismis
             }
         },
         confirmButton = {
-            TextButton(enabled = name.isNotBlank() && typed != null, onClick = {
-                // The typed figure is today's balance; store what the account held before any recorded transactions.
-                val start = typed!!.minor - (nowBalance.minor - (existing?.startBalance ?: 0L))
+            TextButton(enabled = name.isNotBlank() && (existing != null || typed != null), onClick = {
+                // A new account's typed figure is today's balance. An existing one keeps its opening balance: use Check balance to correct it.
+                val start = if (existing != null) existing.startBalance else typed!!.minor
                 onSave((existing ?: AccountEntity(name = "", colorArgb = 0, icon = "bank", sortOrder = state.accounts.size)).copy(name = name.trim(), colorArgb = color, icon = icon, startBalance = start, archived = hidden))
             }) { Text(stringResource(R.string.save)) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
+    if (checking && existing != null) {
+        var real by remember { mutableStateOf(if (nowBalance.minor >= 0) cur.plain(nowBalance) else "") }
+        val realMoney = cur.parse(real)
+        val diff = (realMoney?.minor ?: nowBalance.minor) - nowBalance.minor
+        AlertDialog(
+            onDismissRequest = { checking = false },
+            title = { Text(stringResource(R.string.check_balance)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(stringResource(R.string.check_balance_hint, cur.format(nowBalance, true)), style = MaterialTheme.typography.bodyMedium)
+                    AmountField(real, { real = it }, cur, stringResource(R.string.balance_really), Modifier.fillMaxWidth())
+                    if (diff != 0L && realMoney != null) Text(
+                        stringResource(if (diff > 0) R.string.adjust_up else R.string.adjust_down, cur.format(Money(kotlin.math.abs(diff)), true)),
+                        style = MaterialTheme.typography.bodySmall, color = if (diff > 0) Furi.colors.income else Furi.colors.expense,
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(enabled = realMoney != null && diff != 0L, onClick = { onCheck(existing.id, nowBalance.minor, realMoney!!.minor); checking = false; onDismiss() }) { Text(stringResource(R.string.adjust)) }
+            },
+            dismissButton = { TextButton(onClick = { checking = false }) { Text(stringResource(R.string.cancel)) } },
+        )
+    }
 }
 
 @Composable

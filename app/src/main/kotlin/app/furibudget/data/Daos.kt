@@ -3,6 +3,7 @@ package app.furibudget.data
 import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
@@ -206,4 +207,32 @@ interface LoanDao {
     @Insert suspend fun insertAll(l: List<LoanEntity>)
     @Query("UPDATE loans SET deletedAt = :at WHERE personId = :personId") suspend fun markPersonDeleted(personId: Long, at: Long)
     @Query("UPDATE loans SET deletedAt = NULL WHERE personId = :personId") suspend fun restorePerson(personId: Long)
+}
+
+@Dao
+interface FundDao {
+    @Query("SELECT * FROM funds WHERE deletedAt IS NULL ORDER BY name COLLATE NOCASE") fun observeAll(): Flow<List<FundEntity>>
+    @Query("SELECT * FROM funds WHERE deletedAt IS NULL") suspend fun active(): List<FundEntity>
+    @Query("SELECT * FROM funds ORDER BY id") suspend fun all(): List<FundEntity>
+    @Query("SELECT * FROM funds WHERE deletedAt IS NOT NULL ORDER BY deletedAt DESC") fun observeDeleted(): Flow<List<FundEntity>>
+    @Query("DELETE FROM funds") suspend fun deleteAll()
+    @Insert suspend fun insert(f: FundEntity): Long
+    @Insert suspend fun insertAll(f: List<FundEntity>)
+    @Update suspend fun update(f: FundEntity)
+    @Query("UPDATE funds SET deletedAt = :at WHERE id = :id") suspend fun markDeleted(id: Long, at: Long)
+    @Query("UPDATE funds SET deletedAt = NULL WHERE id = :id") suspend fun restoreDeleted(id: Long)
+    @Query("DELETE FROM funds WHERE id = :id") suspend fun deleteForever(id: Long)
+    @Query("DELETE FROM funds WHERE deletedAt IS NOT NULL AND deletedAt < :before") suspend fun purge(before: Long)
+}
+
+@Dao
+interface FundMoveDao {
+    @Query("SELECT * FROM fund_moves") fun observeAll(): Flow<List<FundMoveEntity>>
+    @Query("SELECT * FROM fund_moves ORDER BY id") suspend fun all(): List<FundMoveEntity>
+    @Query("SELECT * FROM fund_moves WHERE fundId = :fundId") suspend fun forFund(fundId: Long): List<FundMoveEntity>
+    @Query("DELETE FROM fund_moves") suspend fun deleteAll()
+    @Query("DELETE FROM fund_moves WHERE transactionId = :txId") suspend fun deleteForTx(txId: Long)
+    @Insert suspend fun insertAll(m: List<FundMoveEntity>)
+    @Insert suspend fun insert(m: FundMoveEntity): Long
+    @Insert(onConflict = OnConflictStrategy.IGNORE) suspend fun insertIgnore(m: FundMoveEntity): Long
 }

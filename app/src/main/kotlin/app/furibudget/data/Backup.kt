@@ -21,6 +21,8 @@ data class BackupFile(
     val billPayments: List<BillPaymentEntity> = emptyList(),
     val templates: List<TemplateEntity> = emptyList(),
     val tags: List<TagEntity> = emptyList(),
+    val funds: List<FundEntity> = emptyList(),
+    val fundMoves: List<FundMoveEntity> = emptyList(),
     val people: List<PersonEntity> = emptyList(),
     val loans: List<LoanEntity> = emptyList(),
     val transactionTags: List<TransactionTagEntity> = emptyList(),
@@ -78,6 +80,7 @@ object Backup {
         return f.transactions.all { t -> t.accountId in acc && (t.toAccountId == null || t.toAccountId in acc) && (t.categoryId == null || t.categoryId in categories) && t.amountMinor > 0 } &&
             f.bills.all { r -> r.accountId in acc && (r.toAccountId == null || r.toAccountId in acc) && (r.categoryId == null || r.categoryId in categories) && r.amountMinor >= 0 } &&
             f.billPayments.all { p -> f.bills.any { it.id == p.billId } && (p.transactionId == null || f.transactions.any { it.id == p.transactionId }) } &&
+            f.fundMoves.all { m -> f.funds.any { it.id == m.fundId } } &&
             f.loans.all { l -> f.people.any { it.id == l.personId } } &&
             f.transactionTags.all { tt -> f.transactions.any { it.id == tt.transactionId } && f.tags.any { it.id == tt.tagId } } &&
             f.splits.all { sp -> f.transactions.any { it.id == sp.transactionId } && (sp.categoryId == null || sp.categoryId in categories) } &&

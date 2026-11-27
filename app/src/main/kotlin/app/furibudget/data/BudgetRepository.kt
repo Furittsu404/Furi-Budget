@@ -15,6 +15,9 @@ class BudgetRepository(private val db: BudgetDatabase) {
     val billPayments: Flow<List<BillPaymentEntity>> = db.billPayments().observeAll()
     val templates: Flow<List<TemplateEntity>> = db.templates().observeAll()
     val tags: Flow<List<TagEntity>> = db.tags().observeAll()
+    val funds: Flow<List<FundEntity>> = db.funds().observeAll()
+    val fundMoves: Flow<List<FundMoveEntity>> = db.fundMoves().observeAll()
+    val deletedFunds: Flow<List<FundEntity>> = db.funds().observeDeleted()
     val people: Flow<List<PersonEntity>> = db.people().observeAll()
     val loans: Flow<List<LoanEntity>> = db.loans().observeAll()
     val deletedPeople: Flow<List<PersonEntity>> = db.people().observeDeleted()
@@ -39,8 +42,10 @@ class BudgetRepository(private val db: BudgetDatabase) {
         if (tx.id == 0L) db.transactions().insert(tx) else { db.transactions().update(tx); tx.id }
 
     /** Saves a transaction together with its split slices and tags in one transaction, replacing any earlier ones. */
-    suspend fun saveFull(tx: TransactionEntity, splits: List<TransactionSplitEntity>, tagIds: Set<Long>): Long = db.withTransaction {
+    suspend fun saveFull(tx: TransactionEntity, splits: List<TransactionSplitEntity>, tagIds: Set<Long>, fundId: Long? = null): Long = db.withTransaction {
         val id = save(tx)
+        db.fundMoves().deleteForTx(id)
+        if (fundId != null && tx.kind == TxKind.EXPENSE) db.fundMoves().insert(FundMoveEntity(fundId = fundId, amountMinor = -tx.amountMinor, epochDay = tx.epochDay, note = tx.note, transactionId = id))
         db.splits().deleteFor(id)
         if (splits.isNotEmpty()) db.splits().insertAll(splits.map { it.copy(id = 0, transactionId = id) })
         db.transactionTags().deleteFor(id)
@@ -49,6 +54,25 @@ class BudgetRepository(private val db: BudgetDatabase) {
     }
 
     suspend fun saveTag(t: TagEntity): Long = db.tags().insert(t)
+
+    suspend fun saveFund(f: FundEntity): Long = if (f.id == 0L) db.funds().insert(f) else { db.funds().update(f); f.id }
+    suspend fun softDeleteFund(id: Long, at: Long) = db.funds().markDeleted(id, at)
+    suspend fun restoreFund(id: Long) = db.funds().restoreDeleted(id)
+    suspend fun deleteFundForever(id: Long) = db.funds().deleteForever(id)
+    suspend fun moveFund(fundId: Long, amountMinor: Long, epochDay: Long, note: String = "") { db.fundMoves().insert(FundMoveEntity(fundId = fundId, amountMinor = amountMinor, epochDay = epochDay, note = note)) }
+
+    /** Posts this month's automatic reserve for every fund that has one. Safe to call on every launch. */
+    suspend fun postFundMonthly(today: LocalDate) {
+        for (m in Funds.monthlyToPost(db.funds().active(), today)) db.fundMoves().insertIgnore(m)
+    }
+
+    /** Records the difference between what the app says and what the account really holds as an adjustment, kept out of totals. */
+    suspend fun adjustBalance(accountId: Long, appMinor: Long, realMinor: Long, epochDay: Long, note: String): Boolean {
+        val diff = realMinor - appMinor
+        if (diff == 0L) return false
+        db.transactions().insert(TransactionEntity(kind = if (diff > 0) TxKind.INCOME else TxKind.EXPENSE, amountMinor = kotlin.math.abs(diff), accountId = accountId, note = note, epochDay = epochDay, role = TxRole.ADJUSTMENT))
+        return true
+    }
 
     suspend fun savePerson(p: PersonEntity): Long = if (p.id == 0L) db.people().insert(p) else { db.people().update(p); p.id }
     suspend fun softDeletePerson(id: Long, at: Long) = db.withTransaction { db.people().markDeleted(id, at); db.loans().markPersonDeleted(id, at) }
@@ -97,7 +121,6 @@ class BudgetRepository(private val db: BudgetDatabase) {
     }
 
     /** Removes everything that has sat in Recently deleted for longer than [retentionMs]. */
-    suspend fun purgePeople(before: Long) = db.people().purge(before)
     suspend fun purgeDeleted(now: Long, retentionMs: Long) {
         val before = now - retentionMs
         db.transactions().purge(before); db.bills().purge(before); db.goals().purge(before); db.people().purge(before)
@@ -206,18 +229,19 @@ class BudgetRepository(private val db: BudgetDatabase) {
         BackupFile(
             accounts = db.accounts().all(), categories = db.categories().all(), transactions = db.transactions().all(),
             budgets = db.budgets().all(), goals = db.goals().all(), bills = db.bills().all(), billPayments = db.billPayments().all(),
-            templates = db.templates().all(), tags = db.tags().all(), people = db.people().all(), loans = db.loans().all(), transactionTags = db.transactionTags().all(), splits = db.splits().all(), theme = theme, currency = currency, startDay = startDay,
+            templates = db.templates().all(), tags = db.tags().all(), funds = db.funds().all(), fundMoves = db.fundMoves().all(), people = db.people().all(), loans = db.loans().all(), transactionTags = db.transactionTags().all(), splits = db.splits().all(), theme = theme, currency = currency, startDay = startDay,
         )
     }
 
     /** Replaces everything with the backup's contents, keeping ids so links between rows survive. */
     suspend fun replaceAll(f: BackupFile) = db.withTransaction {
-        db.billPayments().deleteAll(); db.transactionTags().deleteAll(); db.splits().deleteAll(); db.loans().deleteAll(); db.people().deleteAll(); db.tags().deleteAll(); db.transactions().deleteAll(); db.bills().deleteAll(); db.templates().deleteAll()
+        db.billPayments().deleteAll(); db.transactionTags().deleteAll(); db.splits().deleteAll(); db.loans().deleteAll(); db.people().deleteAll(); db.fundMoves().deleteAll(); db.funds().deleteAll(); db.tags().deleteAll(); db.transactions().deleteAll(); db.bills().deleteAll(); db.templates().deleteAll()
         db.budgets().deleteAll(); db.goals().deleteAll(); db.categories().deleteAll(); db.accounts().deleteAll()
         db.accounts().insertAll(f.accounts); db.categories().insertAll(f.categories)
         db.transactions().insertAll(f.transactions); db.budgets().insertAll(f.budgets)
         db.goals().insertAll(f.goals); db.bills().insertAll(f.bills); db.billPayments().insertAll(f.billPayments)
         db.templates().insertAll(f.templates)
+        db.funds().insertAll(f.funds); db.fundMoves().insertAll(f.fundMoves)
         db.people().insertAll(f.people); db.loans().insertAll(f.loans)
         db.tags().insertAll(f.tags); db.transactionTags().insertAll(f.transactionTags); db.splits().insertAll(f.splits)
     }
