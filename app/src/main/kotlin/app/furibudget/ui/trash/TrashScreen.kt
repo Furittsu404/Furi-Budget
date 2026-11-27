@@ -45,7 +45,6 @@ import app.furibudget.core.Money
 import app.furibudget.data.BillEntity
 import app.furibudget.data.Budgeting
 import app.furibudget.data.FundEntity
-import app.furibudget.data.GoalEntity
 import app.furibudget.data.PersonEntity
 import app.furibudget.data.TransactionEntity
 import app.furibudget.data.TxKind
@@ -66,10 +65,8 @@ fun TrashScreen(
     onForeverPerson: (PersonEntity) -> Unit,
     onRestoreTx: (TransactionEntity) -> Unit,
     onRestoreBill: (BillEntity) -> Unit,
-    onRestoreGoal: (GoalEntity) -> Unit,
     onForeverTx: (TransactionEntity) -> Unit,
     onForeverBill: (BillEntity) -> Unit,
-    onForeverGoal: (GoalEntity) -> Unit,
     onBack: () -> Unit,
 ) {
     val c = Furi.colors
@@ -102,10 +99,6 @@ fun TrashScreen(
         if (trash.bills.isNotEmpty()) Section(stringResource(R.string.tab_bills))
         trash.bills.forEach { b ->
             Item(b.name, if (b.amountMinor > 0) state.currency.format(Money(b.amountMinor), true) else stringResource(R.string.amount_varies), b.deletedAt, { onRestoreBill(b) }, { onForeverBill(b) })
-        }
-        if (trash.goals.isNotEmpty()) Section(stringResource(R.string.goals_link))
-        trash.goals.forEach { g ->
-            Item(g.name, state.currency.format(Money(g.savedMinor), true) + " / " + state.currency.format(Money(g.targetMinor), true), g.deletedAt, { onRestoreGoal(g) }, { onForeverGoal(g) })
         }
     }
 }

@@ -4,7 +4,9 @@ import app.furibudget.core.DateRange
 import app.furibudget.core.Money
 import app.furibudget.data.BudgetEntity
 import app.furibudget.data.Budgeting
-import app.furibudget.data.GoalEntity
+import app.furibudget.data.FundEntity
+import app.furibudget.data.FundStatus
+import app.furibudget.data.Funds
 import app.furibudget.data.TransactionEntity
 import app.furibudget.data.TxKind
 import java.time.LocalDate
@@ -58,12 +60,13 @@ class BudgetingTest {
 
     @Test fun goalPlan() {
         val today = LocalDate.of(2026, 11, 26)
-        val g = GoalEntity(name = "Trip", targetMinor = 120_000, savedMinor = 20_000, deadlineEpochDay = LocalDate.of(2027, 3, 15).toEpochDay(), colorArgb = 0)
-        val p = Budgeting.plan(g, today)
-        assertEquals(Money(100_000), p.remaining)
-        assertEquals(Money(25_000), p.monthlyNeeded)
-        assertTrue(Budgeting.plan(g.copy(savedMinor = 120_000), today).reached)
-        assertNull(Budgeting.plan(g.copy(deadlineEpochDay = null), today).monthlyNeeded)
-        assertTrue(Budgeting.plan(g.copy(deadlineEpochDay = today.minusDays(1).toEpochDay()), today).overdue)
+        val fund = FundEntity(name = "Trip", colorArgb = 0, targetMinor = 120_000, deadlineEpochDay = LocalDate.of(2027, 3, 15).toEpochDay())
+        val p = Funds.plan(FundStatus(fund, 20_000), today)
+        assertEquals(100_000L, p.remainingMinor)
+        assertEquals(25_000L, p.monthlyNeededMinor)
+        assertTrue(Funds.plan(FundStatus(fund, 120_000), today).reached)
+        assertNull(Funds.plan(FundStatus(fund.copy(deadlineEpochDay = null), 20_000), today).monthlyNeededMinor)
+        assertTrue(Funds.plan(FundStatus(fund.copy(deadlineEpochDay = today.minusDays(1).toEpochDay()), 20_000), today).overdue)
+        assertNull(Funds.plan(FundStatus(fund.copy(targetMinor = null), 20_000), today).monthlyNeededMinor)
     }
 }

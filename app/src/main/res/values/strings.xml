@@ -89,7 +89,6 @@
     <string name="no_goals_hint">Add a goal, drop money in, and watch it fill.</string>
     <string name="saved_of">%1$s of %2$s</string>
     <string name="goal_reached">Goal reached</string>
-    <string name="goal_overdue">Past the deadline</string>
     <string name="goal_monthly">%1$s a month until %2$s</string>
     <string name="goal_left">%1$s to go</string>
     <string name="add_money">Add money</string>
@@ -365,9 +364,9 @@
     <string name="borrowed_from">Borrowed from %1$s</string>
     <string name="paid_back_by">Paid back by %1$s</string>
     <string name="you_paid">You paid %1$s</string>
-    <string name="funds">Funds</string>
-    <string name="add_fund">Add fund</string>
-    <string name="edit_fund">Edit fund</string>
+    <string name="funds">Goals</string>
+    <string name="add_fund">New goal</string>
+    <string name="edit_fund">Edit goal</string>
     <string name="fund_name">Name</string>
     <string name="fund_target_optional">Target (optional)</string>
     <string name="fund_monthly_optional">Set aside every month (optional)</string>
@@ -378,9 +377,9 @@
     <string name="take_out">Take out</string>
     <string name="fund_move_hint">The money stays in your accounts. This only sets it aside.</string>
     <string name="more_than_in_fund">Only %1$s is in this fund.</string>
-    <string name="funds_empty">Nothing set aside</string>
-    <string name="funds_empty_hint">Make a fund for something coming up, like a trip or an annual fee. The money stays in your accounts but stops counting as free to spend.</string>
-    <string name="pay_from_fund">Pay from fund</string>
+    <string name="funds_empty">No goals yet</string>
+    <string name="funds_empty_hint">Save toward a trip, a gadget or a yearly fee. Keep the money in an account as set aside, or move it out of the balance altogether.</string>
+    <string name="pay_from_fund">Pay from goal</string>
     <string name="check_balance">Check balance</string>
     <string name="check_balance_hint">The app says this account holds %1$s. What does it really hold?</string>
     <string name="balance_really">Real balance</string>
@@ -480,4 +479,15 @@ Rows that could not be read: %3$d</string>
     <string name="csv_unreadable">That file could not be read (it may be over 5 MB).</string>
     <string name="minimal_colors">Minimal colours</string>
     <string name="minimal_colors_hint">One accent colour and plain text. Categories, accounts, bills and amounts stop using their own colours, and the background goes plain unless you pick one.</string>
+    <string name="goal_mode">Where the money lives</string>
+    <string name="goal_mode_reserve">Set aside in an account</string>
+    <string name="goal_mode_move">Move out of the account</string>
+    <string name="goal_mode_reserve_hint">The money stays in the account, so the balance does not change. Only what is free to spend shrinks.</string>
+    <string name="goal_mode_move_hint">The money leaves the account balance now and goes back when you take it out.</string>
+    <string name="goal_mode_locked">This cannot change while the goal holds money.</string>
+    <string name="goal_no_deadline">No deadline</string>
+    <string name="goal_moved_out_label">Moved out of your accounts</string>
+    <string name="goal_overdue">Deadline passed (%1$s)</string>
+    <string name="goal_per_month">%1$s a month to finish by %2$s</string>
+    <string name="goals_moved_total">%1$s moved out of your accounts into goals</string>
 </resources>

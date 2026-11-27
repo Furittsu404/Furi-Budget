@@ -26,7 +26,7 @@ object Funds {
         bills: List<BillEntity>, payments: List<BillPaymentEntity>, today: LocalDate, monthEnd: LocalDate,
     ): List<AccountMoney> {
         val firstId = accounts.firstOrNull()?.id
-        val reservedBy = statuses.groupBy { it.fund.accountId ?: firstId }.mapValues { (_, v) -> v.sumOf { it.savedMinor.coerceAtLeast(0) } }
+        val reservedBy = statuses.filter { it.fund.holdMode == HoldMode.RESERVE }.groupBy { it.fund.accountId ?: firstId }.mapValues { (_, v) -> v.sumOf { it.savedMinor.coerceAtLeast(0) } }
         val dueBy = Bills.occurrences(bills, payments, today.minusDays(app.furibudget.core.BillSchedule.LOOKBACK_DAYS), monthEnd, today)
             .filter { it.isOpen && it.bill.kind == TxKind.EXPENSE }
             .groupBy { it.bill.accountId }.mapValues { (_, v) -> v.sumOf { it.bill.amountMinor } }
@@ -43,7 +43,25 @@ object Funds {
         return funds.map { FundStatus(it, byFund[it.id] ?: 0L) }
     }
 
-    fun reserved(statuses: List<FundStatus>) = statuses.sumOf { it.savedMinor.coerceAtLeast(0) }
+    /** Money set aside inside accounts. Goals that moved their money out of the balance are not in here: it is already gone from it. */
+    fun reserved(statuses: List<FundStatus>) = statuses.filter { it.fund.holdMode == HoldMode.RESERVE }.sumOf { it.savedMinor.coerceAtLeast(0) }
+
+    /** Money taken out of the account balances into goals. */
+    fun movedOut(statuses: List<FundStatus>) = statuses.filter { it.fund.holdMode == HoldMode.MOVE_OUT }.sumOf { it.savedMinor.coerceAtLeast(0) }
+
+    data class Plan(val remainingMinor: Long, val monthlyNeededMinor: Long?, val reached: Boolean, val overdue: Boolean)
+
+    /** What a goal still needs; the monthly figure is spread over the whole months left until the deadline (at least one). */
+    fun plan(s: FundStatus, today: LocalDate): Plan {
+        val target = s.fund.targetMinor ?: return Plan(0, null, false, false)
+        val remaining = (target - s.savedMinor).coerceAtLeast(0)
+        val reached = target > 0 && s.savedMinor >= target
+        val deadline = s.fund.deadlineEpochDay?.let { LocalDate.ofEpochDay(it) }
+        if (reached || deadline == null) return Plan(remaining, null, reached, false)
+        if (!deadline.isAfter(today)) return Plan(remaining, null, false, true)
+        val months = java.time.temporal.ChronoUnit.MONTHS.between(today.withDayOfMonth(1), deadline.withDayOfMonth(1)).toInt().coerceAtLeast(1)
+        return Plan(remaining, (remaining + months - 1) / months, false, false)
+    }
 
     /** Expense bills not paid yet that fall due between today and the end of the budget month, plus anything overdue. */
     fun billsStillDue(bills: List<BillEntity>, payments: List<BillPaymentEntity>, today: LocalDate, monthEnd: LocalDate): Long =
@@ -57,7 +75,7 @@ object Funds {
 
     /** The monthly reserve moves still to post for [today]'s month. The unique (fund, month) index keeps this from doubling up. */
     fun monthlyToPost(funds: List<FundEntity>, today: LocalDate): List<FundMoveEntity> =
-        funds.filter { (it.monthlyMinor ?: 0) > 0 }.map {
+        funds.filter { (it.monthlyMinor ?: 0) > 0 && it.holdMode == HoldMode.RESERVE }.map {
             FundMoveEntity(fundId = it.id, amountMinor = it.monthlyMinor!!, epochDay = today.toEpochDay(), note = "Monthly", monthKey = monthKey(today))
         }
 

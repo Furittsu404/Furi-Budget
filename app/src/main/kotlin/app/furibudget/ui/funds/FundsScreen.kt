@@ -40,6 +40,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.material.icons.rounded.Event
+import app.furibudget.data.HoldMode
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -73,14 +75,15 @@ import app.furibudget.ui.theme.Furi
 import app.furibudget.ui.theme.FuriCard
 import java.time.LocalDate
 
-/** Money set aside inside your accounts for something coming up, and what that leaves free to spend. */
+/** Savings goals: what you are saving toward, where the money sits, and what that leaves free to spend. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FundsScreen(state: BudgetState, onSaveFund: (FundEntity) -> Unit, onDeleteFund: (Long) -> Unit, onMove: (Long, Long) -> Unit, onBack: () -> Unit) {
+fun GoalsScreen(state: BudgetState, onSaveFund: (FundEntity) -> Unit, onDeleteFund: (Long) -> Unit, onMove: (goalId: Long, deltaMinor: Long, accountId: Long?) -> Unit, onBack: () -> Unit) {
     val c = Furi.colors
     val cur = state.currency
     val statuses = remember(state.funds, state.fundMoves, state.transactions) { Funds.statuses(state.funds, state.fundMoves, state.transactions.map { it.id }.toSet()) }
     val ftsMoney = remember(state.total, statuses, state.bills, state.billPayments) { freeToSpend(state) }
+    val movedOut = remember(statuses) { Funds.movedOut(statuses) }
     var editing by rememberSaveable { mutableStateOf<Long?>(null) }   // -1 = new
     var moving by rememberSaveable { mutableStateOf<Long?>(null) }
     var movingOut by rememberSaveable { mutableStateOf(false) }
@@ -113,6 +116,7 @@ fun FundsScreen(state: BudgetState, onSaveFund: (FundEntity) -> Unit, onDeleteFu
                         stringResource(R.string.free_breakdown, cur.format(Money(ftsMoney.totalMinor), true), cur.format(Money(ftsMoney.reservedMinor), true), cur.format(Money(ftsMoney.billsDueMinor), true)),
                         style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant,
                     )
+                    if (movedOut > 0) Text(stringResource(R.string.goals_moved_total, cur.format(Money(movedOut), true)), style = MaterialTheme.typography.bodySmall, color = c.accentText)
                 }
             }
             if (statuses.isEmpty()) EmptyFunds { editing = -1L }
@@ -122,11 +126,11 @@ fun FundsScreen(state: BudgetState, onSaveFund: (FundEntity) -> Unit, onDeleteFu
     }
 
     editing?.let { id ->
-        FundDialog(statuses.firstOrNull { it.fund.id == id }?.fund, state, onDismiss = { editing = null }, onDelete = { onDeleteFund(it); editing = null }, onSave = { onSaveFund(it); editing = null })
+        FundDialog(statuses.firstOrNull { it.fund.id == id }?.fund, statuses.firstOrNull { it.fund.id == id }?.savedMinor ?: 0L, state, onDismiss = { editing = null }, onDelete = { onDeleteFund(it); editing = null }, onSave = { onSaveFund(it); editing = null })
     }
     moving?.let { id ->
         val st = statuses.firstOrNull { it.fund.id == id }
-        if (st == null) moving = null else MoveSheet(st, state, movingOut, onDismiss = { moving = null }) { amt -> onMove(id, if (movingOut) -amt else amt); moving = null }
+        if (st == null) moving = null else MoveSheet(st, state, movingOut, onDismiss = { moving = null }) { amt, acc -> onMove(id, if (movingOut) -amt else amt, acc); moving = null }
     }
 }
 
@@ -186,12 +190,22 @@ private fun FundCard(st: FundStatus, state: BudgetState, onEdit: () -> Unit, onA
                         IconButton(onClick = onEdit) { Icon(Icons.Rounded.Edit, stringResource(R.string.edit_fund), Modifier.size(20.dp)) }
                     }
                     AnimatedAmount(cur.symbol + " " + cur.format(Money(st.savedMinor)), Furi.figures.copy(fontSize = MaterialTheme.typography.titleLarge.fontSize), c.onSurface)
-                    state.account(st.fund.accountId)?.let { Text(stringResource(R.string.fund_held_in_name, it.name), style = MaterialTheme.typography.labelSmall, color = c.onSurfaceVariant) }
+                    if (st.fund.holdMode == HoldMode.MOVE_OUT) Text(stringResource(R.string.goal_moved_out_label), style = MaterialTheme.typography.labelSmall, color = c.onSurfaceVariant)
+                    else state.account(st.fund.accountId)?.let { Text(stringResource(R.string.fund_held_in_name, it.name), style = MaterialTheme.typography.labelSmall, color = c.onSurfaceVariant) }
                     st.fund.targetMinor?.let {
                         Text(stringResource(R.string.fund_of_target, cur.format(Money(it), true), (st.fraction * 100).toInt()), style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant)
                     }
                     st.fund.monthlyMinor?.takeIf { it > 0 }?.let {
                         Text(stringResource(R.string.fund_monthly, cur.format(Money(it), true)), style = MaterialTheme.typography.labelSmall, color = c.accentText)
+                    }
+                    val plan = remember(st) { Funds.plan(st, LocalDate.now()) }
+                    st.fund.deadlineEpochDay?.let { d ->
+                        val date = LocalDate.ofEpochDay(d).format(java.time.format.DateTimeFormatter.ofPattern("MMM d, yyyy"))
+                        when {
+                            plan.reached -> Text(stringResource(R.string.goal_reached), style = MaterialTheme.typography.labelSmall, color = c.accentText)
+                            plan.overdue -> Text(stringResource(R.string.goal_overdue, date), style = MaterialTheme.typography.labelSmall, color = c.expense)
+                            plan.monthlyNeededMinor != null -> Text(stringResource(R.string.goal_per_month, cur.format(Money(plan.monthlyNeededMinor), true), date), style = MaterialTheme.typography.labelSmall, color = c.accentText)
+                        }
                     }
                 }
             }
@@ -203,8 +217,9 @@ private fun FundCard(st: FundStatus, state: BudgetState, onEdit: () -> Unit, onA
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun FundDialog(existing: FundEntity?, state: BudgetState, onDismiss: () -> Unit, onDelete: (Long) -> Unit, onSave: (FundEntity) -> Unit) {
+private fun FundDialog(existing: FundEntity?, saved: Long, state: BudgetState, onDismiss: () -> Unit, onDelete: (Long) -> Unit, onSave: (FundEntity) -> Unit) {
     val cur = state.currency
     var name by rememberSaveable { mutableStateOf(existing?.name.orEmpty()) }
     var account by rememberSaveable { mutableStateOf(existing?.accountId ?: state.accounts.firstOrNull()?.id ?: 0L) }
@@ -212,22 +227,46 @@ private fun FundDialog(existing: FundEntity?, state: BudgetState, onDismiss: () 
     var color by rememberSaveable { mutableIntStateOf(existing?.colorArgb ?: Accents.swatches[5].argb) }
     var target by rememberSaveable { mutableStateOf(existing?.targetMinor?.let { cur.format(Money(it)).replace(",", "") }.orEmpty()) }
     var monthly by rememberSaveable { mutableStateOf(existing?.monthlyMinor?.let { cur.format(Money(it)).replace(",", "") }.orEmpty()) }
+    var moveOut by rememberSaveable { mutableStateOf(existing?.holdMode == HoldMode.MOVE_OUT) }
+    var deadline by rememberSaveable { mutableStateOf(existing?.deadlineEpochDay) }
+    var pickDate by rememberSaveable { mutableStateOf(false) }
+    // Where the money lives cannot change once there is money in the goal: past moves were made under the old rule.
+    val modeLocked = existing != null && saved != 0L
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(if (existing == null) R.string.add_fund else R.string.edit_fund)) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(name, { name = it.take(30) }, singleLine = true, label = { Text(stringResource(R.string.fund_name)) }, modifier = Modifier.fillMaxWidth())
-                Text(stringResource(R.string.fund_held_in), style = MaterialTheme.typography.labelLarge, color = Furi.colors.onSurfaceVariant)
+                Text(stringResource(R.string.goal_mode), style = MaterialTheme.typography.labelLarge, color = Furi.colors.onSurfaceVariant)
                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    state.accounts.forEach { a ->
-                        androidx.compose.material3.FilterChip(selected = account == a.id, onClick = { account = a.id }, label = { Text(a.name) }, leadingIcon = { FuriIcon(a.icon, size = 18.dp, tint = entityColor(a.colorArgb)) })
+                    androidx.compose.material3.FilterChip(selected = !moveOut, enabled = !modeLocked || !moveOut, onClick = { moveOut = false }, label = { Text(stringResource(R.string.goal_mode_reserve)) })
+                    androidx.compose.material3.FilterChip(selected = moveOut, enabled = !modeLocked || moveOut, onClick = { moveOut = true; monthly = "" }, label = { Text(stringResource(R.string.goal_mode_move)) })
+                }
+                Text(
+                    stringResource(if (modeLocked) R.string.goal_mode_locked else if (moveOut) R.string.goal_mode_move_hint else R.string.goal_mode_reserve_hint),
+                    style = MaterialTheme.typography.bodySmall, color = Furi.colors.onSurfaceVariant,
+                )
+                if (!moveOut) {
+                    Text(stringResource(R.string.fund_held_in), style = MaterialTheme.typography.labelLarge, color = Furi.colors.onSurfaceVariant)
+                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        state.accounts.forEach { a ->
+                            androidx.compose.material3.FilterChip(selected = account == a.id, onClick = { account = a.id }, label = { Text(a.name) }, leadingIcon = { FuriIcon(a.icon, size = 18.dp, tint = entityColor(a.colorArgb)) })
+                        }
                     }
                 }
                 IconButtonRow(icon, Color(color)) { icon = it }
                 ColorRow(color) { color = it }
                 AmountField(target, { target = it }, cur, stringResource(R.string.fund_target_optional), Modifier.fillMaxWidth())
-                AmountField(monthly, { monthly = it }, cur, stringResource(R.string.fund_monthly_optional), Modifier.fillMaxWidth())
+                if (!moveOut) AmountField(monthly, { monthly = it }, cur, stringResource(R.string.fund_monthly_optional), Modifier.fillMaxWidth())
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    androidx.compose.material3.FilterChip(
+                        selected = deadline != null, onClick = { pickDate = true },
+                        label = { Text(deadline?.let { LocalDate.ofEpochDay(it).format(java.time.format.DateTimeFormatter.ofPattern("MMM d, yyyy")) } ?: stringResource(R.string.goal_no_deadline)) },
+                        leadingIcon = { Icon(Icons.Rounded.Event, null, Modifier.size(18.dp)) },
+                    )
+                    if (deadline != null) TextButton(onClick = { deadline = null }) { Text(stringResource(R.string.clear)) }
+                }
                 if (existing != null) TextButton(onClick = { onDelete(existing.id) }) {
                     Icon(Icons.Rounded.Delete, null, Modifier.size(18.dp), tint = Furi.colors.expense)
                     Text(stringResource(R.string.delete), Modifier.padding(start = 6.dp), color = Furi.colors.expense)
@@ -239,30 +278,58 @@ private fun FundDialog(existing: FundEntity?, state: BudgetState, onDismiss: () 
                 onSave(
                     (existing ?: FundEntity(name = "", colorArgb = color)).copy(
                         name = name.trim(), icon = icon, colorArgb = color, accountId = account.takeIf { it != 0L },
-                        targetMinor = cur.parse(target)?.minor?.takeIf { it > 0 }, monthlyMinor = cur.parse(monthly)?.minor?.takeIf { it > 0 },
+                        targetMinor = cur.parse(target)?.minor?.takeIf { it > 0 }, monthlyMinor = if (moveOut) null else cur.parse(monthly)?.minor?.takeIf { it > 0 },
+                        holdMode = if (moveOut) HoldMode.MOVE_OUT else HoldMode.RESERVE, deadlineEpochDay = deadline,
                     ),
                 )
             }) { Text(stringResource(R.string.save)) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
+    if (pickDate) {
+        val pickerState = androidx.compose.material3.rememberDatePickerState(initialSelectedDateMillis = (deadline ?: LocalDate.now().plusMonths(3).toEpochDay()) * 86_400_000L)
+        androidx.compose.material3.DatePickerDialog(
+            onDismissRequest = { pickDate = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    pickerState.selectedDateMillis?.let { deadline = java.time.Instant.ofEpochMilli(it).atZone(java.time.ZoneOffset.UTC).toLocalDate().toEpochDay() }
+                    pickDate = false
+                }) { Text(stringResource(R.string.ok)) }
+            },
+            dismissButton = { TextButton(onClick = { pickDate = false }) { Text(stringResource(R.string.cancel)) } },
+        ) { androidx.compose.material3.DatePicker(pickerState) }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun MoveSheet(st: FundStatus, state: BudgetState, out: Boolean, onDismiss: () -> Unit, onSave: (Long) -> Unit) {
+private fun MoveSheet(st: FundStatus, state: BudgetState, out: Boolean, onDismiss: () -> Unit, onSave: (Long, Long?) -> Unit) {
     val c = Furi.colors
     val cur = state.currency
     var amount by rememberSaveable { mutableStateOf("") }
+    val movesMoney = st.fund.holdMode == HoldMode.MOVE_OUT
+    var account by rememberSaveable { mutableStateOf(state.accounts.firstOrNull()?.id ?: 0L) }
     val asked = cur.parse(amount)?.minor ?: 0L
     val amt = if (out) Funds.capTakeOut(asked, st) else asked
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = MaterialTheme.colorScheme.surfaceContainerHigh) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).navigationBarsPadding(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Text(stringResource(if (out) R.string.take_out else R.string.add_money) + " · " + st.fund.name, style = MaterialTheme.typography.titleLarge, color = c.onSurface)
-            Text(stringResource(R.string.fund_move_hint), style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant)
+            Text(stringResource(if (movesMoney) R.string.goal_money_hint else R.string.fund_move_hint), style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant)
             AmountField(amount, { amount = it }, cur, stringResource(R.string.amount), Modifier.fillMaxWidth())
+            if (movesMoney) {
+                Text(stringResource(R.string.goal_money_account), style = MaterialTheme.typography.labelLarge, color = c.onSurfaceVariant)
+                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    state.accounts.forEach { a ->
+                        androidx.compose.material3.FilterChip(
+                            selected = account == a.id, onClick = { account = a.id },
+                            label = { Text(a.name + " · " + cur.format(state.balances[a.id] ?: Money.ZERO)) },
+                            leadingIcon = { FuriIcon(a.icon, size = 18.dp, tint = entityColor(a.colorArgb)) },
+                        )
+                    }
+                }
+            }
             if (out && asked > st.savedMinor) Text(stringResource(R.string.more_than_in_fund, cur.format(Money(st.savedMinor), true)), style = MaterialTheme.typography.bodySmall, color = c.expense)
-            Button(enabled = amt > 0 && (!out || asked <= st.savedMinor), onClick = { onSave(amt) }, modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) { Text(stringResource(R.string.save)) }
+            Button(enabled = amt > 0 && (!out || asked <= st.savedMinor) && (!movesMoney || account != 0L), onClick = { onSave(amt, account.takeIf { movesMoney }) }, modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) { Text(stringResource(R.string.save)) }
         }
     }
 }

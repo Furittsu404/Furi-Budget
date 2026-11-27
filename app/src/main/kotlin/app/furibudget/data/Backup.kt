@@ -8,7 +8,7 @@ import kotlinx.serialization.json.Json
 /** Everything the app stores, in one file the user can keep. Background photos are not included. */
 @Serializable
 data class BackupFile(
-    val version: Int = 3,
+    val version: Int = 4,
     val exportedAt: Long = System.currentTimeMillis(),
     val accounts: List<AccountEntity> = emptyList(),
     val categories: List<CategoryEntity> = emptyList(),
@@ -57,8 +57,28 @@ object Backup {
 
     /** Null when the text is not a backup this version understands. Old recurring transactions become auto-pay bills. */
     fun decode(text: String): BackupFile? {
-        val f = runCatching { json.decodeFromString<BackupFile>(text) }.getOrNull()?.takeIf { it.version in 1..3 } ?: return null
-        if (f.recurrences.isEmpty()) return f
+        val f = runCatching { json.decodeFromString<BackupFile>(text) }.getOrNull()?.takeIf { it.version in 1..4 } ?: return null
+        val withGoals = goalsToFunds(f)
+        if (withGoals.recurrences.isEmpty()) return withGoals
+        return convertRecurrences(withGoals)
+    }
+
+    /** Files from before Goals and Funds merged carry goals; each becomes a goal that keeps its saved money set aside in the first account. */
+    private fun goalsToFunds(f: BackupFile): BackupFile {
+        if (f.goals.isEmpty()) return f
+        var nextFund = (f.funds.maxOfOrNull { it.id } ?: 0L) + 1
+        var nextMove = (f.fundMoves.maxOfOrNull { it.id } ?: 0L) + 1
+        val firstAccount = f.accounts.minWithOrNull(compareBy({ it.sortOrder }, { it.id }))?.id
+        val funds = ArrayList<FundEntity>(); val moves = ArrayList<FundMoveEntity>()
+        for (g in f.goals) {
+            val id = nextFund++
+            funds += FundEntity(id = id, name = g.name, icon = g.icon, colorArgb = g.colorArgb, targetMinor = g.targetMinor, deletedAt = g.deletedAt, accountId = firstAccount, deadlineEpochDay = g.deadlineEpochDay)
+            if (g.savedMinor > 0) moves += FundMoveEntity(id = nextMove++, fundId = id, amountMinor = g.savedMinor, epochDay = (g.createdAt / 86_400_000L).coerceAtLeast(0), note = "From goals")
+        }
+        return f.copy(goals = emptyList(), funds = f.funds + funds, fundMoves = f.fundMoves + moves)
+    }
+
+    private fun convertRecurrences(f: BackupFile): BackupFile {
         var nextId = (f.bills.maxOfOrNull { it.id } ?: 0L) + 1
         val converted = f.recurrences.map { r ->
             val cat = f.categories.firstOrNull { it.id == r.categoryId }
@@ -87,7 +107,7 @@ object Backup {
             f.splits.all { sp -> f.transactions.any { it.id == sp.transactionId } && (sp.categoryId == null || sp.categoryId in categories) } &&
             f.templates.all { t -> t.accountId in acc && (t.categoryId == null || t.categoryId in categories) && t.amountMinor > 0 } &&
             f.budgets.all { b -> b.categoryId == null || b.categoryId in categories } &&
-            f.goals.all { it.targetMinor > 0 && it.savedMinor >= 0 }
+            true
     }
 
     /**

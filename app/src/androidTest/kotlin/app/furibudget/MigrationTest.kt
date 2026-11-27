@@ -74,4 +74,29 @@ class MigrationTest {
         db.query("SELECT accountId FROM funds WHERE id = 1").use { it.moveToFirst(); assertEquals(2, it.getInt(0)) }
         db.query("SELECT amountMinor FROM fund_moves").use { it.moveToFirst(); assertEquals(5000L, it.getLong(0)) }
     }
+
+    @Test
+    fun v4ToV5TurnsGoalsIntoGoals() {
+        helper.createDatabase("mig5", 4).apply {
+            execSQL("INSERT INTO accounts(id,name,colorArgb,icon,startBalance,sortOrder,archived) VALUES(1,'Cash',-1,'cash',500,0,0)")
+            execSQL("INSERT INTO transactions(id,kind,amountMinor,accountId,toAccountId,categoryId,note,epochDay,createdAt,role,loanId,origAmountMinor,origCurrency,rateMicro,deletedAt) VALUES(1,'EXPENSE',5000,1,NULL,NULL,'Trip',20000,1,'GOAL',NULL,NULL,NULL,NULL,NULL)")
+            execSQL("INSERT INTO goals(id,name,targetMinor,savedMinor,deadlineEpochDay,icon,colorArgb,createdAt,deletedAt) VALUES(1,'Trip',100000,5000,20500,'goal',-1,86400000,NULL)")
+            execSQL("INSERT INTO goals(id,name,targetMinor,savedMinor,deadlineEpochDay,icon,colorArgb,createdAt,deletedAt) VALUES(2,'Old',200000,30000,NULL,'goal',-1,172800000,99)")
+            execSQL("INSERT INTO funds(id,name,icon,colorArgb,targetMinor,monthlyMinor,deletedAt,accountId) VALUES(1,'Insurance','savings',-1,NULL,100,NULL,1)")
+            close()
+        }
+        val db = helper.runMigrationsAndValidate("mig5", 5, true, Migrations.MIGRATION_4_5)
+        db.query("SELECT COUNT(*) FROM goals").use { it.moveToFirst(); assertEquals(0, it.getInt(0)) }
+        db.query("SELECT name, holdMode, deadlineEpochDay, deletedAt, accountId, targetMinor FROM funds ORDER BY id").use {
+            assertEquals(3, it.count)
+            it.moveToFirst(); assertEquals("Insurance", it.getString(0)); assertEquals("RESERVE", it.getString(1)); assertEquals(true, it.isNull(2))
+            it.moveToNext(); assertEquals("Trip", it.getString(0)); assertEquals("MOVE_OUT", it.getString(1)); assertEquals(20500L, it.getLong(2)); assertEquals(true, it.isNull(3)); assertEquals(1L, it.getLong(4)); assertEquals(100000L, it.getLong(5))
+            it.moveToNext(); assertEquals("Old", it.getString(0)); assertEquals("RESERVE", it.getString(1)); assertEquals(99L, it.getLong(3))
+        }
+        db.query("SELECT f.name, m.amountMinor, m.epochDay FROM fund_moves m JOIN funds f ON f.id = m.fundId ORDER BY m.id").use {
+            assertEquals(2, it.count)
+            it.moveToFirst(); assertEquals("Trip", it.getString(0)); assertEquals(5000L, it.getLong(1)); assertEquals(1L, it.getLong(2))
+            it.moveToNext(); assertEquals("Old", it.getString(0)); assertEquals(30000L, it.getLong(1)); assertEquals(2L, it.getLong(2))
+        }
+    }
 }

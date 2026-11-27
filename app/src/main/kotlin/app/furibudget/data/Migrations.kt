@@ -81,4 +81,34 @@ object Migrations {
             db.execSQL("UPDATE `funds` SET `accountId` = (SELECT `id` FROM `accounts` ORDER BY `sortOrder`, `id` LIMIT 1)")
         }
     }
+
+    /**
+     * v4 to v5: Goals and Funds become one thing. Every goal turns into a fund row with its deadline, and the
+     * goals table is emptied. A goal that already moved money out of an account (it has GOAL transactions) keeps
+     * doing that; an older goal never took money out of anything, so it becomes a set-aside in the first account.
+     */
+    val MIGRATION_4_5 = object : Migration(4, 5) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `funds` ADD COLUMN `deadlineEpochDay` INTEGER")
+            db.execSQL("ALTER TABLE `funds` ADD COLUMN `holdMode` TEXT NOT NULL DEFAULT 'RESERVE'")
+            val firstAccount = db.query("SELECT `id` FROM `accounts` ORDER BY `sortOrder`, `id` LIMIT 1").use { if (it.moveToFirst()) it.getLong(0) else null }
+            db.query("SELECT `name`, `icon`, `colorArgb`, `targetMinor`, `savedMinor`, `deadlineEpochDay`, `createdAt`, `deletedAt` FROM `goals` ORDER BY `id`").use { c ->
+                while (c.moveToNext()) {
+                    val name = c.getString(0)
+                    val saved = c.getLong(4)
+                    val movedOut = db.query("SELECT COUNT(*) FROM `transactions` WHERE `role` = 'GOAL' AND `note` = ?", arrayOf(name)).use { it.moveToFirst(); it.getInt(0) > 0 }
+                    db.execSQL(
+                        "INSERT INTO `funds` (`name`, `icon`, `colorArgb`, `targetMinor`, `monthlyMinor`, `deletedAt`, `accountId`, `deadlineEpochDay`, `holdMode`) VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?)",
+                        arrayOf<Any?>(name, c.getString(1), c.getInt(2), c.getLong(3), if (c.isNull(7)) null else c.getLong(7), firstAccount, if (c.isNull(5)) null else c.getLong(5), if (movedOut) "MOVE_OUT" else "RESERVE"),
+                    )
+                    if (saved > 0) {
+                        val fundId = db.query("SELECT last_insert_rowid()").use { it.moveToFirst(); it.getLong(0) }
+                        val day = (c.getLong(6) / 86_400_000L).coerceAtLeast(0)
+                        db.execSQL("INSERT INTO `fund_moves` (`fundId`, `amountMinor`, `epochDay`, `note`, `transactionId`, `monthKey`) VALUES (?, ?, ?, 'From goals', NULL, NULL)", arrayOf<Any?>(fundId, saved, day))
+                    }
+                }
+            }
+            db.execSQL("DELETE FROM `goals`")
+        }
+    }
 }

@@ -44,17 +44,4 @@ object Budgeting {
         }
         return Status(Money(limit), spentIn(txs, splits, range, b.categoryId))
     }
-
-    data class GoalPlan(val remaining: Money, val monthlyNeeded: Money?, val reached: Boolean, val overdue: Boolean)
-
-    /** What a goal still needs; monthlyNeeded is spread over the whole months left until the deadline (at least one). */
-    fun plan(g: GoalEntity, today: LocalDate): GoalPlan {
-        val remaining = Money((g.targetMinor - g.savedMinor).coerceAtLeast(0))
-        val reached = g.savedMinor >= g.targetMinor
-        val deadline = g.deadlineEpochDay?.let { LocalDate.ofEpochDay(it) }
-        if (reached || deadline == null) return GoalPlan(remaining, null, reached, false)
-        if (!deadline.isAfter(today)) return GoalPlan(remaining, null, false, true)
-        val months = (java.time.temporal.ChronoUnit.MONTHS.between(today.withDayOfMonth(1), deadline.withDayOfMonth(1)).toInt()).coerceAtLeast(1)
-        return GoalPlan(remaining, Money((remaining.minor + months - 1) / months), false, false)
-    }
 }

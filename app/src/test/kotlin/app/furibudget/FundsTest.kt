@@ -74,4 +74,12 @@ class FundsTest {
         assertEquals(4300L, all.reservedMinor)
         assertEquals(rows.sumOf { it.freeMinor }, all.freeMinor)
     }
+
+    @Test fun goalsThatMovedMoneyOutAreNotReserved() {
+        val away = gadget.copy(holdMode = app.furibudget.data.HoldMode.MOVE_OUT)
+        val st = Funds.statuses(listOf(trip, away), listOf(move(1, 4000), move(2, 900)), emptySet())
+        assertEquals(4000L, Funds.reserved(st))
+        assertEquals(900L, Funds.movedOut(st))
+        assertEquals(emptyList<app.furibudget.data.FundMoveEntity>(), Funds.monthlyToPost(listOf(away.copy(monthlyMinor = 100)), LocalDate.of(2026, 11, 27)))
+    }
 }

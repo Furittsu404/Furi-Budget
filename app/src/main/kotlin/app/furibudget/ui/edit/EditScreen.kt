@@ -375,9 +375,10 @@ fun EditScreen(
                         onAdd = { n -> onAddTag(n) { id -> tagIds = tagIds + id } },
                     )
                 }
-                if (kind == TxKind.EXPENSE && state.funds.isNotEmpty()) {
+                if (kind == TxKind.EXPENSE && state.funds.any { it.holdMode == app.furibudget.data.HoldMode.RESERVE }) {
                     ChipRow(stringResource(R.string.pay_from_fund)) {
-                        state.funds.forEach { f ->
+                        // Only goals whose money is still in an account: a goal that moved its money out has to be taken out first.
+                        state.funds.filter { it.holdMode == app.furibudget.data.HoldMode.RESERVE }.forEach { f ->
                             FilterChip(
                                 selected = fundId == f.id,
                                 // A fund lives in one account, so paying from it means paying from that account.

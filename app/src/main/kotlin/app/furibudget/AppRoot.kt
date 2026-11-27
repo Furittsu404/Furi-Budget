@@ -71,11 +71,10 @@ import app.furibudget.ui.bills.BillEditScreen
 import app.furibudget.ui.bills.BillsScreen
 import app.furibudget.ui.bills.PaySheet
 import app.furibudget.ui.budgets.BudgetsScreen
-import app.furibudget.ui.goals.GoalsScreen
 import app.furibudget.ui.home.HomeScreen
 import app.furibudget.ui.onboarding.OnboardingScreen
 import app.furibudget.ui.feedback.SoundSettingsScreen
-import app.furibudget.ui.funds.FundsScreen
+import app.furibudget.ui.funds.GoalsScreen
 import app.furibudget.ui.people.PeopleScreen
 import app.furibudget.ui.rates.ExchangeRatesScreen
 import app.furibudget.ui.people.PersonScreen
@@ -96,7 +95,6 @@ private object Route {
     const val GOALS = "goals"
     const val TRASH = "trash"
     const val PEOPLE = "people"
-    const val FUNDS = "funds"
     const val RATES = "rates"
     const val FEEDBACK = "feedback"
     const val PERSON = "person/{id}"
@@ -127,7 +125,7 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
     val backStack by nav.currentBackStackEntryAsState()
     val route = backStack?.destination?.route
     val tabs = listOf(Route.HOME, Route.ACTIVITY, Route.INSIGHTS, Route.BILLS)
-    // Budgets, Goals, People, Funds and Recently deleted live behind the fifth item, More.
+    // Budgets, Goals, People and Recently deleted live behind the fifth item, More.
     var moreOpen by remember { mutableStateOf(false) }
     val showBar = route in tabs || route == Route.BUDGETS
     androidx.compose.runtime.LaunchedEffect(route) { moreOpen = false }
@@ -208,7 +206,7 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
             popExitTransition = { fadeOut(m.tween(100)) + slideOutHorizontally(m.tween(160)) { it / 14 } },
         ) {
             composable(Route.HOME) {
-                HomeScreen(state, onOpenAppearance = { nav.navigate(Route.APPEARANCE) }, onOpenGoals = { nav.navigate(Route.GOALS) }, onOpenPeople = { nav.navigate(Route.PEOPLE) }, onOpenFunds = { nav.navigate(Route.FUNDS) }, onOpenBills = { nav.navigate(Route.BILLS) { popUpTo(Route.HOME) { saveState = true }; launchSingleTop = true; restoreState = true } }, onOpenSettings = { nav.navigate(Route.SETTINGS) }, onOpenBudgets = { nav.navigate(Route.BUDGETS) { popUpTo(Route.HOME) { saveState = true }; launchSingleTop = true; restoreState = true } }, onOpenTx = { nav.navigate(Route.edit(it)) }, onQuickAdd = { t -> vm.quickAdd(t) { tx -> scope.launch { snackbar.currentSnackbarData?.dismiss(); if (snackbar.showBrief(resources.getString(R.string.added_template, t.name), undo) == SnackbarResult.ActionPerformed) vm.delete(tx) } } })
+                HomeScreen(state, onOpenAppearance = { nav.navigate(Route.APPEARANCE) }, onOpenGoals = { nav.navigate(Route.GOALS) }, onOpenPeople = { nav.navigate(Route.PEOPLE) }, onOpenBills = { nav.navigate(Route.BILLS) { popUpTo(Route.HOME) { saveState = true }; launchSingleTop = true; restoreState = true } }, onOpenSettings = { nav.navigate(Route.SETTINGS) }, onOpenBudgets = { nav.navigate(Route.BUDGETS) { popUpTo(Route.HOME) { saveState = true }; launchSingleTop = true; restoreState = true } }, onOpenTx = { nav.navigate(Route.edit(it)) }, onQuickAdd = { t -> vm.quickAdd(t) { tx -> scope.launch { snackbar.currentSnackbarData?.dismiss(); if (snackbar.showBrief(resources.getString(R.string.added_template, t.name), undo) == SnackbarResult.ActionPerformed) vm.delete(tx) } } })
             }
             composable(Route.ACTIVITY) {
                 ActivityScreen(
@@ -229,7 +227,7 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
             }
             composable(Route.INSIGHTS) { InsightsScreen(state) }
             composable(Route.BUDGETS) { BudgetsScreen(state, vm::saveBudget, vm::deleteBudget) }
-            composable(Route.GOALS) { GoalsScreen(state, vm::saveGoal, vm::deleteGoal, vm::moveGoal) }
+            composable(Route.GOALS) { GoalsScreen(state, vm::saveFund, vm::deleteFund, vm::moveFund) { nav.popBackStack() } }
             composable(Route.BILLS) {
                 BillsScreen(
                     state,
@@ -254,7 +252,7 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
             composable(Route.SETTINGS) {
                 SettingsScreen(
                     state, vm, spec, onTheme,
-                    onOpenManage = { nav.navigate(Route.MANAGE) }, onOpenGoals = { nav.navigate(Route.GOALS) }, onOpenPeople = { nav.navigate(Route.PEOPLE) }, onOpenFunds = { nav.navigate(Route.FUNDS) }, onOpenRates = { nav.navigate(Route.RATES) }, onOpenFeedback = { nav.navigate(Route.FEEDBACK) }, onOpenTrash = { nav.navigate(Route.TRASH) },
+                    onOpenManage = { nav.navigate(Route.MANAGE) }, onOpenGoals = { nav.navigate(Route.GOALS) }, onOpenPeople = { nav.navigate(Route.PEOPLE) }, onOpenRates = { nav.navigate(Route.RATES) }, onOpenFeedback = { nav.navigate(Route.FEEDBACK) }, onOpenTrash = { nav.navigate(Route.TRASH) },
                     onBack = { nav.popBackStack() },
                 )
             }
@@ -264,8 +262,8 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
                     state, trash,
                     onRestoreFund = { vm.restoreFund(it.id) }, onForeverFund = { vm.deleteFundForever(it.id) },
                     onRestorePerson = { vm.restorePerson(it.id) }, onForeverPerson = { vm.deletePersonForever(it.id) },
-                    onRestoreTx = vm::restore, onRestoreBill = { vm.restoreBill(it.id) }, onRestoreGoal = { vm.restoreGoal(it.id) },
-                    onForeverTx = { vm.deleteForever(it) }, onForeverBill = { vm.deleteForever(it) }, onForeverGoal = { vm.deleteForever(it) },
+                    onRestoreTx = vm::restore, onRestoreBill = { vm.restoreBill(it.id) },
+                    onForeverTx = { vm.deleteForever(it) }, onForeverBill = { vm.deleteForever(it) },
                     onBack = { nav.popBackStack() },
                 )
             }
@@ -274,7 +272,6 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
                 val fetching by vm.fetchingRates.collectAsState()
                 ExchangeRatesScreen(state, fetching, onUpdate = { vm.refreshRates(force = true) }, onSetManual = vm::setManualRate, onClear = vm::clearRate, onBack = { nav.popBackStack() })
             }
-            composable(Route.FUNDS) { FundsScreen(state, vm::saveFund, vm::deleteFund, vm::moveFund) { nav.popBackStack() } }
             composable(Route.PEOPLE) {
                 PeopleScreen(state, onOpenPerson = { nav.navigate(Route.person(it)) }, onSavePerson = { p, done -> vm.savePerson(p, done) }, onBack = { nav.popBackStack() })
             }
@@ -333,7 +330,6 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
                             MoreEntry(stringResource(R.string.tab_budgets), Icons.Rounded.AccountBalanceWallet, Route.BUDGETS),
                             MoreEntry(stringResource(R.string.tab_goals), Icons.Rounded.Flag, Route.GOALS),
                             MoreEntry(stringResource(R.string.people), Icons.Rounded.Group, Route.PEOPLE),
-                            MoreEntry(stringResource(R.string.funds), Icons.Rounded.Savings, Route.FUNDS),
                             MoreEntry(stringResource(R.string.recently_deleted), Icons.Rounded.DeleteSweep, Route.TRASH),
                         ),
                         current = route,

@@ -27,7 +27,6 @@ import app.furibudget.data.BackupFile
 import app.furibudget.data.BudgetEntity
 import app.furibudget.data.Budgeting
 import app.furibudget.data.CategoryEntity
-import app.furibudget.data.GoalEntity
 import app.furibudget.data.Ledger
 import app.furibudget.data.BillEntity
 import app.furibudget.data.BillPaymentEntity
@@ -57,7 +56,6 @@ data class BudgetState(
     val transactions: List<TransactionEntity> = emptyList(),
     val balances: Map<Long, Money> = emptyMap(),
     val budgets: List<BudgetEntity> = emptyList(),
-    val goals: List<GoalEntity> = emptyList(),
     val bills: List<BillEntity> = emptyList(),
     val billPayments: List<BillPaymentEntity> = emptyList(),
     val templates: List<TemplateEntity> = emptyList(),
@@ -88,16 +86,16 @@ private suspend fun Application.widgetUpdate() = app.furibudget.widget.WidgetUpd
 const val TRASH_DAYS = 30L
 
 /** Everything in Recently deleted, newest first. */
-data class Trash(val transactions: List<TransactionEntity> = emptyList(), val bills: List<BillEntity> = emptyList(), val goals: List<GoalEntity> = emptyList(), val people: List<PersonEntity> = emptyList(), val funds: List<FundEntity> = emptyList()) {
-    val isEmpty: Boolean get() = transactions.isEmpty() && bills.isEmpty() && goals.isEmpty() && people.isEmpty() && funds.isEmpty()
+data class Trash(val transactions: List<TransactionEntity> = emptyList(), val bills: List<BillEntity> = emptyList(), val people: List<PersonEntity> = emptyList(), val funds: List<FundEntity> = emptyList()) {
+    val isEmpty: Boolean get() = transactions.isEmpty() && bills.isEmpty() && people.isEmpty() && funds.isEmpty()
 }
 
 class BudgetViewModel(private val app: Application) : AndroidViewModel(app) {
     private val repo = (app as FuriBudgetApp).repository
     private val settingsRepo = (app as FuriBudgetApp).settings
 
-    private val base = combine(repo.allAccounts, repo.categories, repo.transactions, repo.budgets, repo.goals) { a, c, t, b, g ->
-        BudgetState(true, accounts = a.filter { !it.archived }, allAccounts = a, categories = c, transactions = t, balances = Ledger.balances(a, t), budgets = b, goals = g)
+    private val base = combine(repo.allAccounts, repo.categories, repo.transactions, repo.budgets) { a, c, t, b ->
+        BudgetState(true, accounts = a.filter { !it.archived }, allAccounts = a, categories = c, transactions = t, balances = Ledger.balances(a, t), budgets = b)
     }
 
     private val billsFlow = combine(repo.bills, repo.billPayments, repo.templates) { b, p, t -> Triple(b, p, t) }
@@ -109,7 +107,7 @@ class BudgetViewModel(private val app: Application) : AndroidViewModel(app) {
         s.copy(bills = bills.first, billPayments = bills.second, templates = bills.third, rates = pl[4] as List<RateEntity>, people = pl[0] as List<PersonEntity>, loans = pl[1] as List<LoanEntity>, funds = pl[2] as List<FundEntity>, fundMoves = pl[3] as List<FundMoveEntity>, tags = tg.first, transactionTags = tg.second, splits = tg.third, settings = set, currency = Currency.byCode(set.currencyCode), startDay = set.startDay)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), BudgetState())
 
-    val trash: StateFlow<Trash> = combine(repo.deletedTransactions, repo.deletedBills, repo.deletedGoals, repo.deletedPeople, repo.deletedFunds) { t, b, g, p, f -> Trash(t, b, g, p, f) }
+    val trash: StateFlow<Trash> = combine(repo.deletedTransactions, repo.deletedBills, repo.deletedPeople, repo.deletedFunds) { t, b, p, f -> Trash(t, b, p, f) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), Trash())
 
     private val _fetching = kotlinx.coroutines.flow.MutableStateFlow(false)
@@ -161,7 +159,7 @@ class BudgetViewModel(private val app: Application) : AndroidViewModel(app) {
     fun deleteFund(id: Long) { viewModelScope.launch { repo.softDeleteFund(id, System.currentTimeMillis()) } }
     fun restoreFund(id: Long) { viewModelScope.launch { repo.restoreFund(id) } }
     fun deleteFundForever(id: Long) { viewModelScope.launch { repo.deleteFundForever(id) } }
-    fun moveFund(fundId: Long, amountMinor: Long) { viewModelScope.launch { repo.moveFund(fundId, amountMinor, LocalDate.now().toEpochDay()) } }
+    fun moveFund(fundId: Long, amountMinor: Long, accountId: Long?) { viewModelScope.launch { repo.moveFund(fundId, amountMinor, LocalDate.now().toEpochDay(), accountId) } }
     fun checkBalance(accountId: Long, appMinor: Long, realMinor: Long, note: String) {
         viewModelScope.launch { repo.adjustBalance(accountId, appMinor, realMinor, LocalDate.now().toEpochDay(), note) }
     }
@@ -174,10 +172,8 @@ class BudgetViewModel(private val app: Application) : AndroidViewModel(app) {
     }
     fun repay(loanId: Long, amountMinor: Long, accountId: Long, epochDay: Long) { viewModelScope.launch { repo.repay(loanId, amountMinor, accountId, epochDay) } }
     fun restoreBill(id: Long) { viewModelScope.launch { repo.restoreBill(id) } }
-    fun restoreGoal(id: Long) { viewModelScope.launch { repo.restoreGoal(id) } }
     fun deleteForever(tx: TransactionEntity) { viewModelScope.launch { repo.deleteTxForever(tx) } }
     fun deleteForever(b: BillEntity) { viewModelScope.launch { repo.deleteBillForever(b) } }
-    fun deleteForever(g: GoalEntity) { viewModelScope.launch { repo.deleteGoalForever(g) } }
 
     init {
         // The three most used templates become long-press shortcuts on the launcher icon.
@@ -235,9 +231,6 @@ class BudgetViewModel(private val app: Application) : AndroidViewModel(app) {
     fun restore(tx: TransactionEntity) { viewModelScope.launch { repo.restoreTx(tx.id) } }
     fun saveBudget(b: BudgetEntity) { viewModelScope.launch { repo.saveBudget(b) } }
     fun deleteBudget(b: BudgetEntity) { viewModelScope.launch { repo.deleteBudget(b) } }
-    fun saveGoal(g: GoalEntity) { viewModelScope.launch { repo.saveGoal(g) } }
-    fun moveGoal(goalId: Long, deltaMinor: Long, accountId: Long) { viewModelScope.launch { repo.moveGoal(goalId, deltaMinor, accountId, LocalDate.now().toEpochDay()) } }
-    fun deleteGoal(g: GoalEntity) { viewModelScope.launch { repo.deleteGoal(g) } }
     fun saveAccount(a: AccountEntity) { viewModelScope.launch { repo.saveAccount(a) } }
     fun reorderAccounts(ids: List<Long>) { viewModelScope.launch { repo.reorderAccounts(ids) } }
     fun reorderCategories(ids: List<Long>) { viewModelScope.launch { repo.reorderCategories(ids) } }

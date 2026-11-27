@@ -120,4 +120,23 @@ class BackupTest {
         assertEquals(emptyList<PersonEntity>(), back.people)
         assertEquals(true, Backup.isConsistent(back))
     }
+
+    @Test fun oldGoalsBecomeGoalsThatKeepTheirMoneySetAside() {
+        val old = BackupFile(
+            version = 3, accounts = listOf(AccountEntity(1, "Cash", 1, "cash", sortOrder = 1), AccountEntity(2, "Bank", 1, "bank", sortOrder = 0)),
+            goals = listOf(app.furibudget.data.GoalEntity(1, "Laptop", 500_000, 120_000, deadlineEpochDay = 20_500, colorArgb = 7, createdAt = 86_400_000L * 20_000)),
+            funds = listOf(FundEntity(5, "Trip", colorArgb = 1)),
+        )
+        val back = Backup.decode(Backup.encode(old))!!
+        assertEquals(emptyList<app.furibudget.data.GoalEntity>(), back.goals)
+        assertEquals(2, back.funds.size)
+        val laptop = back.funds.first { it.name == "Laptop" }
+        assertEquals(6L, laptop.id)
+        assertEquals(500_000L, laptop.targetMinor)
+        assertEquals(20_500L, laptop.deadlineEpochDay)
+        assertEquals(2L, laptop.accountId)   // the first account by sort order
+        assertEquals(app.furibudget.data.HoldMode.RESERVE, laptop.holdMode)
+        assertEquals(120_000L, back.fundMoves.single { it.fundId == 6L }.amountMinor)
+        assertEquals(true, Backup.isConsistent(back))
+    }
 }

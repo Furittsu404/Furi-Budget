@@ -17,7 +17,7 @@ class Converters {
         TagEntity::class, TransactionTagEntity::class, TransactionSplitEntity::class, PersonEntity::class, LoanEntity::class,
         FundEntity::class, FundMoveEntity::class, RateEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -43,7 +43,7 @@ abstract class BudgetDatabase : RoomDatabase() {
     companion object {
         fun create(context: Context): BudgetDatabase =
             Room.databaseBuilder(context, BudgetDatabase::class.java, "budget.db")
-                .addMigrations(Migrations.MIGRATION_1_2, Migrations.MIGRATION_2_3, Migrations.MIGRATION_3_4)
+                .addMigrations(Migrations.MIGRATION_1_2, Migrations.MIGRATION_2_3, Migrations.MIGRATION_3_4, Migrations.MIGRATION_4_5)
                 // Schema v1 is the baseline (schemas/ holds the exported JSON). Every later change needs a real Migration.
                 // Only a downgrade, which can happen when an older build is installed over a newer one, may drop the tables.
                 .fallbackToDestructiveMigrationOnDowngrade(dropAllTables = true)

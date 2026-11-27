@@ -10,7 +10,6 @@ class BudgetRepository(private val db: BudgetDatabase) {
     val categories: Flow<List<CategoryEntity>> = db.categories().observeAll()
     val transactions: Flow<List<TransactionEntity>> = db.transactions().observeAll()
     val budgets: Flow<List<BudgetEntity>> = db.budgets().observeAll()
-    val goals: Flow<List<GoalEntity>> = db.goals().observeAll()
     val bills: Flow<List<BillEntity>> = db.bills().observeAll()
     val billPayments: Flow<List<BillPaymentEntity>> = db.billPayments().observeAll()
     val templates: Flow<List<TemplateEntity>> = db.templates().observeAll()
@@ -26,7 +25,6 @@ class BudgetRepository(private val db: BudgetDatabase) {
     val splits: Flow<List<TransactionSplitEntity>> = db.splits().observeAll()
     val deletedTransactions: Flow<List<TransactionEntity>> = db.transactions().observeDeleted()
     val deletedBills: Flow<List<BillEntity>> = db.bills().observeDeleted()
-    val deletedGoals: Flow<List<GoalEntity>> = db.goals().observeDeleted()
 
     suspend fun seedIfEmpty() {
         db.withTransaction {
@@ -71,7 +69,25 @@ class BudgetRepository(private val db: BudgetDatabase) {
     suspend fun softDeleteFund(id: Long, at: Long) = db.funds().markDeleted(id, at)
     suspend fun restoreFund(id: Long) = db.funds().restoreDeleted(id)
     suspend fun deleteFundForever(id: Long) = db.funds().deleteForever(id)
-    suspend fun moveFund(fundId: Long, amountMinor: Long, epochDay: Long, note: String = "") { db.fundMoves().insert(FundMoveEntity(fundId = fundId, amountMinor = amountMinor, epochDay = epochDay, note = note)) }
+    /**
+     * Puts money into a goal (positive [amountMinor]) or takes it out (negative). A goal that keeps its money in an account
+     * only changes what is set aside. A goal that moves money out of the balance also records a transaction on [accountId],
+     * tagged so it never counts as spending or income. Taking out is capped at what the goal holds.
+     */
+    suspend fun moveFund(fundId: Long, amountMinor: Long, epochDay: Long, accountId: Long? = null): Boolean = db.withTransaction {
+        val fund = db.funds().get(fundId) ?: return@withTransaction false
+        val delta = if (amountMinor < 0) -minOf(-amountMinor, db.fundMoves().saved(fundId).coerceAtLeast(0)) else amountMinor
+        if (delta == 0L) return@withTransaction false
+        var txId: Long? = null
+        if (fund.holdMode == HoldMode.MOVE_OUT) {
+            val acc = accountId ?: return@withTransaction false
+            txId = db.transactions().insert(
+                TransactionEntity(kind = if (delta > 0) TxKind.EXPENSE else TxKind.INCOME, amountMinor = kotlin.math.abs(delta), accountId = acc, note = fund.name, epochDay = epochDay, role = TxRole.GOAL),
+            )
+        }
+        db.fundMoves().insert(FundMoveEntity(fundId = fundId, amountMinor = delta, epochDay = epochDay, transactionId = txId))
+        true
+    }
 
     /** Posts this month's automatic reserve for every fund that has one. Safe to call on every launch. */
     suspend fun postFundMonthly(today: LocalDate) {
@@ -135,32 +151,11 @@ class BudgetRepository(private val db: BudgetDatabase) {
     /** Removes everything that has sat in Recently deleted for longer than [retentionMs]. */
     suspend fun purgeDeleted(now: Long, retentionMs: Long) {
         val before = now - retentionMs
-        db.transactions().purge(before); db.bills().purge(before); db.goals().purge(before); db.people().purge(before)
+        db.transactions().purge(before); db.bills().purge(before); db.people().purge(before)
     }
 
     suspend fun saveBudget(b: BudgetEntity) = db.budgets().upsert(b)
     suspend fun deleteBudget(b: BudgetEntity) = db.budgets().delete(b)
-    suspend fun saveGoal(g: GoalEntity) { if (g.id == 0L) db.goals().insert(g) else db.goals().update(g) }
-    /**
-     * Puts money into a goal (positive [deltaMinor]) or takes it back out (negative), moving it from or to [accountId].
-     * The goal's saved amount and the account's balance change together; the transaction is tagged so it never counts as spending.
-     */
-    suspend fun moveGoal(goalId: Long, deltaMinor: Long, accountId: Long, epochDay: Long): Boolean = db.withTransaction {
-        val goal = db.goals().get(goalId) ?: return@withTransaction false
-        val delta = if (deltaMinor < 0) -minOf(-deltaMinor, goal.savedMinor) else deltaMinor
-        if (delta == 0L) return@withTransaction false
-        db.goals().update(goal.copy(savedMinor = goal.savedMinor + delta))
-        db.transactions().insert(
-            TransactionEntity(
-                kind = if (delta > 0) TxKind.EXPENSE else TxKind.INCOME, amountMinor = kotlin.math.abs(delta), accountId = accountId,
-                note = goal.name, epochDay = epochDay, role = TxRole.GOAL,
-            ),
-        )
-        true
-    }
-    suspend fun deleteGoal(g: GoalEntity) = db.goals().markDeleted(g.id, System.currentTimeMillis())
-    suspend fun restoreGoal(id: Long) = db.goals().restoreDeleted(id)
-    suspend fun deleteGoalForever(g: GoalEntity) = db.goals().delete(g)
 
     suspend fun saveAccount(a: AccountEntity) { if (a.id == 0L) db.accounts().insert(a) else db.accounts().update(a) }
     /** Adds what [plan] found: any accounts, categories and tags it needs first, then the transactions with their splits and tags. */
@@ -328,7 +323,7 @@ class BudgetRepository(private val db: BudgetDatabase) {
     suspend fun export(theme: app.furibudget.ui.theme.ThemeSpec?, currency: String, startDay: Int): BackupFile = db.withTransaction {
         BackupFile(
             accounts = db.accounts().all(), categories = db.categories().all(), transactions = db.transactions().all(),
-            budgets = db.budgets().all(), goals = db.goals().all(), bills = db.bills().all(), billPayments = db.billPayments().all(),
+            budgets = db.budgets().all(), bills = db.bills().all(), billPayments = db.billPayments().all(),
             templates = db.templates().all(), tags = db.tags().all(), rates = db.rates().all(), funds = db.funds().all(), fundMoves = db.fundMoves().all(), people = db.people().all(), loans = db.loans().all(), transactionTags = db.transactionTags().all(), splits = db.splits().all(), theme = theme, currency = currency, startDay = startDay,
         )
     }
@@ -339,7 +334,7 @@ class BudgetRepository(private val db: BudgetDatabase) {
         db.budgets().deleteAll(); db.goals().deleteAll(); db.categories().deleteAll(); db.accounts().deleteAll()
         db.accounts().insertAll(f.accounts); db.categories().insertAll(f.categories)
         db.transactions().insertAll(f.transactions); db.budgets().insertAll(f.budgets)
-        db.goals().insertAll(f.goals); db.bills().insertAll(f.bills); db.billPayments().insertAll(f.billPayments)
+        db.bills().insertAll(f.bills); db.billPayments().insertAll(f.billPayments)
         db.templates().insertAll(f.templates)
         db.rates().insertAll(f.rates)
         db.funds().insertAll(f.funds); db.fundMoves().insertAll(f.fundMoves)

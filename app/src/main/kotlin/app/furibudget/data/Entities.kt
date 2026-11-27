@@ -281,7 +281,11 @@ data class LoanEntity(
     val deletedAt: Long? = null,
 )
 
-/** A sinking fund: money reserved inside your accounts for a future cost. */
+/** Where a goal's money lives: still in an account but set aside (RESERVE), or taken out of the account balance (MOVE_OUT). */
+@Serializable
+enum class HoldMode { RESERVE, MOVE_OUT }
+
+/** A savings goal (the old Goals and Funds in one): a target to reach, optionally by a deadline and with a monthly set-aside. */
 @Serializable
 @Entity(tableName = "funds")
 data class FundEntity(
@@ -295,6 +299,9 @@ data class FundEntity(
     val deletedAt: Long? = null,
     /** The account this money is set aside in. Its balance stays; only that account's free-to-spend shrinks. */
     val accountId: Long? = null,
+    /** LocalDate.toEpochDay(), or null for no deadline. */
+    val deadlineEpochDay: Long? = null,
+    @ColumnInfo(defaultValue = "RESERVE") val holdMode: HoldMode = HoldMode.RESERVE,
 )
 
 /** Money put into (positive) or taken out of (negative) a fund. monthKey ("2026-11") makes the monthly reserve idempotent. */
