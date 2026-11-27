@@ -15,6 +15,7 @@ class BudgetRepository(private val db: BudgetDatabase) {
     val billPayments: Flow<List<BillPaymentEntity>> = db.billPayments().observeAll()
     val templates: Flow<List<TemplateEntity>> = db.templates().observeAll()
     val tags: Flow<List<TagEntity>> = db.tags().observeAll()
+    val rates: Flow<List<RateEntity>> = db.rates().observeAll()
     val funds: Flow<List<FundEntity>> = db.funds().observeAll()
     val fundMoves: Flow<List<FundMoveEntity>> = db.fundMoves().observeAll()
     val deletedFunds: Flow<List<FundEntity>> = db.funds().observeDeleted()
@@ -54,6 +55,17 @@ class BudgetRepository(private val db: BudgetDatabase) {
     }
 
     suspend fun saveTag(t: TagEntity): Long = db.tags().insert(t)
+
+    /** Stores freshly fetched rates. Rates the user typed are kept; rates from another base currency are dropped first. */
+    suspend fun storeOnlineRates(rates: Map<String, Long>, at: Long) = db.withTransaction {
+        val manual = db.rates().all().filter { it.manual }.map { it.code }.toSet()
+        db.rates().deleteOnline()
+        for ((code, micro) in rates) if (code !in manual) db.rates().insertIgnore(RateEntity(code, micro, at))
+    }
+    suspend fun setManualRate(code: String, rateMicro: Long, at: Long) = db.rates().upsert(RateEntity(code, rateMicro, at, manual = true))
+    suspend fun clearRate(code: String) = db.rates().delete(code)
+    /** Rates are measured against the main currency, so a new main currency makes every stored one meaningless. */
+    suspend fun clearAllRates() = db.rates().deleteAll()
 
     suspend fun saveFund(f: FundEntity): Long = if (f.id == 0L) db.funds().insert(f) else { db.funds().update(f); f.id }
     suspend fun softDeleteFund(id: Long, at: Long) = db.funds().markDeleted(id, at)
@@ -229,18 +241,19 @@ class BudgetRepository(private val db: BudgetDatabase) {
         BackupFile(
             accounts = db.accounts().all(), categories = db.categories().all(), transactions = db.transactions().all(),
             budgets = db.budgets().all(), goals = db.goals().all(), bills = db.bills().all(), billPayments = db.billPayments().all(),
-            templates = db.templates().all(), tags = db.tags().all(), funds = db.funds().all(), fundMoves = db.fundMoves().all(), people = db.people().all(), loans = db.loans().all(), transactionTags = db.transactionTags().all(), splits = db.splits().all(), theme = theme, currency = currency, startDay = startDay,
+            templates = db.templates().all(), tags = db.tags().all(), rates = db.rates().all(), funds = db.funds().all(), fundMoves = db.fundMoves().all(), people = db.people().all(), loans = db.loans().all(), transactionTags = db.transactionTags().all(), splits = db.splits().all(), theme = theme, currency = currency, startDay = startDay,
         )
     }
 
     /** Replaces everything with the backup's contents, keeping ids so links between rows survive. */
     suspend fun replaceAll(f: BackupFile) = db.withTransaction {
-        db.billPayments().deleteAll(); db.transactionTags().deleteAll(); db.splits().deleteAll(); db.loans().deleteAll(); db.people().deleteAll(); db.fundMoves().deleteAll(); db.funds().deleteAll(); db.tags().deleteAll(); db.transactions().deleteAll(); db.bills().deleteAll(); db.templates().deleteAll()
+        db.billPayments().deleteAll(); db.transactionTags().deleteAll(); db.splits().deleteAll(); db.loans().deleteAll(); db.people().deleteAll(); db.fundMoves().deleteAll(); db.funds().deleteAll(); db.rates().deleteAll(); db.tags().deleteAll(); db.transactions().deleteAll(); db.bills().deleteAll(); db.templates().deleteAll()
         db.budgets().deleteAll(); db.goals().deleteAll(); db.categories().deleteAll(); db.accounts().deleteAll()
         db.accounts().insertAll(f.accounts); db.categories().insertAll(f.categories)
         db.transactions().insertAll(f.transactions); db.budgets().insertAll(f.budgets)
         db.goals().insertAll(f.goals); db.bills().insertAll(f.bills); db.billPayments().insertAll(f.billPayments)
         db.templates().insertAll(f.templates)
+        db.rates().insertAll(f.rates)
         db.funds().insertAll(f.funds); db.fundMoves().insertAll(f.fundMoves)
         db.people().insertAll(f.people); db.loans().insertAll(f.loans)
         db.tags().insertAll(f.tags); db.transactionTags().insertAll(f.transactionTags); db.splits().insertAll(f.splits)

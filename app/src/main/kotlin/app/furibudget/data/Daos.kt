@@ -236,3 +236,15 @@ interface FundMoveDao {
     @Insert suspend fun insert(m: FundMoveEntity): Long
     @Insert(onConflict = OnConflictStrategy.IGNORE) suspend fun insertIgnore(m: FundMoveEntity): Long
 }
+
+@Dao
+interface RateDao {
+    @Query("SELECT * FROM rates ORDER BY code") fun observeAll(): Flow<List<RateEntity>>
+    @Query("SELECT * FROM rates ORDER BY code") suspend fun all(): List<RateEntity>
+    @Query("DELETE FROM rates") suspend fun deleteAll()
+    @Query("DELETE FROM rates WHERE manual = 0") suspend fun deleteOnline()
+    @Query("DELETE FROM rates WHERE code = :code") suspend fun delete(code: String)
+    @Insert suspend fun insertAll(r: List<RateEntity>)
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun upsert(r: RateEntity)
+    @Insert(onConflict = OnConflictStrategy.IGNORE) suspend fun insertIgnore(r: RateEntity): Long
+}

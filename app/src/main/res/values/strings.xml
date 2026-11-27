@@ -389,4 +389,26 @@
     <string name="adjust">Adjust</string>
     <string name="balance_adjustment">Balance adjustment</string>
     <string name="balance_check_note">Balance check</string>
+    <string name="exchange_rates">Exchange rates</string>
+    <string name="rates_online_switch">Update exchange rates online</string>
+    <string name="rates_online_hint">Off by default. When on, the app asks a public rates service once a day. Only your main currency code is sent, nothing else.</string>
+    <string name="rates_updated">Updated %1$s</string>
+    <string name="rates_never">Not updated yet</string>
+    <string name="rates_off_hint">Online updates are off. Type a rate yourself, or switch them on in Settings.</string>
+    <string name="update_now">Update now</string>
+    <string name="just_now">just now</string>
+    <string name="ago_minutes">%1$d min ago</string>
+    <string name="ago_hours">%1$d h ago</string>
+    <string name="ago_days">%1$d days ago</string>
+    <string name="no_rate">No rate yet</string>
+    <string name="rate_manual">Typed by you</string>
+    <string name="rate_online">Online · %1$s</string>
+    <string name="set_rate_title">Rate for %1$s</string>
+    <string name="set_rate_hint">How much is 1 %1$s worth in %2$s? Online updates never replace a rate you type.</string>
+    <string name="use_online_rate">Use the online rate</string>
+    <string name="remove_rate">Remove rate</string>
+    <string name="foreign_currency">Foreign currency</string>
+    <string name="home_currency">Back to %1$s</string>
+    <string name="converted_line">About %1$s at 1 %2$s = %3$s</string>
+    <string name="no_rates_for_foreign">No exchange rates yet. Add one in Settings, Exchange rates.</string>
 </resources>

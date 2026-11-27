@@ -21,6 +21,11 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material.icons.rounded.ArrowDropDown
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Box
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material3.AlertDialog
@@ -68,6 +73,7 @@ fun SettingsScreen(
     onOpenGoals: () -> Unit,
     onOpenPeople: () -> Unit,
     onOpenFunds: () -> Unit,
+    onOpenRates: () -> Unit,
     onOpenTrash: () -> Unit,
     onBack: () -> Unit,
 ) {
@@ -123,11 +129,27 @@ fun SettingsScreen(
 
         Group(stringResource(R.string.general)) {
             Text(stringResource(R.string.currency), style = MaterialTheme.typography.bodyMedium, color = c.onSurfaceVariant)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Currency.all.forEach { cur ->
-                    FilterChip(selected = s.currencyCode == cur.code, onClick = { vm.updateSettings { it.copy(currencyCode = cur.code) } }, label = { Text("${cur.symbol} ${cur.code}") })
+            var currencyMenu by remember { mutableStateOf(false) }
+            Box {
+                val now = Currency.byCode(s.currencyCode)
+                FilterChip(
+                    selected = true, onClick = { currencyMenu = true }, label = { Text("${now.symbol} ${now.code}") },
+                    trailingIcon = { Icon(Icons.Rounded.ArrowDropDown, null, Modifier.size(18.dp)) },
+                )
+                DropdownMenu(currencyMenu, { currencyMenu = false }, Modifier.heightIn(max = 420.dp)) {
+                    Currency.all.forEach { cur ->
+                        DropdownMenuItem(text = { Text("${cur.symbol}  ${cur.code}") }, onClick = { vm.setCurrency(cur.code); currencyMenu = false })
+                    }
                 }
             }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(stringResource(R.string.rates_online_switch), style = MaterialTheme.typography.bodyMedium, color = c.onSurface)
+                    Text(stringResource(R.string.rates_online_hint), style = MaterialTheme.typography.bodySmall, color = c.onSurfaceVariant)
+                }
+                Switch(s.ratesOnline, { on -> vm.updateSettings { it.copy(ratesOnline = on) }; if (on) vm.refreshRatesSoon() })
+            }
+            LinkRow(stringResource(R.string.exchange_rates), chevron = true, onClick = onOpenRates)
             Text(stringResource(R.string.month_starts, s.startDay), style = MaterialTheme.typography.bodyMedium, color = c.onSurfaceVariant)
             androidx.compose.material3.Slider(
                 value = s.startDay.toFloat(), onValueChange = { v -> vm.updateSettings { it.copy(startDay = v.toInt()) } },

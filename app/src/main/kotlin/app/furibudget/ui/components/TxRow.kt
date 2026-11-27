@@ -53,7 +53,10 @@ fun TxRow(tx: TransactionEntity, state: BudgetState, modifier: Modifier = Modifi
         TxKind.TRANSFER -> stringResource(R.string.transfer_to, state.account(tx.accountId)?.name ?: stringResource(R.string.unknown), state.account(tx.toAccountId)?.name ?: stringResource(R.string.unknown))
         else -> if (splitCount > 1) stringResource(R.string.split_title, splitCount) else category?.name ?: stringResource(R.string.uncategorised)
     }
-    val subtitle = listOf(tx.note.ifBlank { if (tx.kind == TxKind.TRANSFER) stringResource(R.string.kind_transfer) else state.account(tx.accountId)?.name.orEmpty() }, tagLine).filter { it.isNotBlank() }.joinToString(" · ")
+    val original = if (tx.origCurrency != null && tx.origAmountMinor != null) {
+        app.furibudget.core.Currency.all.firstOrNull { it.code == tx.origCurrency }?.let { it.format(Money(tx.origAmountMinor), true) } ?: ""
+    } else ""
+    val subtitle = listOf(original, tx.note.ifBlank { if (tx.kind == TxKind.TRANSFER) stringResource(R.string.kind_transfer) else state.account(tx.accountId)?.name.orEmpty() }, tagLine).filter { it.isNotBlank() }.joinToString(" · ")
     val amount = state.currency.format(Money(tx.amountMinor), withSymbol = true)
     val (text, color) = when (tx.kind) {
         TxKind.INCOME -> "+ $amount" to c.income

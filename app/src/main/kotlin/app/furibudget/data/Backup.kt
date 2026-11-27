@@ -21,6 +21,7 @@ data class BackupFile(
     val billPayments: List<BillPaymentEntity> = emptyList(),
     val templates: List<TemplateEntity> = emptyList(),
     val tags: List<TagEntity> = emptyList(),
+    val rates: List<RateEntity> = emptyList(),
     val funds: List<FundEntity> = emptyList(),
     val fundMoves: List<FundMoveEntity> = emptyList(),
     val people: List<PersonEntity> = emptyList(),

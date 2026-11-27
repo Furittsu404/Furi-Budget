@@ -70,6 +70,7 @@ import app.furibudget.ui.home.HomeScreen
 import app.furibudget.ui.onboarding.OnboardingScreen
 import app.furibudget.ui.funds.FundsScreen
 import app.furibudget.ui.people.PeopleScreen
+import app.furibudget.ui.rates.ExchangeRatesScreen
 import app.furibudget.ui.people.PersonScreen
 import app.furibudget.ui.settings.ManageScreen
 import app.furibudget.ui.settings.SettingsScreen
@@ -89,6 +90,7 @@ private object Route {
     const val TRASH = "trash"
     const val PEOPLE = "people"
     const val FUNDS = "funds"
+    const val RATES = "rates"
     const val PERSON = "person/{id}"
     const val BILLS = "bills"
     const val BILL_EDIT = "bill/{id}"
@@ -211,7 +213,7 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
             composable(Route.SETTINGS) {
                 SettingsScreen(
                     state, vm, spec, onTheme,
-                    onOpenManage = { nav.navigate(Route.MANAGE) }, onOpenGoals = { nav.navigate(Route.GOALS) }, onOpenPeople = { nav.navigate(Route.PEOPLE) }, onOpenFunds = { nav.navigate(Route.FUNDS) }, onOpenTrash = { nav.navigate(Route.TRASH) },
+                    onOpenManage = { nav.navigate(Route.MANAGE) }, onOpenGoals = { nav.navigate(Route.GOALS) }, onOpenPeople = { nav.navigate(Route.PEOPLE) }, onOpenFunds = { nav.navigate(Route.FUNDS) }, onOpenRates = { nav.navigate(Route.RATES) }, onOpenTrash = { nav.navigate(Route.TRASH) },
                     onBack = { nav.popBackStack() },
                 )
             }
@@ -225,6 +227,10 @@ fun AppRoot(spec: ThemeSpec, onTheme: ((ThemeSpec) -> ThemeSpec) -> Unit, vm: Bu
                     onForeverTx = { vm.deleteForever(it) }, onForeverBill = { vm.deleteForever(it) }, onForeverGoal = { vm.deleteForever(it) },
                     onBack = { nav.popBackStack() },
                 )
+            }
+            composable(Route.RATES) {
+                val fetching by vm.fetchingRates.collectAsState()
+                ExchangeRatesScreen(state, fetching, onUpdate = { vm.refreshRates(force = true) }, onSetManual = vm::setManualRate, onClear = vm::clearRate, onBack = { nav.popBackStack() })
             }
             composable(Route.FUNDS) { FundsScreen(state, vm::saveFund, vm::deleteFund, vm::moveFund) { nav.popBackStack() } }
             composable(Route.PEOPLE) {

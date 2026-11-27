@@ -43,6 +43,10 @@ import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material.icons.rounded.CurrencyExchange
+import app.furibudget.core.Rates
+import app.furibudget.core.Currency
 import app.furibudget.data.CategoryEntity
 import app.furibudget.data.AccountEntity
 import androidx.compose.ui.text.style.TextOverflow
@@ -118,7 +122,19 @@ fun EditScreen(
     // Saveable, so a half-typed amount survives rotation and the system killing the app in the background.
     val key = arrayOf<Any?>(txId, existing != null, state.accounts.isNotEmpty())
     var kind by rememberSaveable(*key) { mutableStateOf(existing?.kind ?: initialKind) }
-    var entry by rememberSaveable(*key, stateSaver = KeypadSaver) { mutableStateOf(existing?.let { KeypadEntry.from(Money(it.amountMinor), decimals) } ?: KeypadEntry(decimals = decimals)) }
+    // A foreign-currency entry keeps what was typed in that currency plus the rate used; amountMinor is always in the main currency.
+    var foreign by rememberSaveable(*key) { mutableStateOf(existing?.origCurrency) }
+    var rateMicro by rememberSaveable(*key) { mutableStateOf(existing?.rateMicro) }
+    val foreignCur = foreign?.let { code -> Currency.all.firstOrNull { it.code == code } }
+    val entryDecimals = foreignCur?.decimals ?: decimals
+    var entry by rememberSaveable(*key, stateSaver = KeypadSaver) {
+        mutableStateOf(
+            existing?.let { e ->
+                val fc = e.origCurrency?.let { code -> Currency.all.firstOrNull { it.code == code } }
+                if (fc != null && e.origAmountMinor != null) KeypadEntry.from(Money(e.origAmountMinor), fc.decimals) else KeypadEntry.from(Money(e.amountMinor), decimals)
+            } ?: KeypadEntry(decimals = decimals),
+        )
+    }
     var accountId by rememberSaveable(*key) { mutableLongStateOf(existing?.accountId ?: state.accounts.firstOrNull()?.id ?: 0L) }
     var toAccountId by rememberSaveable(*key) { mutableStateOf(existing?.toAccountId) }
     var categoryId by rememberSaveable(*key) { mutableStateOf(existing?.categoryId) }
@@ -137,7 +153,8 @@ fun EditScreen(
     var splitTexts by rememberSaveable(*key) { mutableStateOf(existingSplits.map { state.currency.format(Money(it.amountMinor)).replace(",", "") }.ifEmpty { listOf("", "") }) }
     val splitRows = splitCats.zip(splitTexts) { cat, text -> SplitRow(cat.takeIf { it >= 0 }, text) }
 
-    val amount = entry.toMoney()
+    val typed = entry.toMoney()
+    val amount = if (foreignCur != null && rateMicro != null) Money(Rates.toBase(typed.minor, foreignCur, state.currency, rateMicro!!)) else typed
     val kindColor by animateColorAsState(
         when (kind) { TxKind.EXPENSE -> c.expense; TxKind.INCOME -> c.income; TxKind.TRANSFER -> c.accentText },
         Furi.motion.tween(240), label = "kind-color",
@@ -166,7 +183,7 @@ fun EditScreen(
                         FilterChip(
                             selected = false,
                             onClick = {
-                                kind = t.kind; entry = KeypadEntry.from(Money(t.amountMinor), decimals); note = t.note
+                                kind = t.kind; foreign = null; rateMicro = null; entry = KeypadEntry.from(Money(t.amountMinor), decimals); note = t.note
                                 if (state.accounts.any { it.id == t.accountId }) accountId = t.accountId
                                 categoryId = t.categoryId
                             },
@@ -191,11 +208,19 @@ fun EditScreen(
             }
             Box(Modifier.fillMaxWidth().padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
                 AnimatedAmount(
-                    text = state.currency.symbol + " " + entry.display(),
+                    text = (foreignCur?.symbol ?: state.currency.symbol) + " " + entry.display(),
                     style = Furi.figures.copy(fontSize = MaterialTheme.typography.displayMedium.fontSize),
                     color = kindColor,
                     rollFromZero = false,
                 )
+            }
+            if (foreignCur != null && rateMicro != null) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        stringResource(R.string.converted_line, state.currency.format(amount, true), foreignCur.code, state.currency.symbol + " " + Rates.display(rateMicro!!)),
+                        style = MaterialTheme.typography.bodyMedium, color = c.onSurfaceVariant,
+                    )
+                }
             }
             if (kind != TxKind.TRANSFER) {
                 if (splitting) {
@@ -215,6 +240,33 @@ fun EditScreen(
                     label = { Text(dateLabel(date)) },
                     leadingIcon = { Icon(Icons.Rounded.Event, null, Modifier.size(18.dp)) },
                 )
+                if (kind != TxKind.TRANSFER) {
+                    var menu by remember { mutableStateOf(false) }
+                    Box {
+                        FilterChip(
+                            selected = foreignCur != null, onClick = { menu = true },
+                            label = { Text(foreignCur?.code ?: stringResource(R.string.foreign_currency)) },
+                            leadingIcon = { Icon(Icons.Rounded.CurrencyExchange, null, Modifier.size(18.dp)) },
+                        )
+                        DropdownMenu(menu, { menu = false }, Modifier.heightIn(max = 360.dp)) {
+                            if (foreignCur != null) DropdownMenuItem(
+                                text = { Text(stringResource(R.string.home_currency, state.currency.code)) },
+                                onClick = { foreign = null; rateMicro = null; entry = KeypadEntry(decimals = decimals); menu = false },
+                            )
+                            val usable = Currency.all.filter { cur -> state.rates.any { it.code == cur.code } }
+                            if (usable.isEmpty()) DropdownMenuItem(text = { Text(stringResource(R.string.no_rates_for_foreign)) }, onClick = { menu = false })
+                            usable.forEach { cur ->
+                                DropdownMenuItem(
+                                    text = { Text("${cur.symbol}  ${cur.code}") },
+                                    onClick = {
+                                        foreign = cur.code; rateMicro = state.rates.first { it.code == cur.code }.perBaseMicro
+                                        entry = KeypadEntry(decimals = cur.decimals); menu = false
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
                 if (kind != TxKind.TRANSFER || existing == null) {
                     val extras = (if (splitting) 1 else 0) + (if (fundId != null && kind == TxKind.EXPENSE) 1 else 0) + tagIds.size + (if (repeat != Repeat.NONE) 1 else 0)
                     FilterChip(
@@ -235,11 +287,11 @@ fun EditScreen(
         }
         Column(Modifier.padding(top = 10.dp, bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Keypad(
-                showPoint = decimals > 0,
+                showPoint = entryDecimals > 0,
                 onDigit = { entry = entry.digit(it) },
                 onPoint = { entry = entry.point() },
                 onBackspace = { entry = entry.backspace() },
-                onClear = { entry = KeypadEntry(decimals = decimals) },
+                onClear = { entry = KeypadEntry(decimals = entryDecimals) },
             )
             if (canSave && existing == null) {
                 var saved by rememberSaveable { mutableStateOf(false) }
@@ -272,7 +324,9 @@ fun EditScreen(
                             epochDay = date.toEpochDay(),
                             createdAt = existing?.createdAt ?: System.currentTimeMillis(),
                             role = existing?.role ?: TxRole.NORMAL, loanId = existing?.loanId,
-                            origAmountMinor = existing?.origAmountMinor, origCurrency = existing?.origCurrency, rateMicro = existing?.rateMicro,
+                            origAmountMinor = if (foreignCur != null && kind != TxKind.TRANSFER) typed.minor else null,
+                            origCurrency = if (foreignCur != null && kind != TxKind.TRANSFER) foreignCur.code else null,
+                            rateMicro = if (foreignCur != null && kind != TxKind.TRANSFER) rateMicro else null,
                         ),
                         if (splitting) splitRows.mapIndexed { i, r -> TransactionSplitEntity(transactionId = existing?.id ?: 0, categoryId = r.categoryId, amountMinor = sliceMinor[i]) } else emptyList(),
                         if (kind == TxKind.TRANSFER) emptySet() else tagIds.toSet(),

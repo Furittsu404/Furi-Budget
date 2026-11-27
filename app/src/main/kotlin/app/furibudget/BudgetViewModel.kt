@@ -12,6 +12,8 @@ import app.furibudget.data.FundMoveEntity
 import app.furibudget.data.LoanDirection
 import app.furibudget.data.LoanEntity
 import app.furibudget.data.PersonEntity
+import app.furibudget.data.RateEntity
+import app.furibudget.data.RateFetcher
 import app.furibudget.data.TagEntity
 import app.furibudget.data.TransactionSplitEntity
 import app.furibudget.data.TransactionTagEntity
@@ -56,6 +58,7 @@ data class BudgetState(
     val billPayments: List<BillPaymentEntity> = emptyList(),
     val templates: List<TemplateEntity> = emptyList(),
     val tags: List<TagEntity> = emptyList(),
+    val rates: List<RateEntity> = emptyList(),
     val funds: List<FundEntity> = emptyList(),
     val fundMoves: List<FundMoveEntity> = emptyList(),
     val people: List<PersonEntity> = emptyList(),
@@ -96,14 +99,51 @@ class BudgetViewModel(private val app: Application) : AndroidViewModel(app) {
     private val billsFlow = combine(repo.bills, repo.billPayments, repo.templates) { b, p, t -> Triple(b, p, t) }
 
     private val tagFlow = combine(repo.tags, repo.transactionTags, repo.splits) { t, l, s -> Triple(t, l, s) }
-    private val peopleFlow = combine(repo.people, repo.loans, repo.funds, repo.fundMoves) { p, l, f, m -> listOf(p, l, f, m) }
+    private val peopleFlow = combine(repo.people, repo.loans, repo.funds, repo.fundMoves, repo.rates) { p, l, f, m, r -> listOf(p, l, f, m, r) }
 
     val state: StateFlow<BudgetState> = combine(base, billsFlow, settingsRepo.settings, tagFlow, peopleFlow) { s, bills, set, tg, pl ->
-        s.copy(bills = bills.first, billPayments = bills.second, templates = bills.third, people = pl[0] as List<PersonEntity>, loans = pl[1] as List<LoanEntity>, funds = pl[2] as List<FundEntity>, fundMoves = pl[3] as List<FundMoveEntity>, tags = tg.first, transactionTags = tg.second, splits = tg.third, settings = set, currency = Currency.byCode(set.currencyCode), startDay = set.startDay)
+        s.copy(bills = bills.first, billPayments = bills.second, templates = bills.third, rates = pl[4] as List<RateEntity>, people = pl[0] as List<PersonEntity>, loans = pl[1] as List<LoanEntity>, funds = pl[2] as List<FundEntity>, fundMoves = pl[3] as List<FundMoveEntity>, tags = tg.first, transactionTags = tg.second, splits = tg.third, settings = set, currency = Currency.byCode(set.currencyCode), startDay = set.startDay)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), BudgetState())
 
     val trash: StateFlow<Trash> = combine(repo.deletedTransactions, repo.deletedBills, repo.deletedGoals, repo.deletedPeople, repo.deletedFunds) { t, b, g, p, f -> Trash(t, b, g, p, f) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), Trash())
+
+    private val _fetching = kotlinx.coroutines.flow.MutableStateFlow(false)
+    /** True while an exchange-rate request is running. */
+    val fetchingRates: StateFlow<Boolean> = _fetching
+
+    /** Fetches rates when the switch is on and the cache is older than a day (or [force]). Silent on failure. */
+    fun refreshRates(force: Boolean = false) {
+        val s = state.value.settings
+        if (!s.ratesOnline || _fetching.value) return
+        val stale = System.currentTimeMillis() - s.ratesFetchedAt > 24 * 3_600_000L
+        if (!force && !stale) return
+        viewModelScope.launch {
+            _fetching.value = true
+            try {
+                val got = RateFetcher.fetch(s.currencyCode)
+                if (got != null) {
+                    val now = System.currentTimeMillis()
+                    repo.storeOnlineRates(got, now)
+                    settingsRepo.update { it.copy(ratesFetchedAt = now) }
+                }
+            } finally { _fetching.value = false }
+        }
+    }
+    /** Changing the main currency makes every cached rate meaningless, so drop them and fetch fresh ones. */
+    fun setCurrency(code: String) {
+        viewModelScope.launch {
+            if (state.value.settings.currencyCode != code) {
+                repo.clearAllRates()
+                settingsRepo.update { it.copy(currencyCode = code, ratesFetchedAt = 0L) }
+                refreshRates(force = true)
+            }
+        }
+    }
+    /** Called right after the switch is turned on: the settings write has to land before the fetch reads it. */
+    fun refreshRatesSoon() { viewModelScope.launch { state.first { it.settings.ratesOnline }; refreshRates(force = true) } }
+    fun setManualRate(code: String, rateMicro: Long) { viewModelScope.launch { repo.setManualRate(code, rateMicro, System.currentTimeMillis()) } }
+    fun clearRate(code: String) { viewModelScope.launch { repo.clearRate(code) } }
 
     fun saveFund(f: FundEntity) { viewModelScope.launch { repo.saveFund(f) } }
     fun deleteFund(id: Long) { viewModelScope.launch { repo.softDeleteFund(id, System.currentTimeMillis()) } }
@@ -141,6 +181,7 @@ class BudgetViewModel(private val app: Application) : AndroidViewModel(app) {
             repo.purgeDeleted(System.currentTimeMillis(), TRASH_DAYS * 86_400_000L)
             repo.postAutoPay(LocalDate.now())
             repo.postFundMonthly(LocalDate.now())
+            refreshRates()
             // Force-stopping the app clears its alarms, so put the reminder back each time it opens.
             val s = settingsRepo.settings.first()
             if (s.dailyReminder) Notifier.scheduleReminder(app, s.reminderHour, s.reminderMinute)

@@ -24,6 +24,9 @@ data class AppSettings(
     val billReminders: Boolean = true,
     val billHour: Int = 9,
     val billMinute: Int = 0,
+    /** Off by default. When on, the app may fetch exchange rates; only currency codes leave the phone. */
+    val ratesOnline: Boolean = false,
+    val ratesFetchedAt: Long = 0L,
 )
 
 class SettingsRepository(private val context: Context) {
@@ -39,6 +42,8 @@ class SettingsRepository(private val context: Context) {
         val billOn = booleanPreferencesKey("bill_reminders")
         val billHour = intPreferencesKey("bill_hour")
         val billMinute = intPreferencesKey("bill_minute")
+        val ratesOnline = booleanPreferencesKey("rates_online")
+        val ratesAt = androidx.datastore.preferences.core.longPreferencesKey("rates_fetched_at")
     }
 
     val settings: Flow<AppSettings> = context.settingsStore.data.map { p ->
@@ -47,6 +52,7 @@ class SettingsRepository(private val context: Context) {
             p[K.currency] ?: d.currencyCode, p[K.startDay] ?: d.startDay, p[K.onboarded] ?: d.onboarded, p[K.lock] ?: d.appLock,
             p[K.reminder] ?: d.dailyReminder, p[K.hour] ?: d.reminderHour, p[K.minute] ?: d.reminderMinute, p[K.alerts] ?: d.budgetAlerts,
             p[K.billOn] ?: d.billReminders, p[K.billHour] ?: d.billHour, p[K.billMinute] ?: d.billMinute,
+            p[K.ratesOnline] ?: d.ratesOnline, p[K.ratesAt] ?: d.ratesFetchedAt,
         )
     }
 
@@ -56,12 +62,14 @@ class SettingsRepository(private val context: Context) {
                 p[K.currency] ?: "PHP", p[K.startDay] ?: 1, p[K.onboarded] ?: false, p[K.lock] ?: false,
                 p[K.reminder] ?: false, p[K.hour] ?: 20, p[K.minute] ?: 0, p[K.alerts] ?: true,
                 p[K.billOn] ?: true, p[K.billHour] ?: 9, p[K.billMinute] ?: 0,
+                p[K.ratesOnline] ?: false, p[K.ratesAt] ?: 0L,
             )
             val n = change(cur)
             p[K.currency] = n.currencyCode; p[K.startDay] = n.startDay.coerceIn(1, 28); p[K.onboarded] = n.onboarded
             p[K.lock] = n.appLock; p[K.reminder] = n.dailyReminder; p[K.hour] = n.reminderHour
             p[K.minute] = n.reminderMinute; p[K.alerts] = n.budgetAlerts
             p[K.billOn] = n.billReminders; p[K.billHour] = n.billHour.coerceIn(0, 23); p[K.billMinute] = n.billMinute.coerceIn(0, 59)
+            p[K.ratesOnline] = n.ratesOnline; p[K.ratesAt] = n.ratesFetchedAt
         }
     }
 }

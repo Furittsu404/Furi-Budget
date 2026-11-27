@@ -311,7 +311,7 @@ data class FundMoveEntity(
     val monthKey: String? = null,
 )
 
-/** Cached exchange rate: [perBaseMicro] units of this currency per 1 unit of the base currency, times 1,000,000. */
+/** Cached exchange rate: how many units of the main currency 1 unit of [code] is worth, times 1,000,000 (see core Rates). */
 @Serializable
 @Entity(tableName = "rates")
 data class RateEntity(

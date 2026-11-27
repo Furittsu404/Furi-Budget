@@ -39,7 +39,16 @@ data class Currency(val code: String, val symbol: String, val decimals: Int) {
         val EUR = Currency("EUR", "€", 2)
         val GBP = Currency("GBP", "£", 2)
         val JPY = Currency("JPY", "¥", 0)
-        val all = listOf(PHP, USD, EUR, GBP, JPY, Currency("AUD", "A$", 2), Currency("CAD", "C$", 2), Currency("SGD", "S$", 2), Currency("INR", "₹", 2), Currency("KRW", "₩", 0))
+        val all = listOf(
+            PHP, USD, EUR, GBP, JPY,
+            Currency("AUD", "A$", 2), Currency("CAD", "C$", 2), Currency("SGD", "S$", 2), Currency("INR", "₹", 2), Currency("KRW", "₩", 0),
+            Currency("CNY", "¥", 2), Currency("HKD", "HK$", 2), Currency("TWD", "NT$", 2), Currency("THB", "฿", 2), Currency("MYR", "RM", 2),
+            Currency("IDR", "Rp", 2), Currency("VND", "₫", 0), Currency("NZD", "NZ$", 2), Currency("CHF", "CHF", 2), Currency("SEK", "kr", 2),
+            Currency("NOK", "kr", 2), Currency("DKK", "kr", 2), Currency("AED", "AED", 2), Currency("SAR", "SAR", 2), Currency("QAR", "QAR", 2),
+            Currency("KWD", "KWD", 3), Currency("ILS", "₪", 2), Currency("TRY", "₺", 2), Currency("BRL", "R$", 2), Currency("MXN", "MX$", 2),
+            Currency("ZAR", "R", 2), Currency("PLN", "zł", 2), Currency("CZK", "Kč", 2), Currency("HUF", "Ft", 2), Currency("EGP", "E£", 2),
+            Currency("PKR", "Rs", 2), Currency("BDT", "৳", 2),
+        )
 
         fun byCode(code: String) = all.firstOrNull { it.code == code } ?: PHP
     }
